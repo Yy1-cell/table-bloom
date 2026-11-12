@@ -143,7 +143,7 @@ export function openCreate({ onClose } = {}) {
   }
   function summary() {
     const c = state.cuisines.find((x) => x.slug === d.cuisine);
-    return `<strong>${esc(d.title || (c ? `${c.emoji} ${nameOf(c)}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + d.join_mode))}`;
+    return `<strong>${esc(d.title || (c ? `${c.emoji} ${nameOf(c)}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
   }
 
   function stopSuggest() {
