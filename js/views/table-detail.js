@@ -504,7 +504,16 @@ export async function openTable(id, { onClose } = {}) {
     draw();
     if (venueChanged && tb.my_status !== "host" && tb.venue?.name) toast(t("td.venueChanged", { name: tb.venue.name }));
   }
-  const timer = setInterval(() => (sheet.closed ? clearInterval(timer) : refreshQuietly()), 10000);
+  const offLive = api.onLive?.((p) => {
+    if (sheet.closed) offLive?.();
+    else if (!p.table || p.table === id) refreshQuietly();
+  });
+  const timer = setInterval(() => {
+    if (sheet.closed) {
+      clearInterval(timer);
+      offLive?.();
+    } else refreshQuietly();
+  }, 10000);
   const onVisible = () => {
     if (sheet.closed) document.removeEventListener("visibilitychange", onVisible);
     else if (document.visibilityState === "visible") refreshQuietly();

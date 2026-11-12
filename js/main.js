@@ -124,7 +124,45 @@ async function showBase(name, { force = false } = {}) {
 
 function backToBase() {
   history.replaceState(null, "", `#${state.baseView}`);
+  if (staleBase) {
+    staleBase = false;
+    showBase(current, { force: true });
+  }
 }
+
+// Keep the lists in step with what other people do (join, leave, change the venue, cancel).
+// Re-renders only when the data really changed, and never while a sheet is open.
+let staleBase = false;
+const sameData = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+async function syncBase() {
+  if (!state.session || document.visibilityState !== "visible") return;
+  if (staleBase && !hasSheet()) {
+    staleBase = false;
+    if (BASE.includes(current)) return showBase(current, { force: true });
+  }
+  try {
+    if (current === "mine") {
+      const before = state.myTables;
+      await refreshBadges();
+      if (sameData(before, state.myTables)) return;
+    } else if (current === "discover") {
+      const fresh = await api().listTables({ areaId: state.filters.areaId });
+      await refreshBadges();
+      if (sameData(fresh, state.tables)) return;
+    } else {
+      return refreshBadges();
+    }
+  } catch {
+    return;
+  }
+  if (hasSheet()) staleBase = true;
+  else showBase(current, { force: true });
+}
+let syncTimer = null;
+const syncSoon = () => {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncBase, 400);
+};
 
 async function doRoute() {
   // Plain-name hashes (#discover, #t-<id>) so links also work where only "#name" is allowed.
@@ -240,8 +278,9 @@ async function boot() {
     e.preventDefault();
     state.installEvent = e;
   });
-  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refreshBadges());
-  setInterval(() => document.visibilityState === "visible" && state.session && refreshBadges(), 15000);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && syncBase());
+  setInterval(() => document.visibilityState === "visible" && state.session && syncBase(), 15000);
+  api().onLive?.(syncSoon);
 
   api().onAuthChange((s) => {
     if ((s?.userId || null) !== (state.session?.userId || null)) onSession(s);

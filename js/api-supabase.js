@@ -24,6 +24,29 @@ export async function createApi(cfg) {
   const toSession = (s) => (s?.user ? { userId: s.user.id, email: s.user.email || "", guest: !s.user.email } : null);
   let current = null;
 
+  // Live sync without touching the database: after changing something, a client pings a shared Broadcast
+  // channel; every other open app then re-reads through the normal RPCs (which enforce permissions).
+  // The ping carries only a table id, never data. If Realtime is unavailable the app still polls.
+  const liveListeners = new Set();
+  let liveCh = null;
+  const liveStart = () => {
+    if (liveCh) return;
+    try {
+      liveCh = sb
+        .channel("tb-live", { config: { broadcast: { self: false } } })
+        .on("broadcast", { event: "changed" }, ({ payload }) => liveListeners.forEach((fn) => { try { fn(payload || {}); } catch { /* ignore */ } }))
+        .subscribe();
+    } catch { liveCh = null; }
+  };
+  const ping = (table) => {
+    try { liveCh?.send({ type: "broadcast", event: "changed", payload: { table: table || null } }); } catch { /* ignore */ }
+  };
+  const changed = async (id, promise) => {
+    const r = await promise;
+    ping(id ?? r?.id);
+    return r;
+  };
+
   const uid = () => {
     if (!current) throw new ApiError("not_authenticated");
     return current.userId;
@@ -31,6 +54,13 @@ export async function createApi(cfg) {
 
   return {
     mode: "supabase",
+
+    /** Subscribe to "something changed" pings from other people. Returns an unsubscribe function. */
+    onLive(cb) {
+      liveStart();
+      liveListeners.add(cb);
+      return () => liveListeners.delete(cb);
+    },
 
     // ---------------------------------------------------------- auth
     async init() {
@@ -119,42 +149,42 @@ export async function createApi(cfg) {
       return rpc("get_table", { p_id: id });
     },
     createTable(p) {
-      return rpc("create_table", { p });
+      return changed(null, rpc("create_table", { p }));
     },
     requestJoin(id, o = {}) {
-      return rpc("request_join", {
+      return changed(id, rpc("request_join", {
         p_table: id,
         p_start_label: o.start_label || null,
         p_start_lat: o.start_lat ?? null,
         p_start_lng: o.start_lng ?? null,
         p_intention: o.intention || null,
         p_pace: o.pace || null,
-      });
+      }));
     },
     async updateMembership(id, o = {}) {
-      await rpc("update_membership", {
+      await changed(id, rpc("update_membership", {
         p_table: id,
         p_start_label: o.start_label || null,
         p_start_lat: o.start_lat ?? null,
         p_start_lng: o.start_lng ?? null,
         p_intention: o.intention || null,
         p_pace: o.pace || null,
-      });
+      }));
     },
     async leaveTable(id) {
-      await rpc("leave_table", { p_table: id });
+      await changed(id, rpc("leave_table", { p_table: id }));
     },
     async respondJoin(id, userId, accept) {
-      await rpc("respond_join", { p_table: id, p_user: userId, p_accept: !!accept });
+      await changed(id, rpc("respond_join", { p_table: id, p_user: userId, p_accept: !!accept }));
     },
     async removeMember(id, userId) {
-      await rpc("remove_member", { p_table: id, p_user: userId });
+      await changed(id, rpc("remove_member", { p_table: id, p_user: userId }));
     },
     async cancelTable(id) {
-      await rpc("cancel_table", { p_table: id });
+      await changed(id, rpc("cancel_table", { p_table: id }));
     },
     async setVenue(id, venue) {
-      await rpc("set_venue", { p_table: id, p_venue: venue });
+      await changed(id, rpc("set_venue", { p_table: id, p_venue: venue }));
     },
     async markNoShow(id, userId) {
       await rpc("mark_no_show", { p_table: id, p_user: userId });
