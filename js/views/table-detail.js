@@ -480,6 +480,36 @@ export async function openTable(id, { onClose } = {}) {
   });
 
   await reload();
+
+  // Keep an open sheet fresh: the host can change the venue, or guests can join, while someone is looking at it.
+  const signature = (x) => JSON.stringify([
+    x.venue?.id, x.venue?.name, x.area_label, x.status, x.seats_taken, x.my_status, x.starts_at, x.capacity,
+    (x.members || []).map((m) => [m.user_id, m.status, m.start_lat, m.start_lng]),
+  ]);
+  async function refreshQuietly() {
+    if (sheet.closed || !tb || uploading || document.visibilityState !== "visible") return;
+    let fresh;
+    try {
+      fresh = await api.getTable(id);
+    } catch {
+      return;
+    }
+    if (sheet.closed || signature(fresh) === signature(tb)) return;
+    // Never wipe something the person is typing or choosing; try again on the next tick.
+    const el = document.activeElement;
+    const typing = sheet.body.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName) && el.value;
+    if (typing || startPick || venuePick) return;
+    const venueChanged = (fresh.venue?.id || null) !== (tb.venue?.id || null);
+    tb = fresh;
+    draw();
+    if (venueChanged && tb.my_status !== "host" && tb.venue?.name) toast(t("td.venueChanged", { name: tb.venue.name }));
+  }
+  const timer = setInterval(() => (sheet.closed ? clearInterval(timer) : refreshQuietly()), 10000);
+  const onVisible = () => {
+    if (sheet.closed) document.removeEventListener("visibilitychange", onVisible);
+    else if (document.visibilityState === "visible") refreshQuietly();
+  };
+  document.addEventListener("visibilitychange", onVisible);
   return sheet;
 }
 
