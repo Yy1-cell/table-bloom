@@ -318,3 +318,8 @@ details.more[open] summary { margin-bottom: 12px; }
 
 .auth-or { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: var(--muted, #7a7266); font-size: 13px; }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line, #e7ddd0); }
+
+/* Host flow: restaurant suggestions */
+.section-lite { margin: 14px 0; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.section-lite h3 { margin: 0 0 4px; font-size: 18px; }
+.suggest li.chosen { background: var(--green-50); border-radius: var(--radius-sm); padding-left: 8px; padding-right: 8px; }

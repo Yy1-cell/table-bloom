@@ -1,11 +1,12 @@
 // "Host a table" — 3-step wizard in a sheet.
-import { esc, qs, qsa, todayStr, toISO, pad } from "../util.js";
+import { esc, qs, qsa, todayStr, toISO, pad, midpoint, haversineKm, mapsUrl } from "../util.js";
 import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
 import { AUDIENCES, TAGS, INTENTIONS, PACES } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
+import { restaurantsNear, currentPosition } from "../geo.js";
 
 export function openCreate({ onClose } = {}) {
   const d = {
@@ -24,8 +25,17 @@ export function openCreate({ onClose } = {}) {
     note: "",
     intention: "",
     pace: "",
+    // Only used to suggest restaurants. Never sent to the server.
+    startMe: null,
+    startFriend: null,
+    friendCuisine: "",
   };
   let step = 1;
+  let sug = null; // null | "loading" | "error" | "need-starts" | { list, mode }
+  let sugSeq = 0;
+  let sugCtl = null;
+  let sugTimer = null;
+  const isFriends = () => d.audience === "friends";
   const sheet = openSheet({ label: t("cr.label"), className: "sheet-create", html: "", onClose });
   const areaCenter = () => {
     const a = state.areas.find((x) => x.id === d.area_id);
@@ -56,8 +66,30 @@ export function openCreate({ onClose } = {}) {
           ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
         </div></fieldset>`;
     } else if (step === 2) {
-      const ps = placeSearchHTML({ label: t("cr.place"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
-      draw._ps = ps.id;
+      const ids = (draw._ids = {});
+      const mk = (key, label, placeholder, hint) => {
+        const ps = placeSearchHTML({ label, placeholder, hint });
+        ids[key] = ps.id;
+        return ps.html;
+      };
+      const cuisineChips = (attr, current) =>
+        `<div class="chips" data-chips="${attr}">${state.cuisines.map((c) => `<button type="button" class="chip" data-${attr}="${c.slug}" aria-pressed="${current === c.slug}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`).join("")}</div>`;
+      const startBlock = isFriends()
+        ? `<div class="section-lite">
+            <h3>${esc(t("cr.pairTitle"))}</h3>
+            <p class="hint">${esc(t("cr.pairHint"))}</p>
+            ${mk("me", t("cr.startMe"), t("cr.startPh"), t("cr.startHint"))}
+            <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
+            <fieldset><legend>${esc(t("cr.myCraving"))}</legend>${cuisineChips("cuisine", d.cuisine)}</fieldset>
+            ${mk("friend", t("cr.startFriend"), t("cr.startPh"), t("cr.startHint"))}
+            <fieldset><legend>${esc(t("cr.friendCraving"))}</legend>${cuisineChips("fcuisine", d.friendCuisine || d.cuisine)}</fieldset>
+          </div>`
+        : `<div class="section-lite">
+            ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
+            <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
+          </div>`;
+      const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
+      ids.venue = ps.id;
       body = `
         <h2>${esc(t("cr.s2"))}</h2>
         <div class="row wrap-row" style="align-items:flex-start">
@@ -65,6 +97,13 @@ export function openCreate({ onClose } = {}) {
           <div class="field" style="flex:1;min-width:120px" id="f-time"><label for="c-time">${esc(t("cr.time"))}</label><input id="c-time" type="time" value="${esc(d.time)}"></div>
         </div>
         <div class="field"><label for="c-area">${esc(t("cr.area"))}</label><select id="c-area">${state.areas.map((a) => `<option value="${a.id}" ${d.area_id === a.id ? "selected" : ""}>${esc(nameOf(a))}</option>`).join("")}</select></div>
+        ${startBlock}
+        <div class="section-lite" id="c-sug-wrap">
+          <h3>${esc(t("cr.sugTitle"))}</h3>
+          <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
+          <ul class="suggest" id="c-sug" aria-live="polite"></ul>
+          <div class="row wrap-row"><button type="button" class="btn sm ghost" data-sug-refresh>${esc(t("cr.sugRefresh"))}</button></div>
+        </div>
         ${ps.html}
         <div id="c-maplink">${d.place ? mapActionsHTML(d.place, { hint: false }) : ""}</div>
         <div class="field" id="f-label"><label for="c-label">${esc(t("cr.orArea"))}</label><input id="c-label" type="text" maxlength="120" value="${esc(d.area_label)}" placeholder="${esc(t("cr.orAreaPh"))}"></div>
@@ -102,6 +141,12 @@ export function openCreate({ onClose } = {}) {
     return `<strong>${esc(d.title || (c ? `${c.emoji} ${nameOf(c)}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + d.join_mode))}`;
   }
 
+  function stopSuggest() {
+    clearTimeout(sugTimer);
+    sugCtl?.abort();
+    sugSeq++;
+  }
+
   function readStep() {
     if (step === 1) {
       d.title = qs("#c-title", sheet.body).value.trim();
@@ -116,6 +161,124 @@ export function openCreate({ onClose } = {}) {
       d.intention = qs("#c-int", sheet.body).value;
       d.pace = qs("#c-pace", sheet.body).value;
     }
+  }
+
+  // ---- restaurant suggestions (step 2)
+  const AREA_FALLBACK = { lat: 43.6532, lng: -79.3832 };
+  const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
+
+  function suggestOrigin() {
+    if (isFriends()) {
+      if (!d.startMe || !d.startFriend) return null;
+      return { center: midpoint([d.startMe, d.startFriend]), mode: "middle" };
+    }
+    if (d.startMe) return { center: { lat: d.startMe.lat, lng: d.startMe.lng }, mode: "me" };
+    return { center: areaCenter() || AREA_FALLBACK, mode: "area" };
+  }
+
+  function scheduleSuggest() {
+    clearTimeout(sugTimer);
+    sugTimer = setTimeout(loadSuggest, 250);
+  }
+
+  async function loadSuggest() {
+    if (step !== 2) return;
+    clearTimeout(sugTimer);
+    sugCtl?.abort();
+    const origin = suggestOrigin();
+    if (!origin) {
+      sug = "need-starts";
+      return renderSuggest();
+    }
+    const seq = ++sugSeq;
+    sugCtl = new AbortController();
+    sug = "loading";
+    renderSuggest();
+    try {
+      const wanted = isFriends() ? [...new Set([d.cuisine, d.friendCuisine || d.cuisine])] : [d.cuisine];
+      const spread = isFriends() ? haversineKm(d.startMe, d.startFriend) : 0;
+      const radius = isFriends() ? Math.min(4000, Math.max(1500, (spread / 2) * 1000 + 800)) : 2200;
+      // Few matches near the middle? Widen the search a couple of times before giving up.
+      const nearby = async (c) => {
+        let list = [];
+        for (const r of [radius, radius * 1.8, radius * 3]) {
+          list = await restaurantsNear(origin.center, c, { radius: r, signal: sugCtl.signal });
+          if (list.length >= 4) break;
+        }
+        return list;
+      };
+      const lists = await Promise.all(wanted.map(nearby));
+      if (seq !== sugSeq) return;
+      const rank = (r) => {
+        if (origin.mode !== "middle") return r.distKm;
+        r.dMe = haversineKm(d.startMe, r);
+        r.dFriend = haversineKm(d.startFriend, r);
+        // Penalise both a long trip and an unfair one.
+        return Math.max(r.dMe, r.dFriend) + Math.abs(r.dMe - r.dFriend);
+      };
+      const ranked = lists.map((list, i) =>
+        list
+          .map((r) => {
+            const x = { ...r, forCuisine: wanted[i] };
+            x.score = rank(x);
+            return x;
+          })
+          .sort((a, b) => a.score - b.score));
+      // Interleave so both people's cravings show up.
+      const out = [];
+      const seen = new Set();
+      for (let i = 0; out.length < 8 && ranked.some((l) => i < l.length); i++) {
+        for (const l of ranked) {
+          const r = l[i];
+          if (!r) continue;
+          const key = r.poi_id || `${r.name}|${r.lat}|${r.lng}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push(r);
+        }
+      }
+      sug = { list: out.slice(0, 8), mode: origin.mode, wanted };
+    } catch (e) {
+      if (seq !== sugSeq || e?.name === "AbortError") return;
+      sug = "error";
+    }
+    renderSuggest();
+  }
+
+  function renderSuggest() {
+    if (step !== 2 || sheet.closed) return;
+    const list = qs("#c-sug", sheet.body);
+    const hint = qs("#c-sug-hint", sheet.body);
+    if (!list || !hint) return;
+    const origin = suggestOrigin();
+    const areaName = nameOf(state.areas.find((a) => a.id === d.area_id)) || "";
+    if (sug === "need-starts") {
+      hint.textContent = t("cr.needStarts");
+      list.innerHTML = "";
+      return;
+    }
+    hint.textContent = origin?.mode === "middle" ? t("cr.sugMiddle") : origin?.mode === "me" ? t("cr.sugNearMe") : t("cr.sugNearArea", { area: areaName });
+    if (sug === "loading") {
+      list.innerHTML = `<li>${esc(t("ps.searching"))}</li>`;
+      return;
+    }
+    if (sug === "error" || !sug?.list?.length) {
+      list.innerHTML = `<li>${esc(t(sug === "error" ? "td.suggestError" : "td.suggestNone"))}</li>`;
+      return;
+    }
+    const multi = sug.wanted.length > 1;
+    list.innerHTML = sug.list
+      .map((r, i) => {
+        const chosen = d.place && d.place.lat === r.lat && d.place.lng === r.lng && d.place.name === r.name;
+        const dist = sug.mode === "middle"
+          ? t("cr.fromBoth", { a: km(r.dMe), b: km(r.dFriend) })
+          : t(sug.mode === "me" ? "cr.fromYou" : "cr.fromArea", { km: km(r.distKm) });
+        const tag = multi ? `${state.cuisines.find((c) => c.slug === r.forCuisine)?.emoji || ""} ` : "";
+        return `<li${chosen ? ' class="chosen"' : ""}><span class="who"><strong>${esc(tag + r.name)}</strong><small>${esc(r.address || "")} · ${esc(dist)}</small></span>
+          <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
+          <button type="button" class="btn sm ${chosen ? "primary" : ""}" data-use="${i}" aria-pressed="${chosen}">${esc(chosen ? t("cr.picked") : t("td.useVenue"))}</button></li>`;
+      })
+      .join("");
   }
 
   function validate() {
@@ -155,19 +318,78 @@ export function openCreate({ onClose } = {}) {
         })
       );
     } else if (step === 2) {
+      const ids = draw._ids;
+      const near = areaCenter();
       bindPlaceSearch(b, {
-        id: draw._ps,
-        near: areaCenter(),
+        id: ids.me, near,
+        onSelect: (p) => { d.startMe = p; scheduleSuggest(); },
+        onClear: () => { d.startMe = null; scheduleSuggest(); },
+      });
+      if (ids.friend) {
+        bindPlaceSearch(b, {
+          id: ids.friend, near,
+          onSelect: (p) => { d.startFriend = p; scheduleSuggest(); },
+          onClear: () => { d.startFriend = null; scheduleSuggest(); },
+        });
+      }
+      bindPlaceSearch(b, {
+        id: ids.venue, near,
         onSelect: (p) => {
           d.place = p;
           qs("#c-maplink", b).innerHTML = mapActionsHTML(p, { hint: false });
+          renderSuggest();
         },
         onClear: () => {
           d.place = null;
           qs("#c-maplink", b).innerHTML = "";
+          renderSuggest();
         },
       });
-      qs("#c-area", b).addEventListener("change", (e) => (d.area_id = e.target.value));
+      qs("#c-area", b).addEventListener("change", (e) => {
+        d.area_id = e.target.value;
+        scheduleSuggest();
+      });
+      qs("[data-locate]", b)?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+          const pos = await currentPosition();
+          d.startMe = { name: t("cr.myLocation"), address: "", lat: pos.lat, lng: pos.lng, poi_id: null };
+          const input = qs(`#${ids.me}`, b);
+          if (input) input.value = t("cr.myLocation");
+          scheduleSuggest();
+        } catch {
+          toast(t("cr.locDenied"));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      qs("[data-chips]", b)?.closest("fieldset")?.addEventListener("click", (e) => {
+        const c = e.target.closest("[data-cuisine]");
+        if (!c) return;
+        d.cuisine = d.cuisine === c.dataset.cuisine ? "" : c.dataset.cuisine;
+        qsa("[data-cuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.cuisine === d.cuisine)));
+        scheduleSuggest();
+      });
+      qs('[data-chips="fcuisine"]', b)?.addEventListener("click", (e) => {
+        const c = e.target.closest("[data-fcuisine]");
+        if (!c) return;
+        d.friendCuisine = c.dataset.fcuisine;
+        qsa("[data-fcuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.fcuisine === d.friendCuisine)));
+        scheduleSuggest();
+      });
+      qs("[data-sug-refresh]", b).addEventListener("click", () => loadSuggest());
+      qs("#c-sug", b).addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-use]");
+        if (!btn || !sug?.list) return;
+        const r = sug.list[Number(btn.dataset.use)];
+        if (!r) return;
+        d.place = { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id || null };
+        qs("#c-maplink", b).innerHTML = mapActionsHTML(d.place, { hint: false });
+        qs("#c-err", b).textContent = "";
+        renderSuggest();
+      });
+      loadSuggest();
     } else {
       qs("#c-note", b).addEventListener("input", (e) => (qs("#c-note-n", b).textContent = e.target.value.length));
       qs("#c-tags", b).addEventListener("click", (e) => {
@@ -179,6 +401,7 @@ export function openCreate({ onClose } = {}) {
     }
     qs("[data-back]", b)?.addEventListener("click", () => {
       readStep();
+      stopSuggest();
       step--;
       draw();
     });
@@ -186,6 +409,7 @@ export function openCreate({ onClose } = {}) {
       readStep();
       if (!validate()) return;
       if (step < 3) {
+        stopSuggest();
         step++;
         return draw();
       }
