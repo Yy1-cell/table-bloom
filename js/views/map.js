@@ -141,7 +141,8 @@ export async function render(root) {
       announce(t("map.found", { n: list.length }));
     } catch (e) {
       if (e?.name === "AbortError") return;
-      box.innerHTML = `<p class="muted">${esc(t("map.loadError"))}</p>`;
+      box.innerHTML = `<p class="muted">${esc(t("map.loadError"))}</p><button type="button" class="btn sm" id="rest-retry">${esc(t("map.retry"))}</button>`;
+      qs("#rest-retry", root)?.addEventListener("click", loadRestaurants);
     }
   }
 

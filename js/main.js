@@ -127,6 +127,8 @@ async function doRoute() {
   }
   if (!state.me) await loadMe();
   if (!state.me.onboarded_at && name !== "profile") {
+    // A friend opening a shared table link for the first time must fill in their profile first; remember the link for afterwards.
+    if (name === "t" && arg) sessionStorage.setItem("tb.after", location.hash);
     history.replaceState(null, "", "#profile");
     return doRoute();
   }

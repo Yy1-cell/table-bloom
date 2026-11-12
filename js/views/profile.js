@@ -207,7 +207,11 @@ export async function render(root) {
       });
       if (lang !== getLang()) setLang(lang);
       toast(t("pf.saved"));
-      if (onboarding) go("#discover");
+      if (onboarding) {
+        const after = sessionStorage.getItem("tb.after");
+        sessionStorage.removeItem("tb.after");
+        go(after || "#discover");
+      }
       else draw();
     } catch (err) {
       showError(err);

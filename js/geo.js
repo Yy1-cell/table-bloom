@@ -10,7 +10,14 @@ import { haversineKm } from "./util.js";
 import { getLang } from "./i18n.js";
 
 const PHOTON = "https://photon.komoot.io/api/";
-const OVERPASS = "https://overpass-api.de/api/interpreter";
+const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
+const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+// Public Overpass servers are often overloaded or rate-limited; we race several of them and use the first good answer.
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
 // Greater Toronto Area bounding box: minLon,minLat,maxLon,maxLat
 const GTA_BBOX = "-80.2,43.4,-78.9,44.1";
 
@@ -35,51 +42,100 @@ function withTimeout(ms, outerSignal) {
   return { signal: ctl.signal, done: () => clearTimeout(timer) };
 }
 
+/** GET JSON with its own timeout. Rejects on network errors, timeouts and non-2xx answers. */
+async function getJson(url, { ms = 8000, signal } = {}) {
+  const t = withTimeout(ms, signal);
+  try {
+    const res = await fetch(url, { signal: t.signal });
+    if (!res.ok) throw new Error("http_" + res.status);
+    return await res.json();
+  } finally {
+    t.done();
+  }
+}
+
 function formatAddress(p) {
   const street = [p.housenumber, p.street].filter(Boolean).join(" ");
   return [street, p.district || p.locality, p.city, p.state].filter(Boolean).join(", ");
 }
 
-/** Search a place or address near the GTA. Throws on network errors so the UI can show landmarks instead. */
+function photonToPlaces(data) {
+  const seen = new Set();
+  return (data.features || [])
+    .map((f) => {
+      const p = f.properties || {};
+      const [lng, lat] = f.geometry?.coordinates || [];
+      const name = p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || p.city || "";
+      return { name, address: formatAddress(p), lat, lng, poi_id: p.osm_id ? `${p.osm_type || "N"}${p.osm_id}` : null };
+    })
+    .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng))
+    .filter((r) => {
+      const key = `${r.name}|${r.address}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+async function nominatimSearch(q, near, signal) {
+  const params = new URLSearchParams({ q, format: "jsonv2", limit: "7", addressdetails: "1", viewbox: GTA_BBOX, bounded: "0" });
+  params.set("accept-language", getLang() === "zh" ? "zh,en" : "en");
+  const data = await getJson(`${NOMINATIM}?${params}`, { ms: 8000, signal });
+  return data
+    .map((r) => {
+      const a = r.address || {};
+      const street = [a.house_number, a.road].filter(Boolean).join(" ");
+      return {
+        name: r.name || r.display_name?.split(",")[0] || "",
+        address: [street, a.suburb || a.neighbourhood, a.city || a.town, a.state].filter(Boolean).join(", "),
+        lat: Number(r.lat),
+        lng: Number(r.lon),
+        poi_id: r.osm_id ? `${(r.osm_type || "node")[0].toUpperCase()}${r.osm_id}` : null,
+      };
+    })
+    .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng))
+    .filter((r) => !near || haversineKm(near, r) < 120);
+}
+
+/** Search a place, restaurant or address near the GTA. Tries Photon (inside the GTA, then biased to `near`), then Nominatim.
+ *  Throws only when every service failed, so the UI can show landmarks instead. */
 export async function searchPlaces(query, { near, signal } = {}) {
   const q = query.trim();
   if (q.length < 2) return [];
-  // Photon only translates names into en/de/fr/it. For Chinese we ask for the local names (English in Toronto).
-  const params = new URLSearchParams({ q, limit: "7", bbox: GTA_BBOX });
-  if (getLang() !== "zh") params.set("lang", "en");
-  if (near) {
-    params.set("lat", String(near.lat));
-    params.set("lon", String(near.lng));
+  const center = near || window.TB_CONFIG?.DEFAULT_CENTER || { lat: 43.6532, lng: -79.3832 };
+  const base = () => {
+    const p = new URLSearchParams({ q, limit: "8", lat: String(center.lat), lon: String(center.lng) });
+    // Photon only translates names into en/de/fr/it. For Chinese we ask for the local names (English in Toronto).
+    if (getLang() !== "zh") p.set("lang", "en");
+    return p;
+  };
+  let failed = 0;
+  const attempts = [
+    async () => {
+      const p = base();
+      p.set("bbox", GTA_BBOX);
+      return photonToPlaces(await getJson(`${PHOTON}?${p}`, { signal }));
+    },
+    async () => {
+      // No bounding box: a restaurant just outside the box, or a name Photon ranks lower, can still be found by location bias.
+      const p = base();
+      p.set("limit", "12");
+      return photonToPlaces(await getJson(`${PHOTON}?${p}`, { signal })).filter((r) => haversineKm(center, r) < 120);
+    },
+    () => nominatimSearch(q, center, signal),
+  ];
+  for (const run of attempts) {
+    if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    try {
+      const found = await run();
+      if (found.length) return found;
+    } catch (e) {
+      if (e?.name === "AbortError" && signal?.aborted) throw e;
+      failed++;
+    }
   }
-  const t = withTimeout(9000, signal);
-  try {
-    const res = await fetch(`${PHOTON}?${params}`, { signal: t.signal });
-    if (!res.ok) throw new Error("search_" + res.status);
-    const data = await res.json();
-    const seen = new Set();
-    return (data.features || [])
-      .map((f) => {
-        const p = f.properties || {};
-        const [lng, lat] = f.geometry?.coordinates || [];
-        const name = p.name || [p.housenumber, p.street].filter(Boolean).join(" ") || p.city || "";
-        return {
-          name,
-          address: formatAddress(p),
-          lat,
-          lng,
-          poi_id: p.osm_id ? `${p.osm_type || "N"}${p.osm_id}` : null,
-        };
-      })
-      .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng))
-      .filter((r) => {
-        const key = `${r.name}|${r.address}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-  } finally {
-    t.done();
-  }
+  if (failed === attempts.length) throw new Error("search_unavailable");
+  return [];
 }
 
 /** Offline-friendly fallback: filter the built-in landmark list. */
@@ -102,40 +158,75 @@ const CUISINE_FILTERS = {
   cafe: ["[amenity=cafe]"],
 };
 
-/** Real restaurants near a point (e.g. the midpoint of the group), nearest first. */
-export async function restaurantsNear(center, cuisineSlug, { radius = 1800, signal } = {}) {
+function shapeRestaurant(center, { name, address, lat, lng, poi_id, cuisine }) {
+  return { name, address: address || "", lat, lng, poi_id, cuisine: cuisine || "", distKm: Number.isFinite(lat) ? haversineKm(center, { lat, lng }) : null };
+}
+
+function dedupeNearest(list, center) {
+  const seen = new Set();
+  return list
+    .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng))
+    .filter((r) => (seen.has(r.name) ? false : (seen.add(r.name), true)))
+    .sort((a, b) => a.distKm - b.distKm)
+    .slice(0, 10);
+}
+
+async function overpassRestaurants(center, cuisineSlug, radius, signal) {
   const filters = CUISINE_FILTERS[cuisineSlug] || ['[amenity~"restaurant|cafe"]'];
   const body = filters.map((f) => `nwr(around:${radius},${center.lat},${center.lng})${f}[name];`).join("");
   const query = `[out:json][timeout:12];(${body});out center 40;`;
-  const t = withTimeout(14000, signal);
+  const ctl = new AbortController();
+  signal?.addEventListener("abort", () => ctl.abort(), { once: true });
   try {
-    const res = await fetch(`${OVERPASS}?data=${encodeURIComponent(query)}`, { signal: t.signal });
-    if (!res.ok) throw new Error("overpass_" + res.status);
-    const data = await res.json();
-    const seen = new Set();
-    return (data.elements || [])
-      .map((e) => {
-        const tags = e.tags || {};
-        const lat = e.lat ?? e.center?.lat;
-        const lng = e.lon ?? e.center?.lon;
-        const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
-        return {
-          name: (getLang() === "zh" ? tags["name:zh"] || tags["name:zh-Hans"] || tags.name : tags["name:en"] || tags.name),
-          address: [street, tags["addr:city"]].filter(Boolean).join(", "),
-          lat,
-          lng,
-          poi_id: `${e.type?.[0]?.toUpperCase() || "N"}${e.id}`,
-          cuisine: tags.cuisine || "",
-          distKm: Number.isFinite(lat) ? haversineKm(center, { lat, lng }) : null,
-        };
-      })
-      .filter((r) => r.name && Number.isFinite(r.lat))
-      .filter((r) => (seen.has(r.name) ? false : (seen.add(r.name), true)))
-      .sort((a, b) => a.distKm - b.distKm)
-      .slice(0, 10);
+    // Race the mirrors: first successful answer wins, the rest are cancelled.
+    const data = await Promise.any(OVERPASS_MIRRORS.map((u) => getJson(`${u}?data=${encodeURIComponent(query)}`, { ms: 14000, signal: ctl.signal })));
+    return (data.elements || []).map((e) => {
+      const tags = e.tags || {};
+      const street = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" ");
+      return shapeRestaurant(center, {
+        name: getLang() === "zh" ? tags["name:zh"] || tags["name:zh-Hans"] || tags.name : tags["name:en"] || tags.name,
+        address: [street, tags["addr:city"]].filter(Boolean).join(", "),
+        lat: e.lat ?? e.center?.lat,
+        lng: e.lon ?? e.center?.lon,
+        poi_id: `${e.type?.[0]?.toUpperCase() || "N"}${e.id}`,
+        cuisine: tags.cuisine,
+      });
+    });
+  } catch (e) {
+    if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    throw e;
   } finally {
-    t.done();
+    ctl.abort();
   }
+}
+
+/** Backup when Overpass is down: Photon's "reverse" endpoint lists nearby places with an OSM tag filter. */
+async function photonRestaurants(center, cuisineSlug, radiusKm, signal) {
+  const tag = cuisineSlug === "cafe" ? "amenity:cafe" : "amenity:restaurant";
+  const p = new URLSearchParams({ lat: String(center.lat), lon: String(center.lng), radius: String(radiusKm), limit: "30", distance_sort: "true", osm_tag: tag });
+  if (getLang() !== "zh") p.set("lang", "en");
+  const data = await getJson(`${PHOTON_REVERSE}?${p}`, { ms: 9000, signal });
+  return (data.features || []).map((f) => {
+    const pr = f.properties || {};
+    const [lng, lat] = f.geometry?.coordinates || [];
+    return shapeRestaurant(center, { name: pr.name, address: formatAddress(pr), lat, lng, poi_id: pr.osm_id ? `${pr.osm_type || "N"}${pr.osm_id}` : null, cuisine: pr.osm_value === "cafe" ? "cafe" : "" });
+  });
+}
+
+/** Real restaurants near a point (e.g. the midpoint of the group), nearest first.
+ *  Overpass gives cuisine filtering; if every Overpass server fails we fall back to Photon (no cuisine filter).
+ *  Throws only if both fail. */
+export async function restaurantsNear(center, cuisineSlug, { radius = 1800, signal } = {}) {
+  try {
+    const list = dedupeNearest(await overpassRestaurants(center, cuisineSlug, radius, signal), center);
+    if (list.length) return list;
+    // Nothing in a small radius: widen once before giving up.
+    const wider = dedupeNearest(await overpassRestaurants(center, cuisineSlug, radius * 2, signal), center);
+    if (wider.length) return wider;
+  } catch (e) {
+    if (e?.name === "AbortError" || signal?.aborted) throw e;
+  }
+  return dedupeNearest(await photonRestaurants(center, cuisineSlug, radius / 1000 + 0.7, signal), center);
 }
 
 /** "granted" | "prompt" | "denied" | "unsupported". Never triggers the permission prompt. */

@@ -154,7 +154,7 @@ export async function openTable(id, { onClose } = {}) {
       const withStart = members.filter((m) => m.status === "joined" && m.start_lat != null);
       html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
-        <div class="row wrap-row"><button type="button" class="btn" data-act="suggest" ${withStart.length ? "" : "disabled"}>${esc(t("td.suggest"))}</button></div>
+        <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button></div>
         <ul class="suggest" id="suggest-list" aria-live="polite">${suggestions ? suggestHTML(suggestions) : ""}</ul>
         <div style="margin-top:12px">${(() => {
           const ps = placeSearchHTML({ label: t("td.setVenue"), placeholder: t("td.venuePlaceholder"), hint: t("td.venueHint") });
@@ -376,8 +376,12 @@ export async function openTable(id, { onClose } = {}) {
       }
       case "suggest": {
         const pts = (tb.members || []).filter((m) => m.status === "joined" && m.start_lat != null).map((m) => ({ lat: Number(m.start_lat), lng: Number(m.start_lng) }));
-        if (!pts.length) return;
-        const mid = midpoint(pts);
+        // No start points yet: fall back to the table's meeting area so the button always does something.
+        const mid = pts.length ? midpoint(pts) : tb.meet_lat != null ? { lat: Number(tb.meet_lat), lng: Number(tb.meet_lng) } : null;
+        if (!mid) {
+          toast(t("td.noStarts"), { kind: "error" });
+          return;
+        }
         suggestions = "loading";
         qs("#suggest-list", sheet.body).innerHTML = suggestHTML(suggestions);
         try {
@@ -403,21 +407,22 @@ export async function openTable(id, { onClose } = {}) {
       }
       case "share": {
         const url = `${location.origin}${location.pathname}#t-${tb.id}`;
-        try {
-          if (navigator.share) await navigator.share({ title: tableTitle(tb), text: t("td.shareText", { title: tableTitle(tb) }), url });
-          else {
-            await navigator.clipboard.writeText(url);
-            toast(t("td.copied"));
-          }
-        } catch (err) {
-          if (err?.name !== "AbortError") {
+        const title = tableTitle(tb);
+        // 1) clipboard (works on https in all modern browsers, and is what people expect: a link they can paste into WeChat etc.)
+        const copied = await copyText(url);
+        if (copied) {
+          toast(t("td.copied"));
+          // 2) on phones also offer the system share sheet, but never let it hide the fact that the link was copied.
+          if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
             try {
-              await navigator.clipboard.writeText(url);
-              toast(t("td.copied"));
+              await navigator.share({ title, text: t("td.shareText", { title }), url });
             } catch {
-              toast(url, { duration: 9000 });
+              /* cancelled: the link is already on the clipboard */
             }
           }
+        } else {
+          // 3) last resort (in-app browsers that block clipboard): show the link in a box that is easy to select and copy.
+          showLinkDialog(url);
         }
         break;
       }
@@ -494,4 +499,57 @@ export function askReport({ table_id, user_id, name }) {
     document.body.appendChild(el);
     qs("input", el).focus();
   });
+}
+
+
+/** Copy text to the clipboard. Falls back to the old execCommand route for in-app browsers. Resolves true on success. */
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* try the fallback below */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;font-size:16px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** A small dialog with the link pre-selected, for browsers where copying is blocked. */
+function showLinkDialog(url) {
+  const el = document.createElement("div");
+  el.className = "sheet-backdrop";
+  el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t("td.share"))}" style="max-width:420px;margin:auto;padding:20px">
+    <h3>🔗 ${esc(t("td.share"))}</h3>
+    <input type="text" readonly value="${esc(url)}" style="width:100%;font-size:16px;padding:10px" aria-label="${esc(t("td.share"))}">
+    <div class="row wrap-row" style="margin-top:12px"><button type="button" class="btn primary" data-copy>${esc(t("td.copyLink"))}</button><button type="button" class="btn" data-x>${esc(t("common.close"))}</button></div>
+  </div>`;
+  document.body.appendChild(el);
+  const input = el.querySelector("input");
+  const select = () => {
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, url.length);
+  };
+  select();
+  el.querySelector("[data-copy]").addEventListener("click", async () => {
+    select();
+    if (await copyText(url)) toast(t("td.copied"));
+  });
+  el.querySelector("[data-x]").addEventListener("click", () => el.remove());
+  el.addEventListener("click", (e) => e.target === el && el.remove());
 }
