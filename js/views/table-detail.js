@@ -1,11 +1,11 @@
 // Table detail sheet: facts, members, join / leave / cancel, host tools, midpoint suggestions, share, calendar, report.
-import { esc, personName, qs, resizeImage, fmtDateLong, fmtMoney, isPast, midpoint, haversineKm, mapsUrl, appleMapsUrl, isIOS, buildICS, downloadText } from "../util.js";
+import { esc, personName, qs, resizeImage, fmtDateLong, fmtMoney, isPast, midpoint, haversineKm, mapsUrl, googleEmbedUrl, appleMapsUrl, isIOS, buildICS, downloadText } from "../util.js";
 import { t } from "../i18n.js";
 import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
-import { restaurantsNear } from "../geo.js";
+import { restaurantsNear, groupSuggestions } from "../geo.js";
 import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML } from "./common.js";
 
@@ -27,6 +27,13 @@ export async function openTable(id, { onClose } = {}) {
     .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null)
     .map((m) => ({ lat: Number(m.start_lat), lng: Number(m.start_lng) }))
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  const startMembers = () => (tb.members || [])
+    .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null)
+    .map((m) => ({ name: personName(m.display_name), lat: Number(m.start_lat), lng: Number(m.start_lng) }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  const cravings = () => [...new Set((tb.members || []).filter((m) => m.status === "joined" && m.cuisine).map((m) => m.cuisine))];
+  let suggestNames = [];
+  let suggestKey = "";
   function restaurantCenter() {
     const points = startingPoints();
     if (points.length) return midpoint(points);
@@ -77,7 +84,7 @@ export async function openTable(id, { onClose } = {}) {
 
     const html = [];
     html.push(`
-      <div class="row wrap-row" style="margin-bottom:6px">${statusBadge(tb)} ${tb.join_mode === "instant" ? `<span class="badge">${esc(t("td.instant"))}</span>` : ""}</div>
+      <div class="row wrap-row" style="margin-bottom:6px">${statusBadge(tb)} ${tb.is_private ? `<span class="badge">🔒 ${esc(t("badge.private"))}</span>` : tb.join_mode === "instant" ? `<span class="badge">${esc(t("td.instant"))}</span>` : ""}</div>
       <h2>${esc(tableTitle(tb))}</h2>
       <div class="row" style="margin-bottom:6px"><span class="av lg" aria-hidden="true">${esc(tb.host?.avatar_emoji || "🍽️")}</span>
         <div><strong>${esc(t("card.hostedBy", { name: personName(tb.host?.display_name) }))}</strong>
@@ -125,13 +132,14 @@ export async function openTable(id, { onClose } = {}) {
       act.push(`
         <details class="more" ${canJoin ? "" : "open"}>
           <summary>${esc(label)}</summary>
-          <p class="hint" style="margin-top:0">${esc(t("td.privacy"))}</p>
+          <p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
           ${(() => {
             const ps = placeSearchHTML({ label: t("td.startPoint"), placeholder: t("td.startPlaceholder"), hint: t("td.startHint") });
             draw._psId = ps.id;
             return ps.html;
           })()}
           ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}
+          <div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${state.cuisines.map((cu) => `<option value="${cu.slug}" ${mine?.cuisine === cu.slug ? "selected" : ""}>${esc(cu.emoji)} ${esc(nameOf(cu))}</option>`).join("")}</select></div>
           <div class="field"><label for="d-int">${esc(t("td.intention"))}</label><select id="d-int">${selectOptions(INTENTIONS, "int.", mine?.intention)}</select></div>
           <div class="field" style="margin-bottom:0"><label for="d-pace">${esc(t("td.pace"))}</label><select id="d-pace">${selectOptions(PACES, "pace.", mine?.pace)}</select></div>
         </details>`);
@@ -147,6 +155,18 @@ export async function openTable(id, { onClose } = {}) {
     if (me === "joined" && !ended) act.push(`<button type="button" class="btn block danger-ghost" data-act="leave">${esc(t("td.leave"))}</button>`);
     html.push(`<div class="section stack">${act.join("")}</div>`);
 
+    if (tb.is_private && !tb.is_sample) {
+      if (isMember && live && !ended) {
+        const url = invitationUrl(tb, tableTitle(tb), { demo: api.mode === "demo" });
+        html.push(`<div class="section stack"><div class="notice">🔒 ${esc(t("td.privateIntro"))}</div>
+          <label class="lbl" for="pv-url">${esc(t("invite.link"))}</label>
+          <input id="pv-url" type="url" readonly value="${esc(url)}">
+          <button type="button" class="btn sm" data-act="copy-private" data-url="${esc(url)}">${esc(t("invite.copy"))}</button></div>`);
+      } else if (!isMember && live) {
+        html.push(`<div class="section"><div class="notice">🔒 ${esc(t("td.privateGuest"))}</div></div>`);
+      }
+    }
+
     // ---- members
     const visibleMembers = members.filter((m) => m.status === "joined" || (isHost && m.status === "requested"));
     if (visibleMembers.length) {
@@ -157,7 +177,8 @@ export async function openTable(id, { onClose } = {}) {
           return `<li data-uid="${esc(m.user_id)}">
             <span class="av" aria-hidden="true">${esc(m.avatar_emoji)}</span>
             <span class="who"><strong>${esc(personName(m.display_name))}</strong>${m.role === "host" ? ` <span class="badge ok">${esc(t("td.hostTag"))}</span>` : ""}${isMe ? ` <span class="muted">(${esc(t("td.you"))})</span>` : ""}
-              ${isHost && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
+              ${(isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
+              ${m.cuisine && cuisineOf(m.cuisine) ? `<small>${esc(cuisineOf(m.cuisine).emoji)} ${esc(nameOf(cuisineOf(m.cuisine)))}</small>` : ""}
               ${isHost && m.no_show_count > 0 ? `<small>⚠️ ${esc(t("td.noShows", { n: m.no_show_count }))}</small>` : ""}</span>
             ${req ? `<button type="button" class="btn sm primary" data-act="accept" data-uid="${esc(m.user_id)}">${esc(t("td.accept"))}</button><button type="button" class="btn sm" data-act="decline" data-uid="${esc(m.user_id)}">${esc(t("td.decline"))}</button>` : ""}
             ${isHost && !req && m.role !== "host" ? `<button type="button" class="btn sm ghost" data-act="remove" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.remove"))}</button>${started ? `<button type="button" class="btn sm ghost" data-act="noshow" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.noShow"))}</button>` : ""}` : ""}
@@ -171,8 +192,12 @@ export async function openTable(id, { onClose } = {}) {
     if (isMember && !tb.is_sample) html.push(`<div class="section" id="photo-section">${photosHTML()}</div>`);
 
     // ---- venue / midpoint
-    if (isHost && live) {
+    if ((isHost || (tb.is_private && isMember)) && live) {
       const withStart = startingPoints();
+      if (tb.is_private) {
+        const q = tb.venue ? [tb.venue.name, tb.venue.address || "Toronto"].filter(Boolean).join(" ") : `${cravings().map((s) => nameOf(cuisineOf(s))).filter(Boolean).join(" ") || "restaurants"} restaurants near ${restaurantCenter().lat.toFixed(5)},${restaurantCenter().lng.toFixed(5)}`;
+        html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame"><iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q))}"></iframe></div></div>`);
+      }
       html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
         <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button>
@@ -202,6 +227,7 @@ export async function openTable(id, { onClose } = {}) {
     sheet.setHTML(html.join(""));
     wirePlaceSearches();
     if (isMember && !tb.is_sample) loadPhotos();
+    autoSuggest();
   }
 
   function photosHTML() {
@@ -283,6 +309,42 @@ export async function openTable(id, { onClose } = {}) {
     qs("[data-x]", el).focus();
   }
 
+  function paintSuggest() {
+    const box = !sheet.closed && qs("#suggest-list", sheet.body);
+    if (box) box.innerHTML = suggestHTML(suggestions);
+  }
+
+  async function runSuggest() {
+    if (suggestions === "loading") return;
+    suggestions = "loading";
+    paintSuggest();
+    try {
+      if (tb.is_private) {
+        const pts = startMembers();
+        suggestNames = pts.map((p) => p.name);
+        const wanted = cravings();
+        suggestions = await groupSuggestions({
+          points: pts.length ? pts : [restaurantCenter()],
+          cuisines: wanted.length ? wanted : [tb.cuisine].filter(Boolean),
+        });
+      } else {
+        suggestions = await restaurantsNear(restaurantCenter(), tb.cuisine);
+      }
+    } catch {
+      suggestions = "error";
+    }
+    paintSuggest();
+  }
+
+  // At a private table everyone sees the same list, so refresh it whenever someone's start point or craving changes.
+  function autoSuggest() {
+    if (!tb.is_private || !["joined", "host"].includes(tb.my_status) || !["open", "full"].includes(tb.status) || suggestions === "loading") return;
+    const key = JSON.stringify([startMembers().map((p) => [p.lat, p.lng]), cravings()]);
+    if (key === suggestKey) return;
+    suggestKey = key;
+    runSuggest();
+  }
+
   function suggestHTML(list) {
     if (list === "loading") return `<li>${esc(t("ps.searching"))}</li>`;
     if (list === "error" || !list.length) {
@@ -290,7 +352,7 @@ export async function openTable(id, { onClose } = {}) {
     }
     return list
       .map(
-        (r, i) => `<li><span class="who"><strong>${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
+        (r, i) => `<li><span class="who"><strong>${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
           <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
           <button type="button" class="btn sm" data-act="use-venue" data-i="${i}">${esc(t("td.useVenue"))}</button></li>`
       )
@@ -327,6 +389,7 @@ export async function openTable(id, { onClose } = {}) {
     const o = {
       intention: qs("#d-int", sheet.body)?.value || null,
       pace: qs("#d-pace", sheet.body)?.value || null,
+      cuisine: qs("#d-craving", sheet.body)?.value || null,
     };
     if (startPick) Object.assign(o, { start_label: startPick.name, start_lat: startPick.lat, start_lng: startPick.lng });
     else if (startPick === undefined && tb.my_membership) Object.assign(o, { start_label: tb.my_membership.start_label, start_lat: tb.my_membership.start_lat, start_lng: tb.my_membership.start_lng });
@@ -365,12 +428,18 @@ export async function openTable(id, { onClose } = {}) {
         break;
       case "join":
         await mutate(btn, async () => {
-          const r = await api.requestJoin(tb.id, detailsPayload());
+          const o = detailsPayload();
+          const r = await api.requestJoin(tb.id, o);
+          if (o.cuisine) await api.setCraving(tb.id, o.cuisine);
           toast(r.status === "joined" ? t("td.joined") : t("td.requested"));
         });
         break;
       case "save-details":
-        await mutate(btn, () => api.updateMembership(tb.id, detailsPayload()), t("td.saved"));
+        await mutate(btn, async () => {
+          const o = detailsPayload();
+          await api.updateMembership(tb.id, o);
+          await api.setCraving(tb.id, o.cuisine);
+        }, t("td.saved"));
         break;
       case "leave": {
         const ok = await confirmDialog({ title: t(tb.my_status === "requested" ? "td.withdrawQ" : "td.leaveQ"), body: t("td.leaveBody"), confirmLabel: t("td.leaveYes"), danger: true });
@@ -399,19 +468,20 @@ export async function openTable(id, { onClose } = {}) {
         break;
       }
       case "suggest": {
-        if (suggestions === "loading") break;
-        const box = qs("#suggest-list", sheet.body);
-        suggestions = "loading";
         btn.disabled = true;
-        box.innerHTML = suggestHTML(suggestions);
+        await runSuggest();
+        btn.disabled = false;
+        break;
+      }
+      case "copy-private": {
         try {
-          suggestions = await restaurantsNear(restaurantCenter(), tb.cuisine);
+          await navigator.clipboard.writeText(btn.dataset.url);
+          toast(t("td.copied"));
         } catch {
-          suggestions = "error";
-        } finally {
-          btn.disabled = false;
+          const input = qs("#pv-url", sheet.body);
+          input?.focus();
+          input?.select();
         }
-        if (!sheet.closed) qs("#suggest-list", sheet.body).innerHTML = suggestHTML(suggestions);
         break;
       }
       case "use-venue": {
@@ -484,7 +554,7 @@ export async function openTable(id, { onClose } = {}) {
   // Keep an open sheet fresh: the host can change the venue, or guests can join, while someone is looking at it.
   const signature = (x) => JSON.stringify([
     x.venue?.id, x.venue?.name, x.area_label, x.status, x.seats_taken, x.my_status, x.starts_at, x.capacity,
-    (x.members || []).map((m) => [m.user_id, m.status, m.start_lat, m.start_lng]),
+    (x.members || []).map((m) => [m.user_id, m.status, m.start_lat, m.start_lng, m.cuisine]),
   ]);
   async function refreshQuietly() {
     if (sheet.closed || !tb || uploading || document.visibilityState !== "visible") return;
@@ -502,7 +572,7 @@ export async function openTable(id, { onClose } = {}) {
     const venueChanged = (fresh.venue?.id || null) !== (tb.venue?.id || null);
     tb = fresh;
     draw();
-    if (venueChanged && tb.my_status !== "host" && tb.venue?.name) toast(t("td.venueChanged", { name: tb.venue.name }));
+    if (venueChanged && tb.venue?.name) toast(t("td.venueChanged", { name: tb.venue.name }));
   }
   const offLive = api.onLive?.((p) => {
     if (sheet.closed) offLive?.();

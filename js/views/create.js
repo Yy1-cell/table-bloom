@@ -27,8 +27,6 @@ export function openCreate({ onClose } = {}) {
     pace: "",
     // Only used to suggest restaurants. Never sent to the server.
     startMe: null,
-    startFriend: null,
-    friendCuisine: "",
   };
   let step = 1;
   let sug = null; // null | "loading" | "error" | "need-starts" | { list, mode }
@@ -62,7 +60,8 @@ export function openCreate({ onClose } = {}) {
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
-        <fieldset><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
+        <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
+        <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
           ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
         </div></fieldset>`;
     } else if (step === 2) {
@@ -81,8 +80,6 @@ export function openCreate({ onClose } = {}) {
             ${mk("me", t("cr.startMe"), t("cr.startPh"), t("cr.startHint"))}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
             <fieldset><legend>${esc(t("cr.myCraving"))}</legend>${cuisineChips("cuisine", d.cuisine)}</fieldset>
-            ${mk("friend", t("cr.startFriend"), t("cr.startPh"), t("cr.startHint"))}
-            <fieldset><legend>${esc(t("cr.friendCraving"))}</legend>${cuisineChips("fcuisine", d.friendCuisine || d.cuisine)}</fieldset>
           </div>`
         : `<div class="section-lite">
             ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
@@ -168,10 +165,6 @@ export function openCreate({ onClose } = {}) {
   const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
   function suggestOrigin() {
-    if (isFriends()) {
-      if (!d.startMe || !d.startFriend) return null;
-      return { center: midpoint([d.startMe, d.startFriend]), mode: "middle" };
-    }
     if (d.startMe) return { center: { lat: d.startMe.lat, lng: d.startMe.lng }, mode: "me" };
     return { center: areaCenter() || AREA_FALLBACK, mode: "area" };
   }
@@ -195,48 +188,10 @@ export function openCreate({ onClose } = {}) {
     sug = "loading";
     renderSuggest();
     try {
-      const wanted = isFriends() ? [...new Set([d.cuisine, d.friendCuisine || d.cuisine])] : [d.cuisine];
-      const spread = isFriends() ? haversineKm(d.startMe, d.startFriend) : 0;
-      const radius = isFriends() ? Math.min(4000, Math.max(1500, (spread / 2) * 1000 + 800)) : 2200;
-      // Few matches near the middle? Widen the search a couple of times before giving up.
-      const nearby = async (c) => {
-        let list = [];
-        for (const r of [radius, radius * 1.8, radius * 3]) {
-          list = await restaurantsNear(origin.center, c, { radius: r, signal: sugCtl.signal });
-          if (list.length >= 4) break;
-        }
-        return list;
-      };
-      const lists = await Promise.all(wanted.map(nearby));
+      const wanted = [d.cuisine];
+      const list = await restaurantsNear(origin.center, d.cuisine, { radius: 2200, signal: sugCtl.signal });
       if (seq !== sugSeq) return;
-      const rank = (r) => {
-        if (origin.mode !== "middle") return r.distKm;
-        r.dMe = haversineKm(d.startMe, r);
-        r.dFriend = haversineKm(d.startFriend, r);
-        // Penalise both a long trip and an unfair one.
-        return Math.max(r.dMe, r.dFriend) + Math.abs(r.dMe - r.dFriend);
-      };
-      const ranked = lists.map((list, i) =>
-        list
-          .map((r) => {
-            const x = { ...r, forCuisine: wanted[i] };
-            x.score = rank(x);
-            return x;
-          })
-          .sort((a, b) => a.score - b.score));
-      // Interleave so both people's cravings show up.
-      const out = [];
-      const seen = new Set();
-      for (let i = 0; out.length < 8 && ranked.some((l) => i < l.length); i++) {
-        for (const l of ranked) {
-          const r = l[i];
-          if (!r) continue;
-          const key = r.poi_id || `${r.name}|${r.lat}|${r.lng}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          out.push(r);
-        }
-      }
+      const out = list.map((r) => ({ ...r, forCuisine: d.cuisine, score: r.distKm })).sort((x, y) => x.score - y.score);
       sug = { list: out.slice(0, 8), mode: origin.mode, wanted };
     } catch (e) {
       if (seq !== sugSeq || e?.name === "AbortError") return;
@@ -303,7 +258,13 @@ export function openCreate({ onClose } = {}) {
     const b = sheet.body;
     if (step === 1) {
       qs("#c-title", b).addEventListener("input", (e) => (qs("#c-title-n", b).textContent = e.target.value.length));
-      qsa('input[name="aud"]', b).forEach((r) => r.addEventListener("change", () => (d.audience = r.value)));
+      qsa('input[name="aud"]', b).forEach((r) =>
+        r.addEventListener("change", () => {
+          d.audience = r.value;
+          qs("#f-priv", b).hidden = !isFriends();
+          qs("#f-jm", b).hidden = isFriends();
+        })
+      );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
       qs("#c-cuisines", b).addEventListener("click", (e) => {
         const c = e.target.closest("[data-cuisine]");
@@ -325,13 +286,6 @@ export function openCreate({ onClose } = {}) {
         onSelect: (p) => { d.startMe = p; scheduleSuggest(); },
         onClear: () => { d.startMe = null; scheduleSuggest(); },
       });
-      if (ids.friend) {
-        bindPlaceSearch(b, {
-          id: ids.friend, near,
-          onSelect: (p) => { d.startFriend = p; scheduleSuggest(); },
-          onClear: () => { d.startFriend = null; scheduleSuggest(); },
-        });
-      }
       bindPlaceSearch(b, {
         id: ids.venue, near,
         onSelect: (p) => {
@@ -369,13 +323,6 @@ export function openCreate({ onClose } = {}) {
         if (!c) return;
         d.cuisine = d.cuisine === c.dataset.cuisine ? "" : c.dataset.cuisine;
         qsa("[data-cuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.cuisine === d.cuisine)));
-        scheduleSuggest();
-      });
-      qs('[data-chips="fcuisine"]', b)?.addEventListener("click", (e) => {
-        const c = e.target.closest("[data-fcuisine]");
-        if (!c) return;
-        d.friendCuisine = c.dataset.fcuisine;
-        qsa("[data-fcuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.fcuisine === d.friendCuisine)));
         scheduleSuggest();
       });
       qs("[data-sug-refresh]", b).addEventListener("click", () => loadSuggest());
@@ -425,7 +372,7 @@ export function openCreate({ onClose } = {}) {
       audience: d.audience,
       cuisine: d.cuisine || null,
       capacity: d.capacity,
-      join_mode: d.join_mode,
+      join_mode: isFriends() ? "instant" : d.join_mode,
       starts_at: toISO(d.date, d.time),
       area_id: d.area_id || null,
       area_label: d.place ? d.place.name : d.area_label,
@@ -439,7 +386,22 @@ export function openCreate({ onClose } = {}) {
       pace: d.pace || null,
     };
     try {
-      const r = await withBusy(btn, () => api.createTable(payload));
+      const r = await withBusy(btn, async () => {
+        const made = await api.createTable(payload);
+        // The host is a member too: record their starting point and craving so friends see them straight away.
+        if (isFriends()) {
+          try {
+            if (d.startMe) {
+              await api.updateMembership(made.id, {
+                start_label: d.startMe.name, start_lat: d.startMe.lat, start_lng: d.startMe.lng,
+                intention: d.intention || null, pace: d.pace || null,
+              });
+            }
+            if (d.cuisine) await api.setCraving(made.id, d.cuisine);
+          } catch { /* the table exists; they can add these from its page */ }
+        }
+        return made;
+      });
       toast(t("cr.done"));
       bus.emit("tables-changed");
       sheet.onClose = null;

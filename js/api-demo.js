@@ -310,6 +310,7 @@ function tableJson(t) {
     join_mode: t.join_mode,
     status: t.status,
     is_sample: !!t.is_sample,
+    is_private: !!t.is_private,
     seats_taken: t.is_sample ? t.sample_seats : joinedCount(t),
     pending_count: t.host_id === ME ? t.members.filter((m) => m.status === "requested").length : 0,
     my_status: mine ? (mine.role === "host" && mine.status === "joined" ? "host" : mine.status) : null,
@@ -420,6 +421,7 @@ export const api = {
     await wait();
     return d.tables
       .filter((t) => ["open", "full"].includes(t.status))
+      .filter((t) => !t.is_private)
       .filter((t) => new Date(t.starts_at).getTime() > Date.now() - 3600e3)
       .filter((t) => !areaId || t.area_id === areaId)
       .filter((t) => !isBlockedPair(t.host_id))
@@ -433,12 +435,13 @@ export const api = {
     const t = need(id);
     if (isBlockedPair(t.host_id)) throw new ApiError("not_found");
     const isHost = t.host_id === ME;
+    const canSee = isHost || t.members.some((m) => m.user_id === ME && m.status === "joined");
     const members = t.members
-      .filter((m) => m.status === "joined" || (isHost && m.status === "requested") || m.user_id === ME)
+      .filter((m) => (m.status === "joined" && (!t.is_private || canSee)) || (isHost && m.status === "requested") || m.user_id === ME)
       .filter((m) => m.user_id === ME || !isBlockedPair(m.user_id))
       .map((m) => {
         const u = userInfo(m.user_id);
-        const see = isHost || m.user_id === ME;
+        const see = isHost || m.user_id === ME || (t.is_private && canSee);
         return {
           user_id: m.user_id,
           role: m.role,
@@ -449,13 +452,14 @@ export const api = {
           start_label: see ? m.start_label ?? null : null,
           start_lat: see ? m.start_lat ?? null : null,
           start_lng: see ? m.start_lng ?? null : null,
+          cuisine: see ? m.cuisine ?? null : null,
         };
       });
     const mine = t.members.find((m) => m.user_id === ME);
     return clone({
       ...tableJson(t),
       members,
-      my_membership: mine ? { start_label: mine.start_label ?? null, start_lat: mine.start_lat ?? null, start_lng: mine.start_lng ?? null, intention: mine.intention ?? null, pace: mine.pace ?? null } : null,
+      my_membership: mine ? { start_label: mine.start_label ?? null, start_lat: mine.start_lat ?? null, start_lng: mine.start_lng ?? null, intention: mine.intention ?? null, pace: mine.pace ?? null, cuisine: mine.cuisine ?? null } : null,
     });
   },
 
@@ -474,7 +478,8 @@ export const api = {
       host_id: ME,
       is_sample: false,
       status: "open",
-      join_mode: p.join_mode === "instant" ? "instant" : "request",
+      join_mode: p.audience === "friends" || p.join_mode === "instant" ? "instant" : "request",
+      is_private: p.audience === "friends",
       area_id: p.area_id || d.profile.area_id,
       title: (p.title || "").trim().slice(0, 60) || null,
       audience: p.audience || "friends_and_new",
@@ -542,6 +547,15 @@ export const api = {
     persist();
   },
 
+  async setCraving(id, slug) {
+    requireUser();
+    const t = need(id);
+    const m = t.members.find((x) => x.user_id === ME && ["requested", "joined"].includes(x.status));
+    if (!m) throw new ApiError("not_found");
+    m.cuisine = slug || null;
+    persist();
+  },
+
   async leaveTable(id) {
     requireUser();
     const t = need(id);
@@ -588,7 +602,8 @@ export const api = {
   async setVenue(id, venue) {
     requireUser();
     const t = need(id);
-    if (t.host_id !== ME) throw new ApiError("not_allowed");
+    const memberOk = t.is_private && t.members.some((m) => m.user_id === ME && m.status === "joined");
+    if (t.host_id !== ME && !memberOk) throw new ApiError("not_allowed");
     if (!venue?.name?.trim()) throw new ApiError("bad_venue");
     t.venue = { id: uid(), name: venue.name, address: venue.address || null, lat: venue.lat ?? null, lng: venue.lng ?? null };
     t.area_label = venue.name.slice(0, 120);

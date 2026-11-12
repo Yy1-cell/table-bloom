@@ -171,6 +171,9 @@ export async function createApi(cfg) {
         p_pace: o.pace || null,
       }));
     },
+    async setCraving(id, slug) {
+      await changed(id, rpc("set_my_craving", { p_table: id, p_cuisine: slug || null }));
+    },
     async leaveTable(id) {
       await changed(id, rpc("leave_table", { p_table: id }));
     },

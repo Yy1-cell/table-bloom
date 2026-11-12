@@ -87,7 +87,7 @@ export function tableCardHTML(tb, { showMatch = true } = {}) {
     <div class="tcard-top">
       <div style="min-width:0">
         <h3>${esc(tableTitle(tb))}</h3>
-        <div class="row wrap-row">${statusBadge(tb)} ${pending}</div>
+        <div class="row wrap-row">${statusBadge(tb)} ${tb.is_private ? `<span class="badge">🔒 ${esc(t("badge.private"))}</span>` : ""} ${pending}</div>
       </div>
       ${showMatch ? `<span class="match" title="${esc(t("card.matchHint"))}"><span>${match}%</span><small>${esc(t("card.match"))}</small></span>` : ""}
     </div>
