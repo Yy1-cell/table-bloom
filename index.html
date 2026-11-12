@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Table &amp; Bloom · 饭局</title>
+<meta name="description" content="Share a meal, meet someone new. Group dining for people in Toronto. 一起吃饭，认识新朋友。">
+<meta name="theme-color" content="#365b3c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-48.png" sizes="48x48">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Table & Bloom">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a href="#view" class="sr-only" id="skip">Skip to content</a>
+
+<header class="app-header">
+  <div class="in">
+    <a class="brand" href="#discover" aria-label="Table &amp; Bloom"><span class="mark" aria-hidden="true">✳</span>Table &amp; Bloom</a>
+    <nav class="top-nav" id="top-nav" aria-label="Main"></nav>
+    <span class="spacer"></span>
+    <button type="button" class="pill-btn" id="lang-btn"></button>
+    <a class="pill-btn me-btn" id="me-link" href="#profile" hidden></a>
+  </div>
+  <div class="demo-banner" id="demo-banner" hidden></div>
+</header>
+
+<main id="view" tabindex="-1" aria-live="off"></main>
+
+<nav class="bottom-nav" id="bottom-nav" aria-label="Main"></nav>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
+
+<noscript><p style="padding:24px">Table &amp; Bloom needs JavaScript. 需要开启 JavaScript。</p></noscript>
+
+<script src="config.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

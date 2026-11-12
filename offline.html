@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#365b3c">
+<title>Offline · Table &amp; Bloom</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f7f2;color:#243b30;font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;text-align:center;padding:24px}
+  main{max-width:360px}
+  h1{font-size:28px;margin:12px 0 8px}
+  p{color:#7d8278;line-height:1.6;margin:6px 0}
+  button{margin-top:18px;background:#365b3c;color:#fff;border:0;border-radius:999px;padding:12px 24px;font-size:16px}
+  .mark{font-size:44px;color:#7a9a50}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">✳</div>
+  <h1 id="h"></h1>
+  <p id="p"></p>
+  <button id="b" onclick="location.reload()"></button>
+</main>
+<script>
+  var zh = false;
+  try { var l = localStorage.getItem("tb.lang"); zh = l ? l === "zh" : /^zh/i.test(navigator.language || ""); } catch (e) {}
+  document.documentElement.lang = zh ? "zh-CN" : "en";
+  document.getElementById("h").textContent = zh ? "当前没有网络" : "You're offline";
+  document.getElementById("p").textContent = zh ? "Table & Bloom 需要联网才能加载饭局。连上网络后再试一次。" : "Table & Bloom needs a connection to load tables. Reconnect and try again.";
+  document.getElementById("b").textContent = zh ? "重试" : "Try again";
+</script>
+</body>
+</html>

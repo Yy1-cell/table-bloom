@@ -1,0 +1,23 @@
+{
+  "name": "Table & Bloom",
+  "short_name": "Table&Bloom",
+  "description": "Good food. Real connection. Make a table, find a place, and connect at your own pace.",
+  "id": "/",
+  "start_url": "./#discover",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f2",
+  "theme_color": "#365b3c",
+  "lang": "en",
+  "categories": ["food", "lifestyle", "social"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Make a table", "short_name": "Make", "url": "./#new", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My tables", "short_name": "Mine", "url": "./#mine", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

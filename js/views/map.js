@@ -1,0 +1,198 @@
+// Map tab: search a place or use your location, see restaurants and open tables nearby,
+// then open Google Maps (ratings, reviews, hours) or transit / walking / driving directions on the phone.
+import { esc, qs, qsa, haversineKm, fmtWhen, googleEmbedUrl, mapsUrl } from "../util.js";
+import { t } from "../i18n.js";
+import { state } from "../state.js";
+import { api } from "../api.js";
+import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
+import { placeSearchHTML, bindPlaceSearch, toast, announce } from "../ui.js";
+import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
+
+const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
+
+export async function render(root) {
+  let alive = true;
+  let ctl = null;
+  let cuisine = state.mapCuisine || "";
+  const areaC = () => {
+    const a = state.areas.find((x) => x.id === state.me?.area_id) || state.areas[0];
+    const d = window.TB_CONFIG?.DEFAULT_CENTER || { lat: 43.6532, lng: -79.3832 };
+    return a ? { lat: Number(a.center_lat), lng: Number(a.center_lng), label: nameOf(a) } : { ...d, label: "Toronto" };
+  };
+  let center = state.mapCenter || (state.pos ? { lat: state.pos.lat, lng: state.pos.lng, label: t("map.here") } : areaC());
+
+  const ps = placeSearchHTML({ label: t("map.search"), placeholder: t("map.searchPh"), hint: t("map.searchHint") });
+  root.innerHTML = `
+    <h1>${esc(t("map.title"))}</h1>
+    <p class="muted">${esc(t("map.sub"))}</p>
+    ${ps.html}
+    <div class="row wrap-row"><button type="button" class="btn sm" id="use-me">📍 ${esc(t("map.useMe"))}</button></div>
+    <p class="hint loc-status" id="loc-status" role="status" aria-live="polite"></p>
+    <div class="map-center" id="center"></div>
+    <div class="chips" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
+      <button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>
+      ${state.cuisines.map((c) => `<button type="button" class="chip" data-c="${c.slug}" aria-pressed="${cuisine === c.slug}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`).join("")}
+    </div>
+    <section class="card" style="margin-top:16px"><h2>${esc(t("map.googleView"))}</h2><div id="gmap"></div></section>
+    <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
+    <section class="card" style="margin-top:16px"><h2>${esc(t("map.restaurants"))}</h2><div id="rest" aria-live="polite"></div></section>`;
+
+  const distLine = (p) => {
+    const parts = [];
+    if (p.dist != null) parts.push(t("map.kmFromCenter", { km: km(p.dist) }));
+    if (state.pos && p.lat != null && center.label !== t("map.here")) parts.push(t("map.kmFromYou", { km: km(haversineKm(state.pos, p))}));
+    return parts.join(" · ");
+  };
+
+  const isHere = () => center.label === t("map.here");
+  function paintCenter() {
+    qs("#center", root).innerHTML = `<strong>📌 ${esc(t("map.near", { name: center.label || "" }))}</strong>`;
+  }
+
+  /** The real Google Maps view (with Google's own ratings on the pins) around the centre, filtered by cuisine. */
+  function paintGoogle() {
+    const box = qs("#gmap", root);
+    const c = state.cuisines.find((x) => x.slug === cuisine);
+    const what = c ? `${nameOf(c)} ${t("map.restaurantWord")}` : t("map.restaurantWord");
+    const q = `${what} ${t("map.nearWord")} ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+    const place = { name: center.label, lat: center.lat, lng: center.lng };
+    box.innerHTML = navigator.onLine === false
+      ? `<p class="muted">${esc(t("map.offlineMap"))}</p>`
+      : `<div class="gmap-frame"><iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
+           src="${esc(googleEmbedUrl(q))}"></iframe></div>
+         <div class="row wrap-row" style="margin-top:8px"><a class="btn sm" target="_blank" rel="noopener" href="${esc(mapsUrl({ name: q }))}">${esc(t("map.openGoogle"))}</a></div>
+         <p class="hint">${esc(t("map.googleNote"))}</p>`;
+  }
+
+  const setLoc = (key, vars) => {
+    const el = qs("#loc-status", root);
+    el.textContent = key ? t(key, vars) : "";
+  };
+
+  /** Ask the browser for the current position. The first call makes the browser show its permission prompt. */
+  async function locate({ auto = false } = {}) {
+    const b = qs("#use-me", root);
+    b.disabled = true;
+    setLoc("map.locating");
+    try {
+      const pos = await currentPosition();
+      state.locTried = true;
+      if (!alive) return;
+      state.pos = pos;
+      center = { lat: pos.lat, lng: pos.lng, label: t("map.here") };
+      state.mapCenter = center;
+      setLoc("map.located");
+      refresh();
+    } catch (e) {
+      state.locTried = true;
+      if (!alive) return;
+      const key = { denied: "map.locDenied", timeout: "map.locTimeout", unsupported: "map.locUnsupported" }[e.reason] || "map.locUnavailable";
+      setLoc(key, { name: center.label || "" });
+      if (!auto) toast(t("disc.noLocation"), { kind: "error" });
+    } finally {
+      b.disabled = false;
+    }
+  }
+
+  async function loadTables() {
+    const box = qs("#tbl", root);
+    try {
+      if (!state.tables?.length) state.tables = await api.listTables({});
+    } catch (e) {
+      box.innerHTML = `<p class="muted">${esc(t("err.load"))}</p>`;
+      return;
+    }
+    if (!alive) return;
+    const rows = state.tables
+      .filter((x) => x.meet_lat != null && ["open", "full"].includes(x.status))
+      .map((x) => ({ x, dist: haversineKm(center, { lat: Number(x.meet_lat), lng: Number(x.meet_lng) }) }))
+      .filter((r) => r.dist <= 12)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 6);
+    box.innerHTML = rows.length
+      ? rows
+          .map(({ x, dist }) => {
+            const place = { name: x.venue?.name || x.area_label, address: x.venue?.address, lat: Number(x.meet_lat), lng: Number(x.meet_lng) };
+            return `<div class="place-row"><h3>${esc(tableTitle(x))}</h3>
+              <div class="sub">${esc(fmtWhen(x.starts_at, t))} · ${esc(placeText(x))} · ${esc(distLine({ dist, lat: place.lat, lng: place.lng }))}</div>
+              <div class="row wrap-row" style="margin-top:8px"><button type="button" class="btn sm primary" data-open="${esc(x.id)}">${esc(t("map.viewTable"))}</button></div>
+              ${mapActionsHTML(place, { hint: false })}</div>`;
+          })
+          .join("")
+      : `<p class="muted">${esc(t("map.noTables"))}</p>`;
+    qsa("[data-open]", box).forEach((b) => b.addEventListener("click", () => go(`#t-${b.dataset.open}`)));
+  }
+
+  async function loadRestaurants() {
+    const box = qs("#rest", root);
+    ctl?.abort();
+    ctl = new AbortController();
+    box.innerHTML = `<p class="muted">${esc(t("ps.searching"))}</p>`;
+    try {
+      const list = await restaurantsNear(center, cuisine || undefined, { radius: 1800, signal: ctl.signal });
+      if (!alive) return;
+      box.innerHTML = list.length
+        ? list
+            .map((r) => `<div class="place-row"><h3>${esc(r.name)}</h3>
+              <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
+              ${mapActionsHTML(r, { hint: false })}</div>`)
+            .join("") + `<p class="hint">${esc(t("map.restNote"))}</p>`
+        : `<p class="muted">${esc(t("map.noRestaurants"))}</p>`;
+      announce(t("map.found", { n: list.length }));
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      box.innerHTML = `<p class="muted">${esc(t("map.loadError"))}</p>`;
+    }
+  }
+
+  function refresh() {
+    paintCenter();
+    paintGoogle();
+    loadTables();
+    loadRestaurants();
+  }
+
+  bindPlaceSearch(root, {
+    id: ps.id,
+    near: center,
+    onSelect: (p) => {
+      center = { lat: p.lat, lng: p.lng, label: p.name };
+      state.mapCenter = center;
+      refresh();
+    },
+    onClear: () => {},
+  });
+  qs("#use-me", root).addEventListener("click", () => locate());
+  qs("#cuis", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]");
+    if (!b) return;
+    cuisine = state.mapCuisine = b.dataset.c;
+    qsa("[data-c]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === cuisine)));
+    paintGoogle();
+    loadRestaurants();
+  });
+
+  refresh();
+  // Automatic positioning: the first time the Map tab opens (and the person has not searched for something else),
+  // ask the browser for the current position. If permission was already granted this is silent.
+  if (state.pos && !state.mapCenter) {
+    center = { lat: state.pos.lat, lng: state.pos.lng, label: t("map.here") };
+    state.mapCenter = center;
+    setLoc("map.located");
+    refresh();
+  } else if (!state.mapCenter && !state.locTried) {
+    locationPermission().then((perm) => {
+      if (!alive) return;
+      if (perm === "denied") {
+        state.locTried = true;
+        setLoc("map.locDenied", { name: center.label || "" });
+      } else if (perm === "unsupported") {
+        setLoc("map.locUnsupported");
+      } else locate({ auto: true });
+    });
+  } else if (isHere()) setLoc("map.located");
+  return () => {
+    alive = false;
+    ctl?.abort();
+  };
+}
