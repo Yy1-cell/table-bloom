@@ -38,8 +38,7 @@ export function readInvitation(hash) {
 export function renderInvitation(root) {
   const details = readInvitation(location.hash);
   if (!details) {
-    const canOpen = typeof details.tableId === "string" && /^[0-9a-f-]{36}$/i.test(details.tableId);
-  root.innerHTML = `<div class="card"><h1>${esc(t("td.gone"))}</h1><a href="#discover">${esc(t("nav.discover"))}</a></div>`;
+    root.innerHTML = `<div class="card"><h1>${esc(t("td.gone"))}</h1><a href="#discover">${esc(t("nav.discover"))}</a></div>`;
     return;
   }
   const when = new Date(details.startsAt).toLocaleString(getLang() === "zh" ? "zh-CN" : "en-CA", {

@@ -3,7 +3,7 @@
  * - Never caches API calls (Supabase, map search): user data must always be live.
  * Bump CACHE_VERSION whenever you deploy changed files.
  */
-const CACHE_VERSION = "tb-v15";
+const CACHE_VERSION = "tb-v16";
 const SHELL = [
   "./",
   "./index.html",
@@ -74,19 +74,19 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static files: stale-while-revalidate (instant load, refreshed in the background).
+  // Static files: network first, cache only as the offline fallback.
+  // (It used to be stale-while-revalidate, which kept serving the PREVIOUS deploy's JS for one more visit:
+  // anyone who had opened the app before, including the host, ran old code and an invite link
+  // could be sent to the sign-in page instead of showing the table.)
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(req)
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });
