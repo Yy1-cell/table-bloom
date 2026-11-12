@@ -5,7 +5,7 @@ import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
-import { placeSearchHTML, bindPlaceSearch, toast, announce } from "../ui.js";
+import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
@@ -13,6 +13,7 @@ const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 export async function render(root) {
   let alive = true;
   let ctl = null;
+  let centerRevision = 0;
   let cuisine = state.mapCuisine || "";
   const areaC = () => {
     const a = state.areas.find((x) => x.id === state.me?.area_id) || state.areas[0];
@@ -49,13 +50,15 @@ export async function render(root) {
     qs("#center", root).innerHTML = `<strong>📌 ${esc(t("map.near", { name: center.label || "" }))}</strong>`;
   }
 
+  function googleQuery() {
+    const c = state.cuisines.find((x) => x.slug === cuisine);
+    return `${c ? c.name_en + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+  }
+
   /** The real Google Maps view (with Google's own ratings on the pins) around the centre, filtered by cuisine. */
   function paintGoogle() {
     const box = qs("#gmap", root);
-    const c = state.cuisines.find((x) => x.slug === cuisine);
-    const what = c ? `${nameOf(c)} ${t("map.restaurantWord")}` : t("map.restaurantWord");
-    const q = `${what} ${t("map.nearWord")} ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
-    const place = { name: center.label, lat: center.lat, lng: center.lng };
+    const q = googleQuery();
     box.innerHTML = navigator.onLine === false
       ? `<p class="muted">${esc(t("map.offlineMap"))}</p>`
       : `<div class="gmap-frame"><iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
@@ -72,6 +75,7 @@ export async function render(root) {
   /** Ask the browser for the current position. The first call makes the browser show its permission prompt. */
   async function locate({ auto = false } = {}) {
     const b = qs("#use-me", root);
+    const revision = centerRevision;
     b.disabled = true;
     setLoc("map.locating");
     try {
@@ -79,6 +83,7 @@ export async function render(root) {
       state.locTried = true;
       if (!alive) return;
       state.pos = pos;
+      if (revision !== centerRevision) return;
       center = { lat: pos.lat, lng: pos.lng, label: t("map.here") };
       state.mapCenter = center;
       setLoc("map.located");
@@ -126,24 +131,30 @@ export async function render(root) {
   async function loadRestaurants() {
     const box = qs("#rest", root);
     ctl?.abort();
-    ctl = new AbortController();
+    const request = ctl = new AbortController();
     box.innerHTML = `<p class="muted">${esc(t("ps.searching"))}</p>`;
     try {
-      const list = await restaurantsNear(center, cuisine || undefined, { radius: 1800, signal: ctl.signal });
-      if (!alive) return;
+      const list = await restaurantsNear(center, cuisine || undefined, { signal: request.signal });
+      if (!alive || request.signal.aborted) return;
       box.innerHTML = list.length
         ? list
             .map((r) => `<div class="place-row"><h3>${esc(r.name)}</h3>
               <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
               ${mapActionsHTML(r, { hint: false })}</div>`)
-            .join("") + `<p class="hint">${esc(t("map.restNote"))}</p>`
-        : `<p class="muted">${esc(t("map.noRestaurants"))}</p>`;
+            .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
+        : restaurantFallback("map.noRestaurants");
       announce(t("map.found", { n: list.length }));
     } catch (e) {
-      if (e?.name === "AbortError") return;
-      box.innerHTML = `<p class="muted">${esc(t("map.loadError"))}</p><button type="button" class="btn sm" id="rest-retry">${esc(t("map.retry"))}</button>`;
-      qs("#rest-retry", root)?.addEventListener("click", loadRestaurants);
+      if (!alive || request.signal.aborted) return;
+      box.innerHTML = restaurantFallback("map.loadError") +
+        ` <button type="button" class="btn sm" id="rest-retry">${esc(t("map.retry"))}</button>`;
+      qs("#rest-retry", box).addEventListener("click", loadRestaurants);
     }
+  }
+
+  function restaurantFallback(key) {
+    return `<p class="muted">${esc(t(key))}</p>
+      <a class="btn sm" href="${esc(mapsUrl({ name: googleQuery() }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>`;
   }
 
   function refresh() {
@@ -155,8 +166,10 @@ export async function render(root) {
 
   bindPlaceSearch(root, {
     id: ps.id,
-    near: center,
+    near: () => center,
+    googleSearch: true,
     onSelect: (p) => {
+      centerRevision++;
       center = { lat: p.lat, lng: p.lng, label: p.name };
       state.mapCenter = center;
       refresh();
@@ -189,7 +202,7 @@ export async function render(root) {
         setLoc("map.locDenied", { name: center.label || "" });
       } else if (perm === "unsupported") {
         setLoc("map.locUnsupported");
-      } else locate({ auto: true });
+      } else if (perm === "granted" && centerRevision === 0) locate({ auto: true });
     });
   } else if (isHere()) setLoc("map.located");
   return () => {

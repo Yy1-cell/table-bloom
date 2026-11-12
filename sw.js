@@ -3,7 +3,7 @@
  * - Never caches API calls (Supabase, map search): user data must always be live.
  * Bump CACHE_VERSION whenever you deploy changed files.
  */
-const CACHE_VERSION = "tb-v9";
+const CACHE_VERSION = "tb-v11";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@ const SHELL = [
   "./manifest.webmanifest",
   "./css/style.css",
   "./js/main.js",
+  "./js/invitation.js",
   "./js/i18n.js",
   "./js/strings.js",
   "./js/state.js",
@@ -20,6 +21,8 @@ const SHELL = [
   "./js/util.js",
   "./js/ui.js",
   "./js/geo.js",
+  "./js/toronto-venues.js",
+  "./data/toronto-venues.json",
   "./js/api.js",
   "./js/api-demo.js",
   "./js/api-supabase.js",
@@ -40,7 +43,7 @@ const SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))).then(() => self.skipWaiting())
   );
 });
 

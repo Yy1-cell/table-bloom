@@ -6,6 +6,7 @@ import * as apiMod from "./api.js";
 import { qs, esc, personName } from "./util.js";
 import { toast, closeSheet, hasSheet } from "./ui.js";
 import { AREAS, CUISINES } from "./data.js";
+import { renderInvitation } from "./invitation.js";
 import { DEMO_CODE } from "./api-demo.js";
 
 const BASE = ["discover", "map", "mine", "journal", "profile"];
@@ -16,6 +17,20 @@ let cleanup = null;
 let current = null; // name of the rendered base view
 let routing = Promise.resolve();
 let prevStatus = null;
+let pendingTable = location.hash.startsWith("#t-") ? location.hash : null;
+try {
+  if (!pendingTable && ["#auth", "#profile"].includes(location.hash)) {
+    pendingTable = sessionStorage.getItem("tb.after");
+  }
+} catch {}
+
+function setPendingTable(hash) {
+  pendingTable = hash;
+  try {
+    if (hash) sessionStorage.setItem("tb.after", hash);
+    else sessionStorage.removeItem("tb.after");
+  } catch {}
+}
 
 const api = () => apiMod.api;
 
@@ -118,8 +133,19 @@ async function doRoute() {
   const name = isTable ? "t" : raw;
   const arg = isTable ? raw.slice(2) : "";
 
+  if (raw.startsWith("invite-")) {
+    cleanup?.();
+    cleanup = null;
+    closeSheet({ silent: true });
+    current = "invite";
+    renderChrome();
+    renderInvitation(view);
+    window.scrollTo(0, 0);
+    return;
+  }
+
   if (!state.session) {
-    if (name === "t" && arg) sessionStorage.setItem("tb.after", location.hash);
+    if (name === "t" && arg) setPendingTable(location.hash);
     closeSheet({ silent: true });
     if (name !== "auth") history.replaceState(null, "", "#auth");
     await showBase("auth", { force: current !== "auth" });
@@ -127,11 +153,17 @@ async function doRoute() {
   }
   if (!state.me) await loadMe();
   if (!state.me.onboarded_at && name !== "profile") {
-    // A friend opening a shared table link for the first time must fill in their profile first; remember the link for afterwards.
-    if (name === "t" && arg) sessionStorage.setItem("tb.after", location.hash);
+    if (isTable && arg) setPendingTable(location.hash);
     history.replaceState(null, "", "#profile");
     return doRoute();
   }
+
+  if (name === "discover" && pendingTable) {
+    history.replaceState(null, "", pendingTable);
+    setPendingTable(null);
+    return doRoute();
+  }
+  if (isTable) setPendingTable(null);
 
   if (BASE.includes(name)) {
     closeSheet({ silent: true });
@@ -169,16 +201,14 @@ async function onSession(session) {
     if (state.me.language && !localStorage.getItem("tb.lang")) setLang(state.me.language);
     prevStatus = null;
     await refreshBadges({ notify: false });
-    const after = sessionStorage.getItem("tb.after");
-    sessionStorage.removeItem("tb.after");
     const raw = location.hash.replace(/^#\/?/, "");
-    if (raw === "auth" || raw === "" || !raw) history.replaceState(null, "", after || (state.me.onboarded_at ? "#discover" : "#profile"));
+    if (raw === "auth" || raw === "" || !raw) history.replaceState(null, "", pendingTable || (state.me.onboarded_at ? "#discover" : "#profile"));
   } else {
     state.me = null;
     state.badge = 0;
     prevStatus = null;
     current = null;
-    history.replaceState(null, "", "#auth");
+    if (!location.hash.startsWith("#invite-")) history.replaceState(null, "", "#auth");
   }
   renderChrome();
   route();

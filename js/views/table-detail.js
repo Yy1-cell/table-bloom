@@ -4,6 +4,7 @@ import { t } from "../i18n.js";
 import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
+import { invitationUrl } from "../invitation.js";
 import { restaurantsNear } from "../geo.js";
 import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML } from "./common.js";
@@ -22,6 +23,26 @@ export async function openTable(id, { onClose } = {}) {
   let suggestions = null;
   let photos = [];
   let uploading = false;
+  const startingPoints = () => (tb.members || [])
+    .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null)
+    .map((m) => ({ lat: Number(m.start_lat), lng: Number(m.start_lng) }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  function restaurantCenter() {
+    const points = startingPoints();
+    if (points.length) return midpoint(points);
+    const area = state.areas.find((a) => a.id === tb.area_id);
+    return {
+      lat: Number(tb.meet_lat ?? area?.center_lat ?? 43.6532),
+      lng: Number(tb.meet_lng ?? area?.center_lng ?? -79.3832),
+    };
+  }
+
+  function nearbyMapsLink() {
+    const center = restaurantCenter();
+    const cuisine = cuisineOf(tb.cuisine);
+    const name = `${cuisine ? cuisine.name_en + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+    return mapsUrl({ name });
+  }
 
   async function reload() {
     try {
@@ -151,10 +172,11 @@ export async function openTable(id, { onClose } = {}) {
 
     // ---- venue / midpoint
     if (isHost && live) {
-      const withStart = members.filter((m) => m.status === "joined" && m.start_lat != null);
+      const withStart = startingPoints();
       html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
-        <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button></div>
+        <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button>
+          <a class="btn" target="_blank" rel="noopener" href="${esc(nearbyMapsLink())}">${esc(t("td.googleNearby"))}</a></div>
         <ul class="suggest" id="suggest-list" aria-live="polite">${suggestions ? suggestHTML(suggestions) : ""}</ul>
         <div style="margin-top:12px">${(() => {
           const ps = placeSearchHTML({ label: t("td.setVenue"), placeholder: t("td.venuePlaceholder"), hint: t("td.venueHint") });
@@ -175,7 +197,7 @@ export async function openTable(id, { onClose } = {}) {
     if (api.mode === "demo" && isMember && live && !ended && !tb.is_sample) foot.push(`<button type="button" class="btn sm" data-act="ff" style="border-style:dashed">🧪 ${esc(t("td.demoFF"))}</button>`);
     if (!isHost && !tb.is_sample && tb.host_id) foot.push(`<button type="button" class="btn sm ghost" data-act="report-host">⚑ ${esc(t("td.reportHost"))}</button>`);
     if (isHost && live) foot.push(`<button type="button" class="btn sm danger-ghost" data-act="cancel">${esc(t("td.cancelTable"))}</button>`);
-    html.push(`<div class="section row wrap-row">${foot.join("")}</div>`);
+    html.push(`<div class="section row wrap-row">${foot.join("")}</div><div id="share-link" hidden></div>`);
 
     sheet.setHTML(html.join(""));
     wirePlaceSearches();
@@ -263,8 +285,9 @@ export async function openTable(id, { onClose } = {}) {
 
   function suggestHTML(list) {
     if (list === "loading") return `<li>${esc(t("ps.searching"))}</li>`;
-    if (list === "error") return `<li>${esc(t("td.suggestError"))}</li>`;
-    if (!list.length) return `<li>${esc(t("td.suggestNone"))}</li>`;
+    if (list === "error" || !list.length) {
+      return `<li>${esc(t(list === "error" ? "td.suggestError" : "td.suggestNone"))}</li>`;
+    }
     return list
       .map(
         (r, i) => `<li><span class="who"><strong>${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
@@ -284,7 +307,8 @@ export async function openTable(id, { onClose } = {}) {
       venuePick = null;
       bindPlaceSearch(sheet.body, {
         id: draw._vId,
-        near,
+        near: restaurantCenter(),
+        restaurantsOnly: true,
         onSelect: (p) => {
           venuePick = p;
           qs("#venue-save", sheet.body).disabled = false;
@@ -375,19 +399,17 @@ export async function openTable(id, { onClose } = {}) {
         break;
       }
       case "suggest": {
-        const pts = (tb.members || []).filter((m) => m.status === "joined" && m.start_lat != null).map((m) => ({ lat: Number(m.start_lat), lng: Number(m.start_lng) }));
-        // No start points yet: fall back to the table's meeting area so the button always does something.
-        const mid = pts.length ? midpoint(pts) : tb.meet_lat != null ? { lat: Number(tb.meet_lat), lng: Number(tb.meet_lng) } : null;
-        if (!mid) {
-          toast(t("td.noStarts"), { kind: "error" });
-          return;
-        }
+        if (suggestions === "loading") break;
+        const box = qs("#suggest-list", sheet.body);
         suggestions = "loading";
-        qs("#suggest-list", sheet.body).innerHTML = suggestHTML(suggestions);
+        btn.disabled = true;
+        box.innerHTML = suggestHTML(suggestions);
         try {
-          suggestions = await restaurantsNear(mid, tb.cuisine);
+          suggestions = await restaurantsNear(restaurantCenter(), tb.cuisine);
         } catch {
           suggestions = "error";
+        } finally {
+          btn.disabled = false;
         }
         if (!sheet.closed) qs("#suggest-list", sheet.body).innerHTML = suggestHTML(suggestions);
         break;
@@ -406,24 +428,30 @@ export async function openTable(id, { onClose } = {}) {
         break;
       }
       case "share": {
-        const url = `${location.origin}${location.pathname}#t-${tb.id}`;
-        const title = tableTitle(tb);
-        // 1) clipboard (works on https in all modern browsers, and is what people expect: a link they can paste into WeChat etc.)
-        const copied = await copyText(url);
-        if (copied) {
-          toast(t("td.copied"));
-          // 2) on phones also offer the system share sheet, but never let it hide the fact that the link was copied.
-          if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            try {
-              await navigator.share({ title, text: t("td.shareText", { title }), url });
-            } catch {
-              /* cancelled: the link is already on the clipboard */
-            }
+        const url = invitationUrl(tb, tableTitle(tb), { demo: api.mode === "demo" });
+        const panel = qs("#share-link", sheet.body);
+        panel.hidden = false;
+        panel.innerHTML = `<label class="lbl" for="invite-url">${esc(t("invite.link"))}</label>
+          <input id="invite-url" type="url" readonly value="${esc(url)}">
+          <button type="button" class="btn sm" id="copy-invite">${esc(t("invite.copy"))}</button>`;
+        const input = qs("#invite-url", panel);
+        const copy = async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            toast(t("td.copied"));
+          } catch {
+            input.focus();
+            input.select();
           }
-        } else {
-          // 3) last resort (in-app browsers that block clipboard): show the link in a box that is easy to select and copy.
-          showLinkDialog(url);
-        }
+        };
+        qs("#copy-invite", panel).onclick = copy;
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: tableTitle(tb), url });
+          } catch (error) {
+            if (error.name !== "AbortError") await copy();
+          }
+        } else await copy();
         break;
       }
       case "reflect": {
@@ -499,57 +527,4 @@ export function askReport({ table_id, user_id, name }) {
     document.body.appendChild(el);
     qs("input", el).focus();
   });
-}
-
-
-/** Copy text to the clipboard. Falls back to the old execCommand route for in-app browsers. Resolves true on success. */
-async function copyText(text) {
-  try {
-    if (navigator.clipboard?.writeText && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* try the fallback below */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;font-size:16px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, text.length);
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-/** A small dialog with the link pre-selected, for browsers where copying is blocked. */
-function showLinkDialog(url) {
-  const el = document.createElement("div");
-  el.className = "sheet-backdrop";
-  el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t("td.share"))}" style="max-width:420px;margin:auto;padding:20px">
-    <h3>🔗 ${esc(t("td.share"))}</h3>
-    <input type="text" readonly value="${esc(url)}" style="width:100%;font-size:16px;padding:10px" aria-label="${esc(t("td.share"))}">
-    <div class="row wrap-row" style="margin-top:12px"><button type="button" class="btn primary" data-copy>${esc(t("td.copyLink"))}</button><button type="button" class="btn" data-x>${esc(t("common.close"))}</button></div>
-  </div>`;
-  document.body.appendChild(el);
-  const input = el.querySelector("input");
-  const select = () => {
-    input.focus();
-    input.select();
-    input.setSelectionRange(0, url.length);
-  };
-  select();
-  el.querySelector("[data-copy]").addEventListener("click", async () => {
-    select();
-    if (await copyText(url)) toast(t("td.copied"));
-  });
-  el.querySelector("[data-x]").addEventListener("click", () => el.remove());
-  el.addEventListener("click", (e) => e.target === el && el.remove());
 }

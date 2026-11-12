@@ -1,5 +1,5 @@
 // UI building blocks: live-region announcements, toasts, bottom sheets, confirm dialogs, place search.
-import { esc, qs, qsa, debounce } from "./util.js";
+import { esc, qs, qsa, debounce, mapsUrl } from "./util.js";
 import { t } from "./i18n.js";
 import { searchPlaces, searchLandmarks } from "./geo.js";
 
@@ -170,7 +170,7 @@ export function placeSearchHTML({ label, placeholder, hint = "" }) {
       </div>
       <p class="ps-status hint" id="${id}-status" role="status" aria-live="polite">${esc(hint || t("ps.hint"))}</p>
       <div class="ps-chosen" hidden></div>
-      <p class="attrib">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
+      <p class="attrib">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · ${venueAttributionHTML()}</p>
     </div>`,
   };
 }
@@ -179,10 +179,22 @@ export function placeSearchHTML({ label, placeholder, hint = "" }) {
  * Wire up a place-search combobox rendered by placeSearchHTML().
  * Calls onSelect(place) when the user picks a result, onClear() when they edit after picking.
  */
-export function bindPlaceSearch(root, { id, near, onSelect, onClear }) {
+export function venueAttributionHTML() {
+  return `<a href="https://open.toronto.ca/dataset/dinesafe/" target="_blank" rel="noopener">City of Toronto DineSafe</a>
+    · <a href="https://www.toronto.ca/city-government/data-research-maps/open-data/open-data-licence/" target="_blank" rel="noopener">${esc(t("map.torontoLicence"))}</a>`;
+}
+
+export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googleSearch = restaurantsOnly, onSelect, onClear }) {
   const input = qs(`#${id}`, root);
   const list = qs(`#${id}-list`, root);
   const status = qs(`#${id}-status`, root);
+  const fallback = document.createElement("a");
+  fallback.className = "btn sm";
+  fallback.target = "_blank";
+  fallback.rel = "noopener";
+  fallback.hidden = true;
+  fallback.textContent = t("ps.searchGoogle");
+  status.after(fallback);
   const chosen = qs(`[data-ps="${id}"] .ps-chosen`, root);
   let results = [];
   let active = -1;
@@ -222,7 +234,18 @@ export function bindPlaceSearch(root, { id, near, onSelect, onClear }) {
     }
   }
 
+  function resetRequest() {
+    seq++;
+    ctl?.abort();
+    fallback.hidden = true;
+    hide();
+    results = [];
+    ctl = null;
+  }
+
   function choose(place) {
+    run.cancel();
+    resetRequest();
     selected = place;
     input.value = place.name;
     hide();
@@ -232,49 +255,71 @@ export function bindPlaceSearch(root, { id, near, onSelect, onClear }) {
     onSelect?.(place);
   }
 
+  const centerForSearch = () => typeof near === "function" ? near() : near;
+  function showGoogleSearch(q, center) {
+    fallback.href = mapsUrl({
+      name: q,
+      address: center ? `near ${center.lat},${center.lng}` : "Toronto, ON",
+    });
+    fallback.hidden = false;
+  }
+
+  function noResults(q, center, error) {
+    const landmarks = restaurantsOnly ? [] : searchLandmarks(q);
+    renderList(landmarks, t("ps.landmarks"));
+    if (document.activeElement !== input) hide();
+    setStatus(t(error ? "ps.searchFailed" : "ps.noMatches"));
+    showGoogleSearch(q, center);
+  }
+
   const run = debounce(async () => {
     const q = input.value.trim();
-    const mine = ++seq;
-    ctl?.abort();
+    const mine = seq;
+    const center = centerForSearch();
     ctl = new AbortController();
-    if (q.length < 2) {
-      setStatus(t("ps.keepTyping"));
-      return renderList(searchLandmarks(""), t("ps.landmarks"));
-    }
-    setStatus(t("ps.searching"));
     try {
-      const found = await searchPlaces(q, { near, signal: ctl.signal });
-      if (mine !== seq) return;
-      if (!found.length) {
-        setStatus(t("ps.none"));
-        return renderList(searchLandmarks(q), t("ps.landmarks"));
-      }
+      const found = await searchPlaces(q, { near: center, signal: ctl.signal, restaurantsOnly });
+      if (mine !== seq || !input.isConnected) return;
+      if (!found.length) return noResults(q, center, false);
       setStatus(t("ps.pick", { n: found.length }));
       renderList(found);
-    } catch (e) {
-      if (mine !== seq || e.name === "AbortError") return;
-      setStatus(t("ps.offline"));
-      renderList(searchLandmarks(q), t("ps.landmarks"));
+      if (document.activeElement !== input) hide();
+    } catch {
+      if (mine !== seq || !input.isConnected) return;
+      noResults(q, center, true);
     }
   }, 320);
 
   input.addEventListener("input", () => {
+    run.cancel();
+    resetRequest();
     if (selected) {
       selected = null;
       chosen.hidden = true;
       onClear?.();
     }
+    if (input.value.trim().length < 2) {
+      setStatus(t("ps.keepTyping"));
+      if (!restaurantsOnly) renderList(searchLandmarks(""), t("ps.landmarks"));
+      return;
+    }
+    if (googleSearch) showGoogleSearch(input.value.trim(), centerForSearch());
+    setStatus(t("ps.searching"));
     run();
   });
   input.addEventListener("focus", () => {
-    if (!selected && !input.value.trim()) renderList(searchLandmarks(""), t("ps.landmarks"));
+    if (selected) return;
+    if (input.value.trim().length >= 2) {
+      if (results.length) renderList(results);
+      else if (!ctl && fallback.hidden) run();
+    } else if (!restaurantsOnly) renderList(searchLandmarks(""), t("ps.landmarks"));
   });
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (list.hidden) return;
       e.preventDefault();
       const n = results.length;
-      setActive(e.key === "ArrowDown" ? (active + 1) % n : (active - 1 + n) % n);
+      setActive(e.key === "ArrowDown" ? (active + 1) % n : (active < 0 ? n - 1 : (active - 1 + n) % n));
     } else if (e.key === "Enter") {
       if (!list.hidden && active >= 0) {
         e.preventDefault();
@@ -307,6 +352,8 @@ export function bindPlaceSearch(root, { id, near, onSelect, onClear }) {
       if (place) choose(place);
     },
     clear() {
+      run.cancel();
+      resetRequest();
       selected = null;
       input.value = "";
       chosen.hidden = true;
