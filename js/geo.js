@@ -121,14 +121,24 @@ const CUISINE_FILTERS = {
   cafe: ["[amenity=cafe]"],
 };
 
+// The free public Overpass servers are often slow or down. After one failure we stop asking for a couple of
+// minutes, so a search that widens its radius moves on to the built-in Toronto list right away
+// instead of waiting for several timeouts in a row.
+let overpassDownUntil = 0;
+
 async function queryOverpass(query, signal) {
+  if (Date.now() < overpassDownUntil) throw new Error("overpass_down");
   const timeout = withTimeout(6500, signal);
   try {
     const response = await fetch(`${OVERPASS}?data=${encodeURIComponent(query)}`, { signal: timeout.signal });
     if (!response.ok) throw new Error("overpass_" + response.status);
     const data = await response.json();
     if (data.remark || !Array.isArray(data.elements)) throw new Error("overpass_incomplete");
+    overpassDownUntil = 0;
     return data.elements;
+  } catch (e) {
+    if (!signal?.aborted) overpassDownUntil = Date.now() + 2 * 60 * 1000;
+    throw e;
   } finally {
     timeout.done();
   }
@@ -209,10 +219,20 @@ export async function groupSuggestions({ points, cuisines = [], signal, limit = 
   const wanted = [...new Set(cuisines.length ? cuisines : [""])];
   const nearby = async (cuisine) => {
     let list = [];
+    let failure = null;
     for (const r of [radius, radius * 1.8, radius * 3]) {
-      list = await restaurantsNear(center, cuisine, { radius: r, signal });
+      try {
+        list = await restaurantsNear(center, cuisine, { radius: r, signal });
+        failure = null;
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        // the online lookup failed at this radius: try the next, wider one (the built-in list may have results there)
+        failure = e;
+        continue;
+      }
       if (list.length >= 4) break;
     }
+    if (!list.length && failure) throw failure;
     return list;
   };
   // One cuisine failing to load shouldn't hide the others; only give up if every lookup failed.

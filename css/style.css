@@ -323,3 +323,13 @@ details.more[open] summary { margin-bottom: 12px; }
 .section-lite { margin: 14px 0; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius-sm); background: var(--paper); }
 .section-lite h3 { margin: 0 0 4px; font-size: 18px; }
 .suggest li.chosen { background: var(--green-50); border-radius: var(--radius-sm); padding-left: 8px; padding-right: 8px; }
+
+/* Shared group map (Leaflet) */
+.group-map { height: 300px; z-index: 0; }
+.group-map .gm-icon { background: none; border: 0; }
+.gm-pin { display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 100%; height: 100%; box-shadow: 0 2px 6px rgba(0,0,0,.3); font-size: 18px; line-height: 1; border: 2px solid #fff; }
+.gm-person { background: #fff3e6; }
+.gm-mid { background: #fff7cf; font-size: 16px; }
+.gm-sug { background: #c0392b; color: #fff; font-size: 13px; font-weight: 700; }
+.gm-venue { background: #365b3c; font-size: 20px; }
+.leaflet-tooltip.gm-tip { font-weight: 600; font-size: 12px; padding: 2px 7px; border-radius: 8px; border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.25); }

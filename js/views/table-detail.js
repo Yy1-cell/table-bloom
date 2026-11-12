@@ -6,6 +6,7 @@ import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
 import { restaurantsNear, groupSuggestions } from "../geo.js";
+import { mountGroupMap } from "../group-map.js";
 import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML } from "./common.js";
 
@@ -195,8 +196,8 @@ export async function openTable(id, { onClose } = {}) {
     if ((isHost || (tb.is_private && isMember)) && live) {
       const withStart = startingPoints();
       if (tb.is_private) {
-        const q = tb.venue ? [tb.venue.name, tb.venue.address || "Toronto"].filter(Boolean).join(" ") : `${cravings().map((s) => nameOf(cuisineOf(s))).filter(Boolean).join(" ") || "restaurants"} restaurants near ${restaurantCenter().lat.toFixed(5)},${restaurantCenter().lng.toFixed(5)}`;
-        html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame"><iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q))}"></iframe></div></div>`);
+        html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame group-map" id="shared-map" role="region" aria-label="${esc(t("td.sharedMap"))}"></div>
+          <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p></div>`);
       }
       html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
@@ -225,6 +226,7 @@ export async function openTable(id, { onClose } = {}) {
     html.push(`<div class="section row wrap-row">${foot.join("")}</div><div id="share-link" hidden></div>`);
 
     sheet.setHTML(html.join(""));
+    mountSharedMap();
     wirePlaceSearches();
     if (isMember && !tb.is_sample) loadPhotos();
     autoSuggest();
@@ -312,6 +314,40 @@ export async function openTable(id, { onClose } = {}) {
   function paintSuggest() {
     const box = !sheet.closed && qs("#suggest-list", sheet.body);
     if (box) box.innerHTML = suggestHTML(suggestions);
+    groupMap?.update(mapData());
+  }
+
+  // ---- shared map (private friends tables): starting points, the middle, the chosen venue and the suggestions
+  let groupMap = null;
+  let mapSeq = 0;
+  function mapData() {
+    const people = (tb.members || [])
+      .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null && Number.isFinite(Number(m.start_lat)) && Number.isFinite(Number(m.start_lng)))
+      .map((m) => ({ name: personName(m.display_name), avatar: m.avatar_emoji, lat: Number(m.start_lat), lng: Number(m.start_lng) }));
+    return {
+      people,
+      middle: people.length > 1 ? midpoint(people) : null,
+      venue: tb.venue && tb.venue.lat != null ? { name: tb.venue.name, lat: Number(tb.venue.lat), lng: Number(tb.venue.lng) } : null,
+      suggestions: Array.isArray(suggestions) ? suggestions : [],
+      fallbackCenter: restaurantCenter(),
+      labels: { middle: t("td.mapMiddle") },
+    };
+  }
+  async function mountSharedMap() {
+    groupMap?.destroy();
+    groupMap = null;
+    const box = !sheet.closed && qs("#shared-map", sheet.body);
+    if (!box) return;
+    const seq = ++mapSeq;
+    const ctl = await mountGroupMap(box, mapData());
+    if (seq !== mapSeq || sheet.closed) return ctl?.destroy();
+    if (!ctl) {
+      // map library could not load (offline?): fall back to the plain Google view
+      const q = tb.venue ? [tb.venue.name, tb.venue.address || "Toronto"].filter(Boolean).join(" ") : `restaurants near ${restaurantCenter().lat.toFixed(5)},${restaurantCenter().lng.toFixed(5)}`;
+      box.innerHTML = `<iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q))}"></iframe>`;
+      return;
+    }
+    groupMap = ctl;
   }
 
   async function runSuggest() {
