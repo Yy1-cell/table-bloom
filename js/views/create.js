@@ -85,8 +85,23 @@ export function openCreate({ onClose } = {}) {
             ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
           </div>`;
-      const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
-      ids.venue = ps.id;
+      // Friends tables: nobody picks the restaurant up front. Friends join first, share where they start
+      // and what they feel like eating, then everyone picks the place together on the table page.
+      const venueBlock = isFriends()
+        ? `<div class="notice" id="c-later">🍽️ ${esc(t("cr.friendsLater"))}</div>`
+        : (() => {
+            const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
+            ids.venue = ps.id;
+            return `<div class="section-lite" id="c-sug-wrap">
+          <h3>${esc(t("cr.sugTitle"))}</h3>
+          <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
+          <ul class="suggest" id="c-sug" aria-live="polite"></ul>
+          <div class="row wrap-row"><button type="button" class="btn sm ghost" data-sug-refresh>${esc(t("cr.sugRefresh"))}</button></div>
+        </div>
+        ${ps.html}
+        <div id="c-maplink">${d.place ? mapActionsHTML(d.place, { hint: false }) : ""}</div>
+        <div class="field" id="f-label"><label for="c-label">${esc(t("cr.orArea"))}</label><input id="c-label" type="text" maxlength="120" value="${esc(d.area_label)}" placeholder="${esc(t("cr.orAreaPh"))}"></div>`;
+          })();
       body = `
         <h2>${esc(t("cr.s2"))}</h2>
         <div class="row wrap-row" style="align-items:flex-start">
@@ -95,15 +110,7 @@ export function openCreate({ onClose } = {}) {
         </div>
         <div class="field"><label for="c-area">${esc(t("cr.area"))}</label><select id="c-area">${state.areas.map((a) => `<option value="${a.id}" ${d.area_id === a.id ? "selected" : ""}>${esc(nameOf(a))}</option>`).join("")}</select></div>
         ${startBlock}
-        <div class="section-lite" id="c-sug-wrap">
-          <h3>${esc(t("cr.sugTitle"))}</h3>
-          <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
-          <ul class="suggest" id="c-sug" aria-live="polite"></ul>
-          <div class="row wrap-row"><button type="button" class="btn sm ghost" data-sug-refresh>${esc(t("cr.sugRefresh"))}</button></div>
-        </div>
-        ${ps.html}
-        <div id="c-maplink">${d.place ? mapActionsHTML(d.place, { hint: false }) : ""}</div>
-        <div class="field" id="f-label"><label for="c-label">${esc(t("cr.orArea"))}</label><input id="c-label" type="text" maxlength="120" value="${esc(d.area_label)}" placeholder="${esc(t("cr.orAreaPh"))}"></div>
+        ${venueBlock}
         <div id="c-err" class="err-text" role="alert"></div>`;
     } else {
       body = `
@@ -131,7 +138,8 @@ export function openCreate({ onClose } = {}) {
   }
 
   function whereText() {
-    return d.place?.name || d.area_label || nameOf(state.areas.find((a) => a.id === d.area_id));
+    const area = nameOf(state.areas.find((a) => a.id === d.area_id));
+    return isFriends() ? area : d.place?.name || d.area_label || area;
   }
   function summary() {
     const c = state.cuisines.find((x) => x.slug === d.cuisine);
@@ -151,7 +159,7 @@ export function openCreate({ onClose } = {}) {
       d.date = qs("#c-date", sheet.body).value;
       d.time = qs("#c-time", sheet.body).value;
       d.area_id = qs("#c-area", sheet.body).value;
-      d.area_label = qs("#c-label", sheet.body).value.trim();
+      d.area_label = qs("#c-label", sheet.body)?.value.trim() ?? d.area_label;
     } else {
       d.budget = qs("#c-budget", sheet.body).value;
       d.note = qs("#c-note", sheet.body).value.trim();
@@ -175,7 +183,7 @@ export function openCreate({ onClose } = {}) {
   }
 
   async function loadSuggest() {
-    if (step !== 2) return;
+    if (step !== 2 || isFriends()) return;
     clearTimeout(sugTimer);
     sugCtl?.abort();
     const origin = suggestOrigin();
@@ -250,7 +258,7 @@ export function openCreate({ onClose } = {}) {
     if (!d.date) return bad("#f-date", t("cr.errDate"));
     if (!d.time) return bad("#f-time", t("cr.errTime"));
     if (new Date(toISO(d.date, d.time)).getTime() < Date.now() + 5 * 60000) return bad("#f-date", t("err.start_in_past"));
-    if (!d.place && !d.area_label) return bad("#f-label", t("cr.errPlace"));
+    if (!isFriends() && !d.place && !d.area_label) return bad("#f-label", t("cr.errPlace"));
     return true;
   }
 
@@ -286,7 +294,7 @@ export function openCreate({ onClose } = {}) {
         onSelect: (p) => { d.startMe = p; scheduleSuggest(); },
         onClear: () => { d.startMe = null; scheduleSuggest(); },
       });
-      bindPlaceSearch(b, {
+      if (ids.venue) bindPlaceSearch(b, {
         id: ids.venue, near,
         onSelect: (p) => {
           d.place = p;
@@ -325,8 +333,8 @@ export function openCreate({ onClose } = {}) {
         qsa("[data-cuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.cuisine === d.cuisine)));
         scheduleSuggest();
       });
-      qs("[data-sug-refresh]", b).addEventListener("click", () => loadSuggest());
-      qs("#c-sug", b).addEventListener("click", (e) => {
+      qs("[data-sug-refresh]", b)?.addEventListener("click", () => loadSuggest());
+      qs("#c-sug", b)?.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-use]");
         if (!btn || !sug?.list) return;
         const r = sug.list[Number(btn.dataset.use)];
@@ -366,6 +374,9 @@ export function openCreate({ onClose } = {}) {
 
   async function publish(btn) {
     const center = areaCenter();
+    // Friends tables start without a venue: the group picks it together once people have joined.
+    const place = isFriends() ? null : d.place;
+    const areaName = nameOf(state.areas.find((a) => a.id === d.area_id)) || "Toronto";
     const budget = d.budget !== "" && Number.isFinite(Number(d.budget)) ? Math.round(Number(d.budget) * 100) : null;
     const payload = {
       title: d.title || null,
@@ -375,10 +386,10 @@ export function openCreate({ onClose } = {}) {
       join_mode: isFriends() ? "instant" : d.join_mode,
       starts_at: toISO(d.date, d.time),
       area_id: d.area_id || null,
-      area_label: d.place ? d.place.name : d.area_label,
-      meet_lat: d.place ? d.place.lat : center?.lat ?? null,
-      meet_lng: d.place ? d.place.lng : center?.lng ?? null,
-      venue: d.place ? { name: d.place.name, address: d.place.address, lat: d.place.lat, lng: d.place.lng, poi_id: d.place.poi_id } : null,
+      area_label: place ? place.name : isFriends() ? areaName : d.area_label,
+      meet_lat: place ? place.lat : center?.lat ?? null,
+      meet_lng: place ? place.lng : center?.lng ?? null,
+      venue: place ? { name: place.name, address: place.address, lat: place.lat, lng: place.lng, poi_id: place.poi_id } : null,
       budget_cents: budget,
       tags: d.tags,
       note: d.note || null,

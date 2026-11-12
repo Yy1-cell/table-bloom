@@ -107,7 +107,7 @@ export const EN = {
   "cr.sugTitle": "Suggested restaurants", "cr.needStarts": "Add both starting points above and we'll suggest places that are a similar distance for you both.",
   "cr.sugMiddle": "Near the middle of your two starting points, ranked by how fair the trip is for both of you.", "cr.sugNearMe": "Near your starting point.", "cr.sugNearArea": "Near {area}. Add your starting point for closer picks.",
   "cr.sugRefresh": "Refresh suggestions", "cr.fromBoth": "you {a} km · friend {b} km", "cr.fromYou": "{km} km from you", "cr.fromArea": "{km} km from the area centre",
-  "cr.picked": "✓ Selected", "cr.orSearch": "Not here? Search for another restaurant",
+  "cr.friendsLater": "No need to pick a restaurant now. After you create the table, send the invite link. Everyone adds where they're starting from and what they feel like eating, then you pick the place together.", "cr.picked": "✓ Selected", "cr.orSearch": "Not here? Search for another restaurant",
 
   // mine
   "mine.title": "My tables", "mine.tab.upcoming": "Upcoming", "mine.tab.pending": "Pending", "mine.tab.past": "Past",
@@ -272,7 +272,7 @@ export const ZH = {
   "cr.sugTitle": "推荐餐厅", "cr.needStarts": "在上面填好两个人的出发点，我们就会推荐对两人距离都差不多的餐厅。",
   "cr.sugMiddle": "两个出发点中间附近的餐厅，按两人路程是否公平来排序。", "cr.sugNearMe": "你的出发点附近。", "cr.sugNearArea": "{area} 附近。填上你的出发点，推荐会更近。",
   "cr.sugRefresh": "刷新推荐", "cr.fromBoth": "你 {a} 公里 · 朋友 {b} 公里", "cr.fromYou": "离你 {km} 公里", "cr.fromArea": "离地区中心 {km} 公里",
-  "cr.picked": "✓ 已选择", "cr.orSearch": "没有合适的？搜索其他餐厅",
+  "cr.friendsLater": "现在不用选餐厅。创建后把邀请链接发给朋友，大家各自填好出发点和想吃的，再一起选餐厅。", "cr.picked": "✓ 已选择", "cr.orSearch": "没有合适的？搜索其他餐厅",
 
   "mine.title": "我的饭局", "mine.tab.upcoming": "即将开始", "mine.tab.pending": "待回复", "mine.tab.past": "已结束",
   "mine.empty.upcoming": "还没有安排。", "mine.empty.pending": "没有待回复的申请。", "mine.empty.past": "已结束的饭局会显示在这里。", "mine.browse": "去看看饭局",
