@@ -134,8 +134,9 @@ export function mapsUrl({ name, address, lat, lng }) {
 }
 
 /** Google Maps embed (no API key). `q` can be a place or a search like "hotpot restaurants near 43.65,-79.38". */
-export function googleEmbedUrl(q, zoom = 15) {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=${zoom}&hl=${mapHl()}&output=embed`;
+export function googleEmbedUrl(q, zoom = 15, ll) {
+  const center = ll && Number.isFinite(+ll.lat) && Number.isFinite(+ll.lng) ? `&ll=${ll.lat},${ll.lng}` : "";
+  return `https://maps.google.com/maps?q=${encodeURIComponent(q)}${center}&z=${zoom}&hl=${mapHl()}&output=embed`;
 }
 
 export function appleMapsUrl({ name, lat, lng }) {

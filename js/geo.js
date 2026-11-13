@@ -177,6 +177,77 @@ export async function restaurantsNear(center, cuisineSlug, { radius = 2200, sign
     .slice(0, 10);
 }
 
+// What to ask Photon for, per cuisine. Photon matches names, so a few typical words per cuisine.
+const PHOTON_TERMS = {
+  hotpot: ["hot pot", "hotpot", "shabu"],
+  korean_bbq: ["korean bbq", "korean", "kbbq"],
+  japanese: ["japanese", "sushi", "ramen"],
+  sichuan: ["sichuan", "szechuan"],
+  noodles: ["noodle", "ramen", "pho"],
+  pizza: ["pizza"],
+  dimsum: ["dim sum", "cantonese"],
+  cafe: ["cafe", "coffee"],
+  "": ["restaurant"],
+};
+
+async function photonPlaces(term, center, radiusKm, signal) {
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180));
+  const params = new URLSearchParams({
+    q: term,
+    limit: "40",
+    bbox: [center.lng - dLng, center.lat - dLat, center.lng + dLng, center.lat + dLat].map((n) => n.toFixed(4)).join(","),
+    lat: String(center.lat),
+    lon: String(center.lng),
+  });
+  if (getLang() !== "zh") params.set("lang", "en");
+  for (const kind of ["restaurant", "cafe", "fast_food", "food_court"]) params.append("osm_tag", "amenity:" + kind);
+  const timeout = withTimeout(8000, signal);
+  try {
+    const res = await fetch(`${PHOTON}?${params}`, { signal: timeout.signal });
+    if (!res.ok) throw new Error("photon_" + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.features)) throw new Error("photon_invalid");
+    return data.features
+      .map((f) => {
+        const p = f.properties || {};
+        const [lng, lat] = f.geometry?.coordinates || [];
+        return {
+          name: p.name || "",
+          address: formatAddress(p),
+          lat,
+          lng,
+          poi_id: p.osm_id ? `${p.osm_type || "N"}${p.osm_id}` : null,
+          distKm: Number.isFinite(lat) && Number.isFinite(lng) ? haversineKm(center, { lat, lng }) : Infinity,
+          source: "photon",
+        };
+      })
+      .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng) && r.distKm <= radiusKm);
+  } finally {
+    timeout.done();
+  }
+}
+
+/** Restaurants of a cuisine anywhere within `radiusKm` of `center` (OpenStreetMap via Photon). Throws only if every lookup failed. */
+export async function cuisinePlaces(center, cuisineSlug, { radiusKm = 10, signal } = {}) {
+  const terms = PHOTON_TERMS[cuisineSlug || ""] || [String(cuisineSlug).replace(/_/g, " ")];
+  const settled = await Promise.allSettled(terms.map((term) => photonPlaces(term, center, radiusKm, signal)));
+  signal?.throwIfAborted();
+  const ok = settled.filter((r) => r.status === "fulfilled");
+  if (!ok.length) throw settled[0].reason;
+  const seen = new Set();
+  const out = [];
+  for (const r of ok) {
+    for (const v of r.value) {
+      const key = v.poi_id || `${v.name.toLowerCase()}|${v.lat.toFixed(3)}|${v.lng.toFixed(3)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(v);
+    }
+  }
+  return out.sort((a, b) => a.distKm - b.distKm);
+}
+
 /** "granted" | "prompt" | "denied" | "unsupported". Never triggers the permission prompt. */
 export async function locationPermission() {
   if (!navigator.geolocation) return "unsupported";
@@ -210,30 +281,30 @@ export function currentPosition({ timeout = 10000 } = {}) {
  * (a long trip and an uneven trip both cost points). Returns venues with `dists` (km from each point, same order as `points`).
  * With several cravings, results are interleaved so everybody's craving shows up.
  */
-export async function groupSuggestions({ points, cuisines = [], signal, limit = 8 }) {
+export async function groupSuggestions({ points, cuisines = [], signal, limit = 24 }) {
   const pts = points.filter((p) => p && Number.isFinite(+p.lat) && Number.isFinite(+p.lng)).map((p) => ({ lat: +p.lat, lng: +p.lng }));
   if (!pts.length) return [];
   const center = midpoint(pts);
   const reach = Math.max(...pts.map((p) => haversineKm(center, p)));
-  const radius = Math.min(4000, Math.max(1500, reach * 1000 + 800));
+  // look around the whole stretch between the people, not just right at the middle
+  const radiusKm = Math.min(18, Math.max(7, reach + 5));
   const wanted = [...new Set(cuisines.length ? cuisines : [""])];
   const nearby = async (cuisine) => {
-    let list = [];
-    let failure = null;
-    for (const r of [radius, radius * 1.8, radius * 3]) {
-      try {
-        list = await restaurantsNear(center, cuisine, { radius: r, signal });
-        failure = null;
-      } catch (e) {
-        if (signal?.aborted) throw e;
-        // the online lookup failed at this radius: try the next, wider one (the built-in list may have results there)
-        failure = e;
-        continue;
-      }
-      if (list.length >= 4) break;
+    const [online, local] = await Promise.allSettled([
+      cuisinePlaces(center, cuisine, { radiusKm, signal }),
+      torontoVenuesNear(center, cuisine, radiusKm),
+    ]);
+    signal?.throwIfAborted();
+    if (online.status === "rejected" && local.status === "rejected") throw online.reason;
+    const seen = new Set();
+    const merged = [];
+    for (const v of [...(online.value || []), ...(local.value || [])]) {
+      const key = `${v.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")}|${v.lat.toFixed(3)}|${v.lng.toFixed(3)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(v);
     }
-    if (!list.length && failure) throw failure;
-    return list;
+    return merged;
   };
   // One cuisine failing to load shouldn't hide the others; only give up if every lookup failed.
   const settled = await Promise.allSettled(wanted.map(nearby));

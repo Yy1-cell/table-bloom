@@ -197,7 +197,7 @@ export async function openTable(id, { onClose } = {}) {
       const withStart = startingPoints();
       if (tb.is_private) {
         html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame group-map" id="shared-map" role="region" aria-label="${esc(t("td.sharedMap"))}"></div>
-          <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p></div>`);
+          <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p><div id="pick-card"></div></div>`);
       }
       html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
@@ -227,6 +227,7 @@ export async function openTable(id, { onClose } = {}) {
 
     sheet.setHTML(html.join(""));
     mountSharedMap();
+    paintPick();
     wirePlaceSearches();
     if (isMember && !tb.is_sample) loadPhotos();
     autoSuggest();
@@ -315,6 +316,33 @@ export async function openTable(id, { onClose } = {}) {
     const box = !sheet.closed && qs("#suggest-list", sheet.body);
     if (box) box.innerHTML = suggestHTML(suggestions);
     groupMap?.update(mapData());
+    paintPick();
+  }
+
+  // The place that was tapped on the map or in the list: shows its Google Maps card (ratings, photos, hours) under the map.
+  let picked = -1;
+  function choose(i) {
+    picked = i;
+    groupMap?.select(i);
+    paintPick();
+    qs("#pick-card", sheet.body)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function paintPick() {
+    const box = !sheet.closed && qs("#pick-card", sheet.body);
+    if (!box) return;
+    const list = Array.isArray(suggestions) ? suggestions : [];
+    const r = list[picked];
+    if (!r) {
+      box.innerHTML = list.length ? `<p class="hint" style="margin:6px 0 0">${esc(t("td.pickHint"))}</p>` : "";
+      return;
+    }
+    const q = [r.name, r.address || "Toronto"].filter(Boolean).join(", ");
+    const dist = r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : "";
+    box.innerHTML = `<div class="pick-card">
+      <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, dist].filter(Boolean).join(" · "))}</small></div>
+      <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
+      <div class="row wrap-row"><a class="btn sm" target="_blank" rel="noopener" href="${esc(mapsUrl(r))}">${esc(t("td.openGoogle"))}</a>
+        <button type="button" class="btn sm primary" data-act="use-venue" data-i="${picked}">${esc(t("td.useVenue"))}</button></div></div>`;
   }
 
   // ---- shared map (private friends tables): starting points, the middle, the chosen venue and the suggestions
@@ -329,6 +357,7 @@ export async function openTable(id, { onClose } = {}) {
       middle: people.length > 1 ? midpoint(people) : null,
       venue: tb.venue && tb.venue.lat != null ? { name: tb.venue.name, lat: Number(tb.venue.lat), lng: Number(tb.venue.lng) } : null,
       suggestions: Array.isArray(suggestions) ? suggestions : [],
+      onPick: choose,
       fallbackCenter: restaurantCenter(),
       labels: { middle: t("td.mapMiddle") },
     };
@@ -353,6 +382,7 @@ export async function openTable(id, { onClose } = {}) {
   async function runSuggest() {
     if (suggestions === "loading") return;
     suggestions = "loading";
+    picked = -1;
     paintSuggest();
     try {
       if (tb.is_private) {
@@ -386,13 +416,15 @@ export async function openTable(id, { onClose } = {}) {
     if (list === "error" || !list.length) {
       return `<li>${esc(t(list === "error" ? "td.suggestError" : "td.suggestNone"))}</li>`;
     }
-    return list
+    const shown = list.slice(0, 8);
+    const more = list.length > shown.length ? `<li class="muted">${esc(t("td.moreOnMap", { n: list.length - shown.length }))}</li>` : "";
+    return shown
       .map(
-        (r, i) => `<li><span class="who"><strong>${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
+        (r, i) => `<li${i === picked ? ' class="chosen"' : ""}><span class="who" data-act="pick" data-i="${i}" tabindex="0" role="button" style="cursor:pointer"><strong>${i + 1}. ${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
           <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
           <button type="button" class="btn sm" data-act="use-venue" data-i="${i}">${esc(t("td.useVenue"))}</button></li>`
       )
-      .join("");
+      .join("") + more;
   }
 
   let venuePick = null;
@@ -501,6 +533,10 @@ export async function openTable(id, { onClose } = {}) {
       case "cancel": {
         const ok = await confirmDialog({ title: t("td.cancelQ"), body: t("td.cancelBody"), confirmLabel: t("td.cancelYes"), cancelLabel: t("td.keep"), danger: true });
         if (ok) await mutate(btn, () => api.cancelTable(tb.id), t("td.cancelDone"));
+        break;
+      }
+      case "pick": {
+        choose(Number(btn.dataset.i));
         break;
       }
       case "suggest": {

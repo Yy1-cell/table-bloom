@@ -50,6 +50,8 @@ export async function mountGroupMap(container, data) {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
   }).addTo(map);
   const layer = L.layerGroup().addTo(map);
+  let sugMarkers = [];
+  let selected = -1;
   map.setView([43.6532, -79.3832], 11);
 
   const pin = (className, content, size = 34) =>
@@ -61,8 +63,16 @@ export async function mountGroupMap(container, data) {
     marker.bindTooltip(node, { permanent: true, direction, offset: [0, direction === "bottom" ? 14 : -14], className: "gm-tip" });
   };
 
+  function applySelection() {
+    sugMarkers.forEach((m, i) => {
+      m.getElement()?.firstChild?.classList.toggle("gm-sel", i === selected);
+      m.setZIndexOffset(i === selected ? 1000 : 200);
+    });
+  }
+
   function update(d) {
     layer.clearLayers();
+    sugMarkers = [];
     const bounds = [];
     const add = (latlng) => bounds.push(latlng);
 
@@ -84,12 +94,17 @@ export async function mountGroupMap(container, data) {
     (d.suggestions || []).forEach((s, i) => {
       if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) return;
       const ll = [s.lat, s.lng];
-      const m = L.marker(ll, { icon: pin("gm-sug", String(i + 1), 26), zIndexOffset: 200 }).addTo(layer);
+      // the first ten are numbered like the list; the rest are small dots so the whole area stays readable
+      const numbered = i < 10;
+      const m = L.marker(ll, { icon: pin(numbered ? "gm-sug" : "gm-sug gm-dot", numbered ? String(i + 1) : "", numbered ? 28 : 16), zIndexOffset: 200, keyboard: true, title: s.name }).addTo(layer);
       const node = document.createElement("span");
       node.textContent = s.name;
-      m.bindPopup(node);
+      m.bindTooltip(node, { direction: "top", offset: [0, -12], className: "gm-tip" });
+      m.on("click", () => d.onPick?.(i));
+      sugMarkers[i] = m;
       add(ll);
     });
+    applySelection();
     if (d.venue && Number.isFinite(d.venue.lat) && Number.isFinite(d.venue.lng)) {
       const ll = [d.venue.lat, d.venue.lng];
       const m = L.marker(ll, { icon: pin("gm-venue", "🍽️", 38), zIndexOffset: 800 }).addTo(layer);
@@ -112,6 +127,12 @@ export async function mountGroupMap(container, data) {
     update(d) {
       latest = d;
       if (container.isConnected) update(d);
+    },
+    select(i) {
+      selected = i;
+      applySelection();
+      const m = sugMarkers[i];
+      if (m) map.panTo(m.getLatLng(), { animate: true });
     },
     destroy() {
       try {
