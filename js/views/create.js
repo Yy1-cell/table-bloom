@@ -5,7 +5,7 @@ import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
 import { AUDIENCES, TAGS, INTENTIONS, PACES } from "../data.js";
-import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
+import { go, nameOf, showError, withBusy, mapActionsHTML, cuisineGroupsHTML } from "./common.js";
 import { restaurantsNear, currentPosition } from "../geo.js";
 
 export function openCreate({ onClose } = {}) {
@@ -54,8 +54,8 @@ export function openCreate({ onClose } = {}) {
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
           ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
         </div></fieldset>
-        <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div class="chips" id="c-cuisines">
-          ${state.cuisines.map((c) => `<button type="button" class="chip" data-cuisine="${c.slug}" aria-pressed="${d.cuisine === c.slug}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`).join("")}
+        <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div class="cuisine-groups" id="c-cuisines">
+          ${cuisineGroupsHTML({ attr: "cuisine", isOn: (s) => d.cuisine === s })}
         </div></fieldset>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
@@ -72,7 +72,7 @@ export function openCreate({ onClose } = {}) {
         return ps.html;
       };
       const cuisineChips = (attr, current) =>
-        `<div class="chips" data-chips="${attr}">${state.cuisines.map((c) => `<button type="button" class="chip" data-${attr}="${c.slug}" aria-pressed="${current === c.slug}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`).join("")}</div>`;
+        `<div class="cuisine-groups" data-chips="${attr}">${cuisineGroupsHTML({ attr, isOn: (s) => current === s })}</div>`;
       const startBlock = isFriends()
         ? `<div class="section-lite">
             <h3>${esc(t("cr.pairTitle"))}</h3>

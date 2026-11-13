@@ -5,7 +5,7 @@ import { state } from "../state.js";
 import { api } from "../api.js";
 import { toast, announce, confirmDialog } from "../ui.js";
 import { AVATARS, SPOKEN } from "../data.js";
-import { nameOf, showError, withBusy, go } from "./common.js";
+import { nameOf, showError, withBusy, go, cuisineGroupsHTML } from "./common.js";
 
 // Unsaved form values survive a language switch (which re-renders the whole page).
 let stash = null;
@@ -17,22 +17,21 @@ export async function render(root) {
   const draft = {
     avatar: f.avatar ?? me.avatar_emoji,
     spoken: new Set(f.spoken ?? me.languages_spoken ?? []),
-    ranks: f.ranks ?? [...state.ranks, ...state.cuisines.map((c) => c.slug).filter((s) => !state.ranks.includes(s))],
+    // favourites, in the order they were tapped; people who ranked before keep their top three
+    favs: f.favs ?? (onboarding ? [] : state.ranks.slice(0, 3).filter((s) => state.cuisines.some((c) => c.slug === s))),
+  };
+  // everything else keeps its previous order after the favourites (used for the taste match)
+  const fullRanks = () => {
+    const all = [...state.ranks, ...state.cuisines.map((c) => c.slug)];
+    return [...new Set([...draft.favs, ...all])].filter((s) => state.cuisines.some((c) => c.slug === s));
   };
   let blocks = [];
   try {
     blocks = await api.listBlocks();
   } catch {}
 
-  function rankHTML() {
-    return draft.ranks
-      .map((slug, i) => {
-        const c = state.cuisines.find((x) => x.slug === slug);
-        return `<li data-slug="${slug}"><span class="name">${esc(c.emoji)} ${esc(nameOf(c))}</span>
-          <button type="button" data-move="-1" aria-label="${esc(t("pf.moveUp", { name: nameOf(c) }))}" ${i === 0 ? "disabled" : ""}>↑</button>
-          <button type="button" data-move="1" aria-label="${esc(t("pf.moveDown", { name: nameOf(c) }))}" ${i === draft.ranks.length - 1 ? "disabled" : ""}>↓</button></li>`;
-      })
-      .join("");
+  function favHTML() {
+    return cuisineGroupsHTML({ attr: "fav", isOn: (s) => draft.favs.includes(s) });
   }
 
   function installBlock() {
@@ -65,7 +64,7 @@ export async function render(root) {
       <div class="field" style="margin:0"><label for="pf-budget">${esc(t("pf.budget"))}</label>
         <input id="pf-budget" type="number" inputmode="decimal" min="5" max="500" step="1" value="${f.budget ?? (me.budget_cents != null ? me.budget_cents / 100 : "")}" placeholder="30">
         <div class="err-text" id="pf-budget-err" role="alert"></div></div>
-      <fieldset style="margin:0"><legend>${esc(t("pf.rank"))}</legend><p class="hint" style="margin-top:0">${esc(t("pf.rankHint"))}</p><ol class="rank" id="rank">${rankHTML()}</ol></fieldset>
+      <fieldset style="margin:0"><legend>${esc(t("pf.rank"))}</legend><p class="hint" style="margin-top:0">${esc(t("pf.rankHint"))}</p><div class="cuisine-groups" id="rank">${favHTML()}</div></fieldset>
       <button type="submit" class="btn primary block">${esc(onboarding ? t("pf.saveStart") : t("common.save"))}</button>
     </form>
 
@@ -96,7 +95,7 @@ export async function render(root) {
       stash = {
         avatar: draft.avatar,
         spoken: [...draft.spoken],
-        ranks: [...draft.ranks],
+        favs: [...draft.favs],
         name: qs("#pf-name", root).value,
         area: qs("#pf-area", root).value,
         diet: qs("#pf-diet", root).value,
@@ -114,16 +113,13 @@ export async function render(root) {
       b.setAttribute("aria-pressed", String(draft.spoken.has(b.dataset.l)));
     });
     qs("#rank", root).addEventListener("click", (e) => {
-      const b = e.target.closest("[data-move]");
+      const b = e.target.closest("[data-fav]");
       if (!b) return;
-      const slug = b.closest("li").dataset.slug;
-      const i = draft.ranks.indexOf(slug);
-      const j = i + Number(b.dataset.move);
-      if (j < 0 || j >= draft.ranks.length) return;
-      [draft.ranks[i], draft.ranks[j]] = [draft.ranks[j], draft.ranks[i]];
-      qs("#rank", root).innerHTML = rankHTML();
-      announce(t("pf.moved", { name: nameOf(state.cuisines.find((c) => c.slug === slug)), n: j + 1 }));
-      qs(`#rank [data-slug="${slug}"] [data-move="${b.dataset.move}"]`, root)?.focus();
+      const slug = b.dataset.fav;
+      const at = draft.favs.indexOf(slug);
+      if (at >= 0) draft.favs.splice(at, 1);
+      else draft.favs.push(slug);
+      b.setAttribute("aria-pressed", String(at < 0));
     });
     qs("#pf", root).addEventListener("submit", save);
     qsa("[data-unblock]", root).forEach((b) =>
@@ -201,9 +197,10 @@ export async function render(root) {
     try {
       await withBusy(qs('[type="submit"]', root), async () => {
         const saved = await api.saveProfile(patch);
-        await api.savePrefs(draft.ranks);
+        const ranks = fullRanks();
+        await api.savePrefs(ranks);
         Object.assign(state.me, saved);
-        state.ranks = [...draft.ranks];
+        state.ranks = ranks;
       });
       if (lang !== getLang()) setLang(lang);
       toast(t("pf.saved"));

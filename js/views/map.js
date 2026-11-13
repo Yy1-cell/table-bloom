@@ -6,7 +6,7 @@ import { state } from "../state.js";
 import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
-import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
+import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText, cuisineGroupsHTML } from "./common.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
@@ -30,9 +30,8 @@ export async function render(root) {
     <div class="row wrap-row"><button type="button" class="btn sm" id="use-me">📍 ${esc(t("map.useMe"))}</button></div>
     <p class="hint loc-status" id="loc-status" role="status" aria-live="polite"></p>
     <div class="map-center" id="center"></div>
-    <div class="chips" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
-      <button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>
-      ${state.cuisines.map((c) => `<button type="button" class="chip" data-c="${c.slug}" aria-pressed="${cuisine === c.slug}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`).join("")}
+    <div class="cuisine-groups" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
+      ${cuisineGroupsHTML({ attr: "c", isOn: (s) => cuisine === s, any: `<button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>` })}
     </div>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.googleView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>

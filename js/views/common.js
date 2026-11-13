@@ -4,8 +4,25 @@ import { t, getLang } from "../i18n.js";
 import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
 import { codeOf } from "../errors.js";
+import { CUISINES, CUISINE_GROUPS } from "../data.js";
 
 export const nameOf = (o) => (o ? (getLang() === "zh" ? o.name_zh : o.name_en) : "");
+
+/** Cuisine chips grouped under small headings. `attr` is the data-attribute each chip carries; `isOn(slug)` says if it is selected. */
+export function cuisineGroupsHTML({ attr, isOn, any = "" }) {
+  const fallback = Object.fromEntries(CUISINES.map((c) => [c.slug, c.grp]));
+  const groups = new Map(CUISINE_GROUPS.map((g) => [g, []]));
+  for (const c of state.cuisines) {
+    const g = c.grp && c.grp !== "other" ? c.grp : fallback[c.slug] || "other";
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(c);
+  }
+  const chip = (c) => `<button type="button" class="chip" data-${attr}="${esc(c.slug)}" aria-pressed="${isOn(c.slug)}">${esc(c.emoji)} ${esc(nameOf(c))}</button>`;
+  return (any ? `<div class="chips">${any}</div>` : "") + [...groups]
+    .filter(([, list]) => list.length)
+    .map(([g, list]) => `<div class="cg"><div class="cg-label">${esc(t("cg." + g))}</div><div class="chips">${list.map(chip).join("")}</div></div>`)
+    .join("");
+}
 
 export function go(hash) {
   if (location.hash === hash) window.dispatchEvent(new HashChangeEvent("hashchange"));
