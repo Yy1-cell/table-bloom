@@ -9,7 +9,7 @@ export const state = {
   tables: [], // Discover list
   myTables: [], // tables I host or joined/requested
   pos: null, // { lat, lng } from the browser, only after the user asks for "closest"
-  filters: { chip: "all", sort: "match", areaId: null },
+  filters: { chip: "all", sort: "match", areaId: null, occasion: "" },
   baseView: "discover", // the page behind any open sheet
   installEvent: null, // beforeinstallprompt
 };

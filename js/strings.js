@@ -27,6 +27,7 @@ export const EN = {
   "disc.host": "Host a table", "disc.filters": "Filters", "disc.area": "Area", "disc.allAreas": "All areas", "disc.sort": "Sort by",
   "disc.count": "{n} tables", "disc.noLocation": "Couldn't get your location. Allow location access to sort by distance.",
   "disc.emptyTitle": "No tables match yet", "disc.emptyBody": "Try another filter, or be the first to host one.",
+  "disc.occasion": "Occasion", "disc.anyOccasion": "Any occasion",
   "chip.all": "All", "chip.today": "Today", "chip.new": "Open to new people", "chip.friend": "Friends welcome",
   "sort.match": "Best taste match", "sort.budget": "Lowest budget", "sort.closest": "Closest to me",
 
@@ -197,6 +198,7 @@ export const ZH = {
   "disc.host": "发起饭局", "disc.filters": "筛选", "disc.area": "地区", "disc.allAreas": "所有地区", "disc.sort": "排序",
   "disc.count": "共 {n} 桌", "disc.noLocation": "无法获取你的位置。请允许定位后再按距离排序。",
   "disc.emptyTitle": "还没有合适的饭局", "disc.emptyBody": "换个筛选条件，或者做第一个发起人。",
+  "disc.occasion": "场合", "disc.anyOccasion": "全部场合",
   "chip.all": "全部", "chip.today": "今天", "chip.new": "欢迎新朋友", "chip.friend": "朋友可同行",
   "sort.match": "口味最匹配", "sort.budget": "预算最低", "sort.closest": "离我最近",
 
