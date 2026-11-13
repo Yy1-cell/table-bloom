@@ -46,6 +46,7 @@ const cuisines = {
   steak: /steak|chop ?house|\bgrill\b/i,
   italian: /ital|pasta|trattoria|osteria|ristorante/i,
   mexican: /mexic|taco|burrito|cantina/i,
+  latin: /brazil|peruvian|\bperu\b|argentin|colombia|venezuela|latin|churrasc|rodizio|empanada|arepa|salvador|pupusa|ceviche/i,
   mediterranean: /mediterran|shawarma|falafel|greek|lebanese|turkish|persian|kebab/i,
   seafood: /seafood|sea food|oyster|lobster|\bcrab\b|\bfish\b/i,
   brunch: /brunch|breakfast|pancake|waffle/i,

@@ -869,7 +869,8 @@ insert into public.cuisines (slug, name_en, name_zh, emoji, grp, sort) values
   ('vegetarian', 'Vegetarian & vegan', '素食·轻食', '🥗', 'casual', 29),
   ('cafe', 'Café & light bites', '咖啡轻食', '☕', 'sweet', 30),
   ('bubble_tea', 'Bubble tea', '奶茶', '🧋', 'sweet', 31),
-  ('dessert', 'Dessert & bakery', '甜品·烘焙', '🍰', 'sweet', 32)
+  ('dessert', 'Dessert & bakery', '甜品·烘焙', '🍰', 'sweet', 32),
+  ('latin', 'Latin American & South American', '拉美·南美菜', '🦙', 'western', 33)
 on conflict (slug) do update set name_en = excluded.name_en, name_zh = excluded.name_zh, emoji = excluded.emoji, grp = excluded.grp, sort = excluded.sort;
 
 insert into public.areas (id, name_en, name_zh, center_lat, center_lng, sort)

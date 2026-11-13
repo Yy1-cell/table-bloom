@@ -202,6 +202,7 @@ const PHOTON_TERMS = {
   steak: ["steakhouse", "steak", "grill"],
   italian: ["italian", "pasta", "trattoria"],
   mexican: ["mexican", "taco", "burrito"],
+  latin: ["brazilian", "peruvian", "argentin", "latin american", "churrasco"],
   mediterranean: ["mediterranean", "shawarma", "greek"],
   seafood: ["seafood", "oyster", "fish"],
   brunch: ["brunch", "breakfast", "pancake"],

@@ -43,6 +43,7 @@ export const CUISINES = [
   { slug: "vegetarian", name_en: "Vegetarian & vegan", name_zh: "素食·轻食", emoji: "🥗", grp: "casual", sort: 29 },
   { slug: "cafe", name_en: "Café & light bites", name_zh: "咖啡轻食", emoji: "☕", grp: "sweet", sort: 30 },
   { slug: "bubble_tea", name_en: "Bubble tea", name_zh: "奶茶", emoji: "🧋", grp: "sweet", sort: 31 },
+  { slug: "latin", name_en: "Latin American & South American", name_zh: "拉美·南美菜", emoji: "🦙", grp: "western", sort: 33 },
   { slug: "dessert", name_en: "Dessert & bakery", name_zh: "甜品·烘焙", emoji: "🍰", grp: "sweet", sort: 32 },
 ];
 
