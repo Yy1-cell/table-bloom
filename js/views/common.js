@@ -4,7 +4,13 @@ import { t, getLang } from "../i18n.js";
 import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
 import { codeOf } from "../errors.js";
-import { CUISINES, CUISINE_GROUPS } from "../data.js";
+import { CUISINES, CUISINE_GROUPS, OCCASIONS } from "../data.js";
+
+// The "what is this table for" badge (date, family meal…), shown before the vibe tags.
+export function occasionTag(tb) {
+  const o = OCCASIONS.find((x) => x.slug === tb?.occasion);
+  return o ? `<span class="tag occ"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</span>` : "";
+}
 
 export const nameOf = (o) => (o ? (getLang() === "zh" ? o.name_zh : o.name_en) : "");
 
@@ -115,7 +121,7 @@ export function tableCardHTML(tb, { showMatch = true } = {}) {
       ${c ? `<li><span aria-hidden="true">${esc(c.emoji)}</span>${esc(nameOf(c))}</li>` : ""}
       ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</li>` : ""}
     </ul>
-    ${tb.tags?.length ? `<div class="tags">${tb.tags.map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+    ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
     <div class="foot"><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(seatsText(tb))}</span><span class="muted">${esc(t("aud." + tb.audience))}</span></div>
   </button>`;
 }

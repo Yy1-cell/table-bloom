@@ -4,7 +4,7 @@ import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, INTENTIONS, PACES } from "../data.js";
+import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML, cuisineGroupsHTML } from "./common.js";
 import { restaurantsNear, currentPosition } from "../geo.js";
 
@@ -22,6 +22,7 @@ export function openCreate({ onClose } = {}) {
     area_label: "",
     budget: state.me?.budget_cents != null ? String(state.me.budget_cents / 100) : "",
     tags: [],
+    occasion: "",
     note: "",
     intention: "",
     pace: "",
@@ -117,6 +118,9 @@ export function openCreate({ onClose } = {}) {
         <h2>${esc(t("cr.s3"))}</h2>
         <div class="field"><label for="c-budget">${esc(t("cr.budget"))} <span class="muted">(${esc(t("common.optional"))})</span></label>
           <input id="c-budget" type="number" inputmode="decimal" min="0" max="500" step="1" value="${esc(d.budget)}" placeholder="30"></div>
+        <fieldset><legend>${esc(t("cr.occasion"))} <span class="muted">(${esc(t("common.optional"))})</span></legend><div class="chips" id="c-occ">
+          ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
+        </div></fieldset>
         <fieldset><legend>${esc(t("cr.tags"))}</legend><div class="chips" id="c-tags">
           ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
         </div></fieldset>
@@ -347,6 +351,12 @@ export function openCreate({ onClose } = {}) {
       loadSuggest();
     } else {
       qs("#c-note", b).addEventListener("input", (e) => (qs("#c-note-n", b).textContent = e.target.value.length));
+      qs("#c-occ", b).addEventListener("click", (e) => {
+        const o = e.target.closest("[data-occ]");
+        if (!o) return;
+        d.occasion = d.occasion === o.dataset.occ ? "" : o.dataset.occ;
+        qsa("[data-occ]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.occ === d.occasion)));
+      });
       qs("#c-tags", b).addEventListener("click", (e) => {
         const g = e.target.closest("[data-tag]");
         if (!g) return;
@@ -392,6 +402,7 @@ export function openCreate({ onClose } = {}) {
       venue: place ? { name: place.name, address: place.address, lat: place.lat, lng: place.lng, poi_id: place.poi_id } : null,
       budget_cents: budget,
       tags: d.tags,
+      occasion: d.occasion || null,
       note: d.note || null,
       intention: d.intention || null,
       pace: d.pace || null,

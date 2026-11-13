@@ -56,6 +56,16 @@ export const TAGS = [
   "try_somewhere_new",
 ];
 
+// What the table is for. Optional, chosen by the host when creating the table.
+export const OCCASIONS = [
+  { slug: "date", emoji: "💕" },
+  { slug: "family", emoji: "👨‍👩‍👧" },
+  { slug: "friends", emoji: "🥂" },
+  { slug: "classmates", emoji: "🎒" },
+  { slug: "work", emoji: "💼" },
+  { slug: "celebrate", emoji: "🎂" },
+];
+
 export const AUDIENCES = ["friends", "friends_and_new", "new_people"];
 export const INTENTIONS = ["unwind", "catch_up", "study_tips", "new_perspectives"];
 export const PACES = ["talking", "ease_in", "listening"];

@@ -95,7 +95,7 @@ function seedSamples(db) {
   const rows = [
     sample(1, "u_lin", {
       seats: 2,
-      row: { area_id: A[0], title: "Hotpot on a cold day", audience: "friends_and_new", starts_at: atDay(todayOffset, 18), capacity: 4, budget_cents: 3000, cuisine: "hotpot", area_label: "Spadina & Dundas", meet_lat: 43.6532, meet_lng: -79.3985, tags: ["new_to_toronto", "mandarin_friendly", "split_bill"], note: "New to Toronto? You're very welcome." },
+      row: { area_id: A[0], title: "Hotpot on a cold day", audience: "friends_and_new", starts_at: atDay(todayOffset, 18), capacity: 4, budget_cents: 3000, cuisine: "hotpot", occasion: "classmates", area_label: "Spadina & Dundas", meet_lat: 43.6532, meet_lng: -79.3985, tags: ["new_to_toronto", "mandarin_friendly", "split_bill"], note: "New to Toronto? You're very welcome." },
     }),
     sample(2, "u_mia", {
       seats: 3,
@@ -103,11 +103,11 @@ function seedSamples(db) {
     }),
     sample(3, "u_annie", {
       seats: 2,
-      row: { area_id: A[0], title: "A slow lunch, a new connection", audience: "friends_and_new", starts_at: atDay(2, 12, 30), capacity: 4, budget_cents: 2400, cuisine: "japanese", area_label: "Yonge–Dundas", meet_lat: 43.6561, meet_lng: -79.3802, tags: ["bring_a_friend", "try_somewhere_new", "split_bill"], note: null },
+      row: { area_id: A[0], title: "A slow lunch, a new connection", audience: "friends_and_new", starts_at: atDay(2, 12, 30), capacity: 4, budget_cents: 2400, cuisine: "japanese", occasion: "friends", area_label: "Yonge–Dundas", meet_lat: 43.6561, meet_lng: -79.3802, tags: ["bring_a_friend", "try_somewhere_new", "split_bill"], note: null },
     }),
     sample(4, "u_kevin", {
       seats: 3,
-      row: { area_id: A[1], title: "Weekend dim sum, slow chat", audience: "friends_and_new", starts_at: atDay(3, 11), capacity: 6, budget_cents: 2200, cuisine: "dimsum", area_label: "Finch Station, North York", meet_lat: 43.7806, meet_lng: -79.415, tags: ["mandarin_friendly", "split_bill"], note: null },
+      row: { area_id: A[1], title: "Weekend dim sum, slow chat", audience: "friends_and_new", starts_at: atDay(3, 11), capacity: 6, budget_cents: 2200, cuisine: "dimsum", occasion: "family", area_label: "Finch Station, North York", meet_lat: 43.7806, meet_lng: -79.415, tags: ["mandarin_friendly", "split_bill"], note: null },
     }),
     sample(5, "u_jenny", {
       seats: 2,
@@ -306,6 +306,7 @@ function tableJson(t) {
     meet_lat: t.meet_lat ?? null,
     meet_lng: t.meet_lng ?? null,
     tags: [...(t.tags || [])],
+    occasion: t.occasion ?? null,
     note: (L ? L.note : t.note) || null,
     join_mode: t.join_mode,
     status: t.status,
@@ -492,6 +493,7 @@ export const api = {
       meet_lat: p.meet_lat ?? null,
       meet_lng: p.meet_lng ?? null,
       tags: [...(p.tags || [])],
+      occasion: p.occasion || null,
       note: (p.note || "").trim().slice(0, 280) || null,
       created_at: new Date().toISOString(),
       simAt: Date.now() + 8000,

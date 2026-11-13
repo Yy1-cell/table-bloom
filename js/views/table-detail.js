@@ -8,7 +8,7 @@ import { invitationUrl } from "../invitation.js";
 import { restaurantsNear, groupSuggestions } from "../geo.js";
 import { mountGroupMap } from "../group-map.js";
 import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
-import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML } from "./common.js";
+import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
 
@@ -100,7 +100,7 @@ export async function openTable(id, { onClose } = {}) {
       </ul>
       ${mapLink ? mapActionsHTML({ name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng }, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined }) : ""}
       ${tb.note ? `<p>${esc(tb.note)}</p>` : ""}
-      ${tb.tags?.length ? `<div class="tags">${tb.tags.map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}`);
+      ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}`);
 
     // ---- status messages & primary actions
     const act = [];

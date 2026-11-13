@@ -97,6 +97,7 @@ create table if not exists public.dining_tables (
   meet_lng          numeric,
   tags              text[] not null default '{}'
                     check (tags <@ array['mandarin_friendly','new_to_toronto','split_bill','bring_a_friend','easy_conversation','try_somewhere_new']),
+  occasion          text check (occasion in ('date','family','friends','classmates','work','celebrate')),
   note              text check (char_length(note) <= 280),
   join_mode         text not null default 'request' check (join_mode in ('request','instant')),
   status            text not null default 'open' check (status in ('open','full','cancelled','completed')),
@@ -325,6 +326,7 @@ language sql stable security definer set search_path = public as $$
     'meet_lat', t.meet_lat,
     'meet_lng', t.meet_lng,
     'tags', to_jsonb(t.tags),
+    'occasion', t.occasion,
     'note', t.note,
     'join_mode', t.join_mode,
     'status', t.status,
@@ -454,10 +456,10 @@ begin
   end if;
 
   insert into public.dining_tables (host_id, area_id, title, audience, starts_at, capacity, budget_cents, cuisine_slug,
-                                    venue_id, area_label, meet_lat, meet_lng, tags, note, join_mode, is_private)
+                                    venue_id, area_label, meet_lat, meet_lng, tags, occasion, note, join_mode, is_private)
   values (me, nullif(p->>'area_id', '')::uuid, v_title, coalesce(p->>'audience', 'friends_and_new'), v_starts, v_cap,
           nullif(p->>'budget_cents', '')::int, nullif(p->>'cuisine', ''), v_venue, left(p->>'area_label', 120),
-          nullif(p->>'meet_lat', '')::numeric, nullif(p->>'meet_lng', '')::numeric, v_tags, v_note,
+          nullif(p->>'meet_lat', '')::numeric, nullif(p->>'meet_lng', '')::numeric, v_tags, nullif(p->>'occasion', ''), v_note,
           case when v_private then 'instant' else coalesce(p->>'join_mode', 'request') end, v_private)
   returning id into v_id;
 
