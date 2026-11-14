@@ -68,6 +68,9 @@ button { cursor: pointer; }
 .app-header .in { max-width: 1040px; margin: 0 auto; height: var(--header-h); display: flex; align-items: center; gap: 12px; padding: 0 16px; }
 .brand { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 700; font-size: 20px; color: var(--green-900); text-decoration: none; }
 .brand .mark { color: var(--green-400); font-size: 22px; }
+.brand, .pill-btn { white-space: nowrap; flex: none; }
+.me-btn { min-width: 0; }
+.me-btn span:last-child { overflow: hidden; text-overflow: ellipsis; max-width: 10em; }
 .top-nav { display: none; gap: 4px; margin-left: 18px; }
 .top-nav a { padding: 8px 14px; border-radius: 999px; text-decoration: none; color: var(--muted); font-weight: 500; }
 .top-nav a[aria-current="page"] { background: var(--green-100); color: var(--green-900); }
@@ -87,6 +90,21 @@ button { cursor: pointer; }
 .bottom-nav a .ico { font-size: 22px; line-height: 1; }
 .bottom-nav a[aria-current="page"] { color: var(--green-700); }
 .bottom-nav a[aria-current="page"] .ico { transform: translateY(-1px); }
+/* Phones: keep the header on one line, labels on one line, no stray scrollbars on chip rows */
+@media (max-width: 819px) {
+  .app-header .in { gap: 8px; padding: 0 12px; }
+  .brand { font-size: 18px; gap: 6px; }
+  .brand .mark { font-size: 18px; }
+  .pill-btn { padding: 6px 10px; }
+  .bottom-nav a { min-width: 0; padding: 0 2px; font-size: 11px; }
+  .bottom-nav a > span:not(.ico):not(.nav-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar .chips { scrollbar-width: none; }
+  .toolbar .chips::-webkit-scrollbar { display: none; }
+}
+@media (max-width: 479px) {
+  .me-btn span:last-child { display: none; } /* the Me tab at the bottom already says who you are */
+}
+@media (max-width: 359px) { .brand { font-size: 16px; } }
 .nav-badge { position: absolute; top: 8px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
 .top-nav .nav-badge { position: static; display: inline-block; margin-left: 6px; }
 
