@@ -196,6 +196,18 @@ export const EN = {
   "again.title": "New friends I'd eat with again", "again.privacy": "Only you can see this list. They only see “both of us” if they picked you too.",
   "again.empty": "In a check-in, tap “Eat together again” next to someone you'd like to share another meal with. They'll show up here.",
   "again.mutual": "You both would", "again.meta": "Shared {n} meal(s)",
+  // operator console
+  "nav.admin": "Admin", "ad.title": "Admin console", "ad.entry": "Accounts, tables and reports. You can't see anyone's journal or check-ins.", "ad.open": "Open admin console",
+  "ad.tabOverview": "Overview", "ad.tabUsers": "Accounts", "ad.tabTables": "Tables", "ad.tabReports": "Reports", "ad.reload": "Refresh",
+  "ad.users": "Accounts", "ad.guests": "Guests", "ad.suspended": "Suspended", "ad.tOpen": "Open tables", "ad.tPast": "Past tables", "ad.tCancelled": "Cancelled", "ad.reportsNew": "New reports",
+  "ad.privacy": "Journals, post-meal check-ins and “eat again” lists are private: no admin screen or function can read them.",
+  "ad.fAll": "All", "ad.fGuest": "Guests", "ad.fIdle": "No activity", "ad.fStale": "Not seen for 1+ day", "ad.fSample": "Examples",
+  "ad.pickIdle": "Select idle guests (1+ day old)", "ad.pickNone": "Clear selection", "ad.purge": "Delete selected ({n})", "ad.pickAll": "Select all shown",
+  "ad.purgeQ": "Permanently delete {n} account(s)?", "ad.purgeBody": "This also deletes their profile, the tables they host and their memberships. It cannot be undone. Your own and admin accounts are never deleted.", "ad.purgeYes": "Delete permanently", "ad.purged": "Deleted {n} account(s).",
+  "ad.guest": "Guest", "ad.email": "E-mail", "ad.you": "you", "ad.activity": "Hosted {h} · Joined {j}", "ad.created": "created", "ad.seen": "last seen", "ad.today": "today", "ad.daysAgo": "{n}d ago", "ad.none": "Nothing here.",
+  "ad.suspend": "Suspend", "ad.unsuspend": "Restore", "ad.suspendQ": "Suspend this account?", "ad.suspendBody": "They won't be able to use the app until you restore the account.",
+  "ad.host": "Host", "ad.members": "{n} joined", "ad.cancelSel": "Cancel selected ({n})", "ad.cancelTable": "Cancel table", "ad.cancelQ": "Cancel {n} table(s)?", "ad.cancelBody": "Members will see the table as cancelled.", "ad.cancelled": "Cancelled {n} table(s).",
+  "ad.noReports": "No reports.", "ad.reporter": "From", "ad.reported": "About", "ad.resolve": "Mark resolved", "ad.reopen": "Reopen",
 };
 
 export const ZH = {
@@ -380,4 +392,16 @@ export const ZH = {
   "again.title": "愿意再一起吃饭的新朋友", "again.privacy": "这份名单只有你自己看得到。只有对方也选了你，才会显示“双方都愿意”。",
   "again.empty": "写快评时，在你愿意再一起吃饭的人旁边点“愿意再一起吃饭”，他们就会出现在这里。",
   "again.mutual": "双方都愿意", "again.meta": "一起吃过 {n} 顿",
+  // operator console
+  "nav.admin": "管理", "ad.title": "管理页", "ad.entry": "账号、饭局和举报。你看不到任何人的日记和饭后快评。", "ad.open": "打开管理页",
+  "ad.tabOverview": "概览", "ad.tabUsers": "账号", "ad.tabTables": "饭局", "ad.tabReports": "举报", "ad.reload": "刷新",
+  "ad.users": "账号总数", "ad.guests": "访客账号", "ad.suspended": "已封号", "ad.tOpen": "进行中的饭局", "ad.tPast": "已结束的饭局", "ad.tCancelled": "已取消", "ad.reportsNew": "待处理举报",
+  "ad.privacy": "日记、饭后快评和“愿意再一起吃饭”名单是私人的：管理页和管理接口都读不到。",
+  "ad.fAll": "全部", "ad.fGuest": "访客", "ad.fIdle": "没有活动", "ad.fStale": "1 天以上没登录", "ad.fSample": "示例饭局",
+  "ad.pickIdle": "选中闲置访客（超过 1 天）", "ad.pickNone": "取消选择", "ad.purge": "删除所选（{n}）", "ad.pickAll": "选中当前列表",
+  "ad.purgeQ": "永久删除 {n} 个账号？", "ad.purgeBody": "同时会删除他们的资料、他们开的饭局和参加记录，无法恢复。你自己和管理员账号不会被删除。", "ad.purgeYes": "永久删除", "ad.purged": "已删除 {n} 个账号。",
+  "ad.guest": "访客", "ad.email": "邮箱", "ad.you": "你", "ad.activity": "开过 {h} 个 · 参加过 {j} 个", "ad.created": "创建于", "ad.seen": "最近登录", "ad.today": "今天", "ad.daysAgo": "{n} 天前", "ad.none": "这里没有内容。",
+  "ad.suspend": "封号", "ad.unsuspend": "解封", "ad.suspendQ": "封掉这个账号？", "ad.suspendBody": "解封之前，对方无法使用这个应用。",
+  "ad.host": "发起人", "ad.members": "已加入 {n} 人", "ad.cancelSel": "取消所选（{n}）", "ad.cancelTable": "取消饭局", "ad.cancelQ": "取消 {n} 个饭局？", "ad.cancelBody": "成员会看到这个饭局已取消。", "ad.cancelled": "已取消 {n} 个饭局。",
+  "ad.noReports": "没有举报。", "ad.reporter": "举报人", "ad.reported": "被举报", "ad.resolve": "标记已处理", "ad.reopen": "重新打开",
 };

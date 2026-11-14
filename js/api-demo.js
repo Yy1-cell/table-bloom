@@ -677,6 +677,72 @@ export const api = {
     return clone(removed);
   },
 
+  // ------------------------------------------------------------ operator console (demo: you are the admin)
+  async adminCheck() {
+    return true;
+  },
+  async adminOverview() {
+    const d = requireUser();
+    const real = d.tables.filter((t) => !t.is_sample);
+    const live = (t) => ["open", "full"].includes(t.status) && new Date(t.starts_at) >= Date.now() - 2 * 3600e3;
+    return {
+      users: 1 + Object.keys(OTHERS).length, guests: 1, suspended: Object.values(d.demoStatus || {}).filter((x) => x === "suspended").length,
+      tables_open: real.filter(live).length, tables_past: real.filter((t) => !live(t) && t.status !== "cancelled").length,
+      tables_cancelled: real.filter((t) => t.status === "cancelled").length, reports_new: (d.reportsAdmin || []).filter((r) => r.status === "new").length,
+    };
+  },
+  async adminListUsers() {
+    const d = requireUser();
+    const mk = (id, name, emoji, anon, extra = {}) => ({
+      id, display_name: name, avatar_emoji: emoji, is_anonymous: anon, email: anon ? null : "e***@example.com",
+      created_at: new Date(Date.now() - 3 * 864e5).toISOString(), last_sign_in_at: new Date(Date.now() - 864e5).toISOString(),
+      status: (d.demoStatus || {})[id] || "active", is_admin: false, onboarded: true,
+      hosted: d.tables.filter((t) => t.host_id === id).length, joined: d.tables.filter((t) => t.members?.some((m) => m.user_id === id && m.status === "joined")).length, ...extra,
+    });
+    const gone = new Set(d.demoGone || []);
+    const rows = [mk(ME, d.profile.display_name, d.profile.avatar_emoji, true, { created_at: new Date().toISOString(), last_sign_in_at: new Date().toISOString() })];
+    for (const [id, o] of Object.entries(OTHERS)) rows.push(mk(id, o.display_name, o.avatar_emoji, true));
+    rows.push(mk("u_test_a", "test guest A", "🧪", true, { hosted: 0, joined: 0 }), mk("u_test_b", "test guest B", "🧪", true, { hosted: 0, joined: 0 }), mk("u_mail", "Ethan", "🍋", false, { hosted: 0, joined: 1 }));
+    return clone(rows.filter((r) => !gone.has(r.id)));
+  },
+  async adminListTables() {
+    const d = requireUser();
+    return clone(
+      d.tables.map((t) => ({
+        id: t.id, title: demoText(t)?.title || t.title || null, cuisine: t.cuisine ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at,
+        status: t.status, is_private: !!t.is_private, is_sample: !!t.is_sample, host_id: t.host_id || null, host_name: userInfo(t.host_id)?.display_name || t.sample_host_name || null,
+        host_is_guest: true, members: joinedCount(t), created_at: t.created_at || t.starts_at,
+      }))
+    );
+  },
+  async adminListReports() {
+    return clone((requireUser().reportsAdmin ||= []));
+  },
+  async adminSetUserStatus(userId, status) {
+    const d = requireUser();
+    (d.demoStatus ||= {})[userId] = status;
+    persist();
+  },
+  async adminCancelTables(ids) {
+    const d = requireUser();
+    let n = 0;
+    for (const t of d.tables) if (ids.includes(t.id) && !t.is_sample && ["open", "full"].includes(t.status)) { t.status = "cancelled"; n++; }
+    persist();
+    return n;
+  },
+  async adminResolveReport(id, status) {
+    const d = requireUser();
+    const r = (d.reportsAdmin ||= []).find((x) => x.id === id);
+    if (r) r.status = status;
+    persist();
+  },
+  async adminPurgeUsers(ids) {
+    const d = requireUser();
+    d.demoGone = [...new Set([...(d.demoGone || []), ...ids.filter((x) => x !== ME)])];
+    persist();
+    return ids.filter((x) => x !== ME).length;
+  },
+
   // ------------------------------------------------------------ post-meal check-in
   async getFeelings(tableId) {
     const d = requireUser();

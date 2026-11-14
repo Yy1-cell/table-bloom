@@ -77,6 +77,7 @@ async function loadRefs() {
 async function loadMe() {
   state.me = await api().getMe();
   state.diningProfile = undefined;
+  state.isAdmin = undefined;
   state.ranks = state.me.ranks?.length ? state.me.ranks : state.cuisines.map((c) => c.slug);
 }
 
@@ -207,6 +208,16 @@ async function doRoute() {
   if (BASE.includes(name)) {
     closeSheet({ silent: true });
     await showBase(name);
+    renderChrome();
+  } else if (name === "admin") {
+    // operator console: the server refuses non-admins anyway; this just keeps everyone else from seeing an empty page
+    if (state.isAdmin === undefined) state.isAdmin = (await api().adminCheck?.()) === true;
+    if (!state.isAdmin) {
+      history.replaceState(null, "", `#${state.baseView || "discover"}`);
+      return doRoute();
+    }
+    closeSheet({ silent: true });
+    await showBase("admin");
     renderChrome();
   } else if (name === "new" || (name === "t" && arg)) {
     if (!BASE.includes(current)) await showBase(state.baseView || "discover", { force: true });

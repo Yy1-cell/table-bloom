@@ -388,3 +388,8 @@ label.check input { margin-top: 3px; }
 .again-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .again-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .again-list .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ad-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.ad-list .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ad-list input[type="checkbox"] { margin-top: 10px; flex: none; accent-color: var(--green-700); }
+.ad-list li.rep { align-items: stretch; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }

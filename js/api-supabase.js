@@ -221,6 +221,23 @@ export async function createApi(cfg) {
       return wrap(sb.from("reflections").delete().eq("id", id).eq("user_id", uid()).select().maybeSingle());
     },
 
+    // ---------------------------------------------------------- operator console (the server refuses anyone who is not an admin)
+    async adminCheck() {
+      try {
+        return (await rpc("admin_check")) === true;
+      } catch {
+        return false;
+      }
+    },
+    adminOverview: () => rpc("admin_overview"),
+    adminListUsers: () => rpc("admin_list_users", { p_limit: 500 }),
+    adminListTables: () => rpc("admin_list_tables", { p_limit: 500 }),
+    adminListReports: () => rpc("admin_list_reports"),
+    adminSetUserStatus: (userId, status) => rpc("admin_set_user_status", { p_user: userId, p_status: status }),
+    adminCancelTables: (ids) => rpc("admin_cancel_tables", { p_ids: ids }),
+    adminResolveReport: (id, status) => rpc("admin_resolve_report", { p_id: id, p_status: status }),
+    adminPurgeUsers: (ids) => rpc("admin_purge_users", { p_ids: ids }),
+
     // ---------------------------------------------------------- post-meal check-in (shared with the table only after you submit yours)
     async getFeelings(tableId) {
       return rpc("get_feelings", { p_table: tableId });
