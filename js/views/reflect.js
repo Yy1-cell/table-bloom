@@ -7,7 +7,7 @@ import { openSheet, closeSheet, toast, announce } from "../ui.js";
 import { MOODS } from "../data.js";
 import { showError, withBusy } from "./common.js";
 import { buildProfile } from "../dining-profile.js";
-import { diningCardHTML } from "./dining-card.js";
+import { diningCardHTML, againPeopleHTML } from "./dining-card.js";
 
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
@@ -27,6 +27,12 @@ export async function render(root) {
   } catch {
     /* the profile is a bonus: the journal still works without it */
   }
+  let again = [];
+  try {
+    again = await api.listAgainPeople();
+  } catch {
+    /* optional, like the profile */
+  }
   if (!alive) return;
 
   const moods = items.map((x) => x.mood).filter(Boolean);
@@ -38,6 +44,7 @@ export async function render(root) {
     root.innerHTML = `
       <div class="row wrap-row" style="margin-bottom:6px"><h1 style="margin:0">${esc(t("jr.title"))}</h1><span class="spacer"></span><button type="button" class="btn primary" id="add">＋ ${esc(t("jr.add"))}</button></div>
       ${diningCardHTML(prof)}
+      ${againPeopleHTML(again)}
       <p class="muted">🔒 ${esc(t("jr.private"))}</p>
       <div class="stats">
         <div class="stat"><b>${items.length}</b><span>${esc(t("jr.statCount"))}</span></div>

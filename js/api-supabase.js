@@ -231,6 +231,10 @@ export async function createApi(cfg) {
     async listMyFeelings() {
       return rpc("list_my_feelings");
     },
+    /** New friends I'd eat with again (private). `mutual` only when they picked me too. */
+    async listAgainPeople() {
+      return rpc("list_again_people");
+    },
 
     // ---------------------------------------------------------- photos (members only; private Storage bucket)
     async listPhotos(tableId) {

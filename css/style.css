@@ -385,3 +385,6 @@ label.check input { margin-top: 3px; }
 .dp-k { color: var(--muted); font-size: 14px; min-width: 9em; }
 .dp-v { display: flex; flex-wrap: wrap; gap: 6px; }
 .reason { margin-top: 8px; font-size: 13.5px; color: var(--green-700); font-weight: 600; }
+.again-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.again-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.again-list .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

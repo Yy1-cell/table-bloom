@@ -1,5 +1,5 @@
 // "My dining profile" card (shown on the Journal page): built only from my own post-meal check-ins.
-import { esc } from "../util.js";
+import { esc, personName } from "../util.js";
 import { t } from "../i18n.js";
 import { cuisineOf } from "../state.js";
 import { OCCASIONS } from "../data.js";
@@ -30,4 +30,17 @@ export function diningCardHTML(p) {
     ${row(t("dp.lift"), lift)}
     ${p.n < 3 ? `<p class="hint">${esc(t("dp.few", { n: p.n }))}</p>` : ""}
   </section>`;
+}
+
+/** "New friends I'd eat with again": people I marked in a check-in. Private; "mutual" means they marked me too. */
+export function againPeopleHTML(list = []) {
+  const head = `<h2>💚 ${esc(t("again.title"))}</h2><p class="hint" style="margin-top:0">🔒 ${esc(t("again.privacy"))}</p>`;
+  if (!list.length) return `<section class="card dp">${head}<p class="muted">${esc(t("again.empty"))}</p></section>`;
+  return `<section class="card dp">${head}<ul class="again-list">${list
+    .map(
+      (p) => `<li><span class="av" aria-hidden="true">${esc(p.avatar_emoji || "🍽️")}</span>
+        <span class="who"><strong>${esc(personName(p.display_name))}</strong>${p.mutual ? ` <span class="tag occ">✨ ${esc(t("again.mutual"))}</span>` : ""}
+          <small class="muted">${esc(t("again.meta", { n: p.times }))}${p.last_title ? " · " + esc(p.last_title) : ""}</small></span></li>`
+    )
+    .join("")}</ul></section>`;
 }

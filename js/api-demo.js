@@ -737,6 +737,26 @@ export const api = {
     );
   },
 
+  async listAgainPeople() {
+    const d = requireUser();
+    const by = new Map();
+    for (const [tableId, sigs] of Object.entries(d.peerSignals || {})) {
+      const t = d.tables.find((x) => x.id === tableId);
+      if (!t) continue;
+      for (const [uid2, sig] of Object.entries(sigs)) {
+        if (sig !== "again" || isBlockedPair(uid2)) continue;
+        const u = userInfo(uid2);
+        const e = by.get(uid2) || { user_id: uid2, display_name: u.display_name, avatar_emoji: u.avatar_emoji, times: 0, last_at: t.starts_at, last_title: demoText(t)?.title || t.title || null, mutual: false };
+        e.times += 1;
+        if (t.starts_at >= e.last_at) { e.last_at = t.starts_at; e.last_title = demoText(t)?.title || t.title || null; }
+        // simulated people: roughly half pick me back
+        if ([...(tableId + uid2)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 997, 7) % 2 === 0) e.mutual = true;
+        by.set(uid2, e);
+      }
+    }
+    return clone([...by.values()].sort((a, b) => b.last_at.localeCompare(a.last_at)));
+  },
+
   // ------------------------------------------------------------ safety
   async reportContent({ table_id = null, user_id = null, reason, details = "" }) {
     const d = requireUser();
