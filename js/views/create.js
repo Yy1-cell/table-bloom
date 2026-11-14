@@ -9,16 +9,19 @@ import { go, nameOf, showError, withBusy, mapActionsHTML, cuisineGroupsHTML } fr
 import { restaurantsNear, currentPosition } from "../geo.js";
 
 export function openCreate({ onClose } = {}) {
+  // The Map tab can hand over a restaurant the person already found ("Host a table here").
+  const pre = state.createPrefill;
+  state.createPrefill = null;
   const d = {
     title: "",
     audience: "friends_and_new",
-    cuisine: state.ranks[0] || "",
+    cuisine: pre?.cuisine || state.ranks[0] || "",
     capacity: 4,
     join_mode: "request",
     date: todayStr(),
     time: "18:30",
-    area_id: state.me?.area_id || state.areas[0]?.id || "",
-    place: null,
+    area_id: pre?.area_id || state.me?.area_id || state.areas[0]?.id || "",
+    place: pre?.place || null,
     area_label: "",
     budget: state.me?.budget_cents != null ? String(state.me.budget_cents / 100) : "",
     tags: [],
@@ -50,6 +53,7 @@ export function openCreate({ onClose } = {}) {
     if (step === 1) {
       body = `
         <h2>${esc(t("cr.s1"))}</h2>
+        ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
         <div class="field"><label for="c-title">${esc(t("cr.title"))} <span class="muted">(${esc(t("common.optional"))})</span></label>
           <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(t("cr.titlePh"))}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
@@ -89,7 +93,9 @@ export function openCreate({ onClose } = {}) {
       // Friends tables: nobody picks the restaurant up front. Friends join first, share where they start
       // and what they feel like eating, then everyone picks the place together on the table page.
       const venueBlock = isFriends()
-        ? `<div class="notice" id="c-later">🍽️ ${esc(t("cr.friendsLater"))}</div>`
+        ? (d.place
+            ? `<div class="notice" id="c-later">📍 ${esc(t("cr.friendsStartWith", { name: d.place.name }))}${d.place.address ? ` · ${esc(d.place.address)}` : ""} <button type="button" class="btn sm ghost" data-clear-place>${esc(t("cr.clearPlace"))}</button></div>`
+            : `<div class="notice" id="c-later">🍽️ ${esc(t("cr.friendsLater"))}</div>`)
         : (() => {
             const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
             ids.venue = ps.id;
@@ -143,7 +149,7 @@ export function openCreate({ onClose } = {}) {
 
   function whereText() {
     const area = nameOf(state.areas.find((a) => a.id === d.area_id));
-    return isFriends() ? area : d.place?.name || d.area_label || area;
+    return isFriends() && !d.place ? area : d.place?.name || d.area_label || area;
   }
   function summary() {
     const c = state.cuisines.find((x) => x.slug === d.cuisine);
@@ -179,9 +185,10 @@ export function openCreate({ onClose } = {}) {
   // Directions in the map links start from the start point picked here (typed address or "my location"), never silently from the device position.
   function mapLinkHTML(place) {
     if (!place) return "";
-    return d.startMe
+    const picked = `<p class="hint" style="margin:6px 0"><strong>✓ ${esc(t("cr.placeChosen", { name: place.name }))}</strong>${place.address ? ` · ${esc(place.address)}` : ""}</p>`;
+    return picked + (d.startMe
       ? mapActionsHTML(place, { origin: { lat: d.startMe.lat, lng: d.startMe.lng }, originName: d.startMe.name })
-      : mapActionsHTML(place, { hint: false });
+      : mapActionsHTML(place, { hint: false }));
   }
 
   function refreshMapLink() {
@@ -324,6 +331,11 @@ export function openCreate({ onClose } = {}) {
           renderSuggest();
         },
       });
+      qs("[data-clear-place]", b)?.addEventListener("click", () => {
+        readStep();
+        d.place = null;
+        draw();
+      });
       qs("#c-area", b).addEventListener("change", (e) => {
         d.area_id = e.target.value;
         scheduleSuggest();
@@ -398,8 +410,9 @@ export function openCreate({ onClose } = {}) {
 
   async function publish(btn) {
     const center = areaCenter();
-    // Friends tables start without a venue: the group picks it together once people have joined.
-    const place = isFriends() ? null : d.place;
+    // Friends tables normally start without a venue (the group picks it together once people have joined),
+    // unless the host already chose one, e.g. from the Map tab.
+    const place = d.place;
     const areaName = nameOf(state.areas.find((a) => a.id === d.area_id)) || "Toronto";
     const budget = d.budget !== "" && Number.isFinite(Number(d.budget)) ? Math.round(Number(d.budget) * 100) : null;
     const payload = {

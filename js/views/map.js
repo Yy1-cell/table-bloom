@@ -118,6 +118,7 @@ export async function render(root) {
     box.innerHTML = `<div class="pick-card">
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, distLine({ dist: r.distKm, lat: r.lat, lng: r.lng })].filter(Boolean).join(" · "))}</small></div>
       <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
+      <div class="row wrap-row" style="margin-bottom:6px"><button type="button" class="btn sm primary" data-host="${picked}">🍽️ ${esc(t("map.hostHere"))}</button></div>
       ${mapActionsHTML(r, { ...fromHere(), hint: true })}</div>`;
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
@@ -214,6 +215,7 @@ export async function render(root) {
         ? list
             .map((r, i) => `<div class="place-row" data-ri="${i}" tabindex="0" role="button" style="cursor:pointer"><h3>${i < 10 ? `${i + 1}. ` : ""}${esc(r.name)}</h3>
               <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
+              <div class="row wrap-row" style="margin:8px 0 4px"><button type="button" class="btn sm primary" data-host="${i}">🍽️ ${esc(t("map.hostHere"))}</button></div>
               ${mapActionsHTML(r, fromHere())}</div>`)
             .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
         : restaurantFallback("map.noRestaurants");
@@ -258,6 +260,26 @@ export async function render(root) {
     qsa("[data-c]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === cuisine)));
     loadRestaurants();
   });
+  // "Host a table here": open the Host-a-table sheet with this restaurant already chosen
+  function hostHere(r) {
+    if (!r) return;
+    const areas = state.areas.filter((a) => a.center_lat != null && a.center_lng != null);
+    const nearest = areas
+      .map((a) => ({ id: a.id, d: haversineKm({ lat: r.lat, lng: r.lng }, { lat: Number(a.center_lat), lng: Number(a.center_lng) }) }))
+      .sort((x, y) => x.d - y.d)[0];
+    state.createPrefill = {
+      place: { name: r.name, address: r.address || "", lat: r.lat, lng: r.lng, poi_id: r.poi_id || null },
+      cuisine: cuisine || "",
+      area_id: nearest?.id || "",
+    };
+    go("#new");
+  }
+  for (const box of [qs("#rest", root), qs("#gmap", root)]) {
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-host]");
+      if (b) hostHere(restList[Number(b.dataset.host)]);
+    });
+  }
   // tap a restaurant row (not its buttons) to see it on the map
   qs("#rest", root).addEventListener("click", (e) => {
     if (e.target.closest("a, button")) return;
