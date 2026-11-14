@@ -98,7 +98,7 @@ export async function openTable(id, { onClose } = {}) {
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</span></li>` : ""}
         <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>
       </ul>
-      ${mapLink ? mapActionsHTML({ name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng }, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined }) : ""}
+      ${mapLink ? mapActionsHTML({ name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng }, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined, originName: mine?.start_lat != null ? mine.start_label || "" : "" }) : ""}
       ${tb.note ? `<p>${esc(tb.note)}</p>` : ""}
       ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}`);
 

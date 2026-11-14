@@ -100,7 +100,7 @@ export function openCreate({ onClose } = {}) {
           <div class="row wrap-row"><button type="button" class="btn sm ghost" data-sug-refresh>${esc(t("cr.sugRefresh"))}</button></div>
         </div>
         ${ps.html}
-        <div id="c-maplink">${d.place ? mapActionsHTML(d.place, { hint: false }) : ""}</div>
+        <div id="c-maplink">${mapLinkHTML(d.place)}</div>
         <div class="field" id="f-label"><label for="c-label">${esc(t("cr.orArea"))}</label><input id="c-label" type="text" maxlength="120" value="${esc(d.area_label)}" placeholder="${esc(t("cr.orAreaPh"))}"></div>`;
           })();
       body = `
@@ -175,6 +175,19 @@ export function openCreate({ onClose } = {}) {
   // ---- restaurant suggestions (step 2)
   const AREA_FALLBACK = { lat: 43.6532, lng: -79.3832 };
   const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
+
+  // Directions in the map links start from the start point picked here (typed address or "my location"), never silently from the device position.
+  function mapLinkHTML(place) {
+    if (!place) return "";
+    return d.startMe
+      ? mapActionsHTML(place, { origin: { lat: d.startMe.lat, lng: d.startMe.lng }, originName: d.startMe.name })
+      : mapActionsHTML(place, { hint: false });
+  }
+
+  function refreshMapLink() {
+    const box = qs("#c-maplink", sheet.body);
+    if (box) box.innerHTML = mapLinkHTML(d.place);
+  }
 
   function suggestOrigin() {
     if (d.startMe) return { center: { lat: d.startMe.lat, lng: d.startMe.lng }, mode: "me" };
@@ -295,14 +308,14 @@ export function openCreate({ onClose } = {}) {
       const near = areaCenter();
       bindPlaceSearch(b, {
         id: ids.me, near,
-        onSelect: (p) => { d.startMe = p; scheduleSuggest(); },
-        onClear: () => { d.startMe = null; scheduleSuggest(); },
+        onSelect: (p) => { d.startMe = p; refreshMapLink(); scheduleSuggest(); },
+        onClear: () => { d.startMe = null; refreshMapLink(); scheduleSuggest(); },
       });
       if (ids.venue) bindPlaceSearch(b, {
         id: ids.venue, near,
         onSelect: (p) => {
           d.place = p;
-          qs("#c-maplink", b).innerHTML = mapActionsHTML(p, { hint: false });
+          qs("#c-maplink", b).innerHTML = mapLinkHTML(p);
           renderSuggest();
         },
         onClear: () => {
@@ -321,6 +334,7 @@ export function openCreate({ onClose } = {}) {
         try {
           const pos = await currentPosition();
           d.startMe = { name: t("cr.myLocation"), address: "", lat: pos.lat, lng: pos.lng, poi_id: null };
+          refreshMapLink();
           const input = qs(`#${ids.me}`, b);
           if (input) input.value = t("cr.myLocation");
           scheduleSuggest();
@@ -344,7 +358,7 @@ export function openCreate({ onClose } = {}) {
         const r = sug.list[Number(btn.dataset.use)];
         if (!r) return;
         d.place = { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id || null };
-        qs("#c-maplink", b).innerHTML = mapActionsHTML(d.place, { hint: false });
+        qs("#c-maplink", b).innerHTML = mapLinkHTML(d.place);
         qs("#c-err", b).textContent = "";
         renderSuggest();
       });

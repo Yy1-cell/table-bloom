@@ -171,7 +171,7 @@ export const EN = {
   "map.locUnsupported": "This browser can't share your location. Search for a place instead.",
   "map.googleView": "Google Maps view", "map.openGoogle": "Open in Google Maps", "map.restaurantWord": "restaurants", "map.nearWord": "near",
   "map.googleNote": "Pins, ratings and reviews on this map come from Google Maps.", "map.offlineMap": "You're offline, so the map can't load. Search results below may be out of date.",
-  "map.hintFrom": "Opens your map app. Directions start from your saved location.", "map.hintNow": "Opens your map app. Directions start from where you are now.",
+  "map.hintFromName": "Opens your map app. Directions start from {name}.", "map.hintFrom": "Opens your map app. Directions start from your saved location.", "map.hintNow": "Opens your map app. Directions start from where you are now.",
 };
 
 export const ZH = {
@@ -331,5 +331,5 @@ export const ZH = {
   "map.locUnsupported": "这个浏览器无法提供定位，请改为搜索地点。",
   "map.googleView": "谷歌地图", "map.openGoogle": "在谷歌地图中打开", "map.restaurantWord": "餐厅", "map.nearWord": "附近",
   "map.googleNote": "这张地图上的标记、评分和评价都来自谷歌地图。", "map.offlineMap": "当前离线，地图无法加载。下面的搜索结果可能不是最新的。",
-  "map.hintFrom": "会打开手机上的地图应用，路线从你保存的位置出发。", "map.hintNow": "会打开手机上的地图应用，路线从你当前位置出发。",
+  "map.hintFromName": "会打开手机上的地图应用，路线从“{name}”出发。", "map.hintFrom": "会打开手机上的地图应用，路线从你保存的位置出发。", "map.hintNow": "会打开手机上的地图应用，路线从你当前位置出发。",
 };

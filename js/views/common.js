@@ -131,7 +131,7 @@ export function bindCards(root) {
 }
 
 /** Buttons that open the phone's map app: ratings & reviews, and transit / walk / drive directions. */
-export function mapActionsHTML(place, { origin, hint = true } = {}) {
+export function mapActionsHTML(place, { origin, originName = "", hint = true } = {}) {
   const from = origin || (state.pos ? { lat: state.pos.lat, lng: state.pos.lng } : null);
   const a = (href, label, cls = "") => `<a class="btn sm ${cls}" href="${esc(href)}" target="_blank" rel="noopener">${label}</a>`;
   return `<div class="map-actions">
@@ -140,5 +140,5 @@ export function mapActionsHTML(place, { origin, hint = true } = {}) {
     ${a(googleDirectionsUrl(place, { origin: from, mode: "walking" }), `🚶 ${esc(t("map.walk"))}`)}
     ${a(googleDirectionsUrl(place, { origin: from, mode: "driving" }), `🚗 ${esc(t("map.drive"))}`)}
     ${isIOS() && place.lat != null ? a(appleDirectionsUrl(place, { origin: from }), ` ${esc(t("map.apple"))}`, "ghost") : ""}
-  </div>${hint ? `<p class="hint">${esc(from ? t("map.hintFrom") : t("map.hintNow"))}</p>` : ""}`;
+  </div>${hint ? `<p class="hint">${esc(origin && originName ? t("map.hintFromName", { name: originName }) : from ? t("map.hintFrom") : t("map.hintNow"))}</p>` : ""}`;
 }
