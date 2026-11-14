@@ -31,9 +31,12 @@ export async function render(root) {
     <div class="row wrap-row"><button type="button" class="btn sm" id="use-me">📍 ${esc(t("map.useMe"))}</button></div>
     <p class="hint loc-status" id="loc-status" role="status" aria-live="polite"></p>
     <div class="map-center" id="center"></div>
-    <div class="cuisine-groups" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
-      ${cuisineGroupsHTML({ attr: "c", isOn: (s) => cuisine === s, any: `<button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>` })}
-    </div>
+    <details class="cuis-details" id="cuis-wrap" ${window.innerWidth >= 820 ? "open" : ""}>
+      <summary id="cuis-sum"></summary>
+      <div class="cuisine-groups" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
+        ${cuisineGroupsHTML({ attr: "c", isOn: (s) => cuisine === s, any: `<button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>` })}
+      </div>
+    </details>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.mapView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.restaurants"))}</h2><div id="rest" aria-live="polite"></div></section>`;
@@ -44,6 +47,12 @@ export async function render(root) {
     return parts.join(" · ");
   };
 
+  // On phones the 30+ cuisine chips are folded away so the map and the list stay near the top.
+  function paintCuisineSummary() {
+    const c = state.cuisines.find((x) => x.slug === cuisine);
+    qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${c ? `${c.emoji} ${nameOf(c)}` : t("map.anyCuisine")}`;
+  }
+  paintCuisineSummary();
   const isHere = () => center.label === t("map.here");
   // Directions always start from the place the person picked (typed address or "my location"), never from some other position.
   const fromHere = () => ({ origin: { lat: center.lat, lng: center.lng }, originName: center.label || "", hint: false });
@@ -257,6 +266,8 @@ export async function render(root) {
     const b = e.target.closest("[data-c]");
     if (!b) return;
     cuisine = state.mapCuisine = b.dataset.c;
+    paintCuisineSummary();
+    if (window.innerWidth < 820) qs("#cuis-wrap", root).open = false;
     qsa("[data-c]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === cuisine)));
     loadRestaurants();
   });
