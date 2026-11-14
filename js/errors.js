@@ -11,7 +11,7 @@ export class ApiError extends Error {
 const KNOWN = new Set([
   "not_authenticated", "account_suspended", "not_found", "not_allowed", "not_open", "full", "already_member",
   "is_host", "host_cannot_leave", "start_in_past", "bad_capacity", "rate_limited", "too_many_requests",
-  "sample_table", "bad_venue", "bad_report", "bad_request", "bad_code", "bad_email", "network", "too_many_photos", "storage_full", "bad_photo", "guest_unavailable",
+  "sample_table", "bad_venue", "bad_report", "bad_request", "bad_code", "bad_email", "network", "too_many_photos", "storage_full", "bad_photo", "guest_unavailable", "too_early",
 ]);
 
 /** Turn anything thrown (ApiError, Supabase error, fetch failure) into one of our codes. */

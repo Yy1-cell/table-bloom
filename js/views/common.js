@@ -100,7 +100,7 @@ export function distanceKm(tb) {
   return haversineKm(state.pos, { lat: tb.meet_lat, lng: tb.meet_lng });
 }
 
-export function tableCardHTML(tb, { showMatch = true } = {}) {
+export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
   const c = cuisineOf(tb.cuisine);
   const match = tasteMatch(tb.cuisine, state.ranks);
   const d = distanceKm(tb);
@@ -122,6 +122,7 @@ export function tableCardHTML(tb, { showMatch = true } = {}) {
       ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</li>` : ""}
     </ul>
     ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+    ${reason ? `<div class="reason">✨ ${esc(reason)}</div>` : ""}
     <div class="foot"><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(seatsText(tb))}</span><span class="muted">${esc(t("aud." + tb.audience))}</span></div>
   </button>`;
 }

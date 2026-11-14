@@ -73,3 +73,14 @@ export const SPOKEN = ["zh", "en", "yue", "other"];
 export const AVATARS = ["🍊", "🥑", "🍑", "🍋", "🍓", "🥝", "🍇", "🌽", "🥕", "🍄", "🌸", "🌿"];
 export const REPORT_REASONS = ["harassment", "no_show", "unsafe", "spam", "other"];
 export const MOODS = ["😔", "😕", "😐", "🙂", "😄"];
+
+// Post-meal check-in. FEELS: how the meal felt overall (shared with the table). Positive vibe tags are shared;
+// the "private" ones (a bit awkward, tiring, rushed) never leave the author. PEER_SIGNALS are private, too.
+export const FEELS = ["😣", "😕", "🙂", "😊", "🥰"];
+export const VIBES_PUBLIC = ["relaxed", "easy_talk", "funny", "deep", "warm", "new_friends"];
+export const VIBES_PRIVATE = ["awkward", "tiring", "rushed"];
+export const PEER_SIGNALS = [
+  { slug: "again", emoji: "👍" },
+  { slug: "neutral", emoji: "😐" },
+  { slug: "pass", emoji: "🙅" },
+];

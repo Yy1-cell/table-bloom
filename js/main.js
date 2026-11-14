@@ -76,6 +76,7 @@ async function loadRefs() {
 
 async function loadMe() {
   state.me = await api().getMe();
+  state.diningProfile = undefined;
   state.ranks = state.me.ranks?.length ? state.me.ranks : state.cuisines.map((c) => c.slug);
 }
 

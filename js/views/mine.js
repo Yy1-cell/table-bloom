@@ -45,10 +45,17 @@ export async function render(root) {
     panel.innerHTML = `<div class="grid">${list
       .map((tb) => {
         const canReflect = tab === "past" && ["host", "joined"].includes(tb.my_status) && tb.status !== "cancelled";
-        return `<div>${tableCardHTML(tb, { showMatch: false })}${canReflect ? `<button type="button" class="btn sm" data-reflect="${esc(tb.id)}" style="margin-top:8px">✍️ ${esc(t("td.reflect"))}</button>` : ""}</div>`;
+        return `<div>${tableCardHTML(tb, { showMatch: false })}${canReflect ? `<div class="row wrap-row" style="margin-top:8px">${tb.is_sample ? "" : `<button type="button" class="btn sm primary" data-feel="${esc(tb.id)}">⏱ ${esc(t("fb.quick"))}</button>`}<button type="button" class="btn sm" data-reflect="${esc(tb.id)}">✍️ ${esc(t("td.reflect"))}</button></div>` : ""}</div>`;
       })
       .join("")}</div>`;
     bindCards(panel);
+    qsa("[data-feel]", panel).forEach((b) =>
+      b.addEventListener("click", async () => {
+        const tb = state.myTables.find((x) => x.id === b.dataset.feel);
+        const { openFeelingForm } = await import("./feeling.js");
+        openFeelingForm({ table_id: tb.id, title: tableTitle(tb), onSaved: () => {} });
+      })
+    );
     qsa("[data-reflect]", panel).forEach((b) =>
       b.addEventListener("click", async () => {
         const tb = state.myTables.find((x) => x.id === b.dataset.reflect);

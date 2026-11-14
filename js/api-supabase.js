@@ -221,6 +221,17 @@ export async function createApi(cfg) {
       return wrap(sb.from("reflections").delete().eq("id", id).eq("user_id", uid()).select().maybeSingle());
     },
 
+    // ---------------------------------------------------------- post-meal check-in (shared with the table only after you submit yours)
+    async getFeelings(tableId) {
+      return rpc("get_feelings", { p_table: tableId });
+    },
+    async saveFeeling(p) {
+      return changed(p.table_id, rpc("save_feeling", { p }));
+    },
+    async listMyFeelings() {
+      return rpc("list_my_feelings");
+    },
+
     // ---------------------------------------------------------- photos (members only; private Storage bucket)
     async listPhotos(tableId) {
       const rows = (await rpc("list_table_photos", { p_table: tableId })) || [];

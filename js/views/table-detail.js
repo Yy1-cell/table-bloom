@@ -8,6 +8,7 @@ import { invitationUrl } from "../invitation.js";
 import { restaurantsNear, groupSuggestions } from "../geo.js";
 import { mountGroupMap } from "../group-map.js";
 import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
+import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
@@ -23,6 +24,7 @@ export async function openTable(id, { onClose } = {}) {
   let startPick = undefined; // undefined = unchanged, null = cleared, object = chosen place
   let suggestions = null;
   let photos = [];
+  let feelings = null; // post-meal check-ins (mine + what others at the table shared)
   let uploading = false;
   const startingPoints = () => (tb.members || [])
     .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null)
@@ -192,6 +194,9 @@ export async function openTable(id, { onClose } = {}) {
     // ---- photos
     if (isMember && !tb.is_sample) html.push(`<div class="section" id="photo-section">${photosHTML()}</div>`);
 
+    // ---- how the meal felt (after the meal, members only)
+    if (isMember && ended && !tb.is_sample) html.push(`<div class="section" id="feel-section">${feelingSectionHTML(feelings)}</div>`);
+
     // ---- venue / midpoint
     if ((isHost || (tb.is_private && isMember)) && live) {
       const withStart = startingPoints();
@@ -230,7 +235,19 @@ export async function openTable(id, { onClose } = {}) {
     paintPick();
     wirePlaceSearches();
     if (isMember && !tb.is_sample) loadPhotos();
+    if (isMember && ended && !tb.is_sample) loadFeelings();
     autoSuggest();
+  }
+
+  async function loadFeelings() {
+    try {
+      feelings = await api.getFeelings(tb.id);
+    } catch (e) {
+      feelings = { mine: null, others: [], waiting: 0, peers: {} };
+      console.warn(e);
+    }
+    const box = qs("#feel-section", sheet.body);
+    if (!sheet.closed && box) box.innerHTML = feelingSectionHTML(feelings);
   }
 
   function photosHTML() {
@@ -601,6 +618,12 @@ export async function openTable(id, { onClose } = {}) {
         closeSheet({ silent: true });
         history.replaceState(null, "", `#${state.baseView}`);
         openReflectForm({ table_id: tb.id, table_title: tableTitle(tb), onSaved: () => go("#journal") });
+        break;
+      }
+      case "feel": {
+        closeSheet({ silent: true });
+        history.replaceState(null, "", `#${state.baseView}`);
+        openFeelingForm({ table_id: tb.id, title: tableTitle(tb), onSaved: () => go(`#t-${tb.id}`) });
         break;
       }
       case "add-photo":

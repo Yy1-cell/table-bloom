@@ -58,6 +58,8 @@ function fresh() {
     seedDay: null,
     tables: [],
     reflections: [],
+    feelings: [],
+    peerSignals: {},
     blocks: [],
     reports: [],
     photos: [],
@@ -213,6 +215,8 @@ function dataUrlOf(blob) {
 function db() {
   if (!cache) cache = store.get(KEY) || fresh();
   if (!cache.photos) cache.photos = [];
+  if (!cache.feelings) cache.feelings = [];
+  if (!cache.peerSignals) cache.peerSignals = {};
   if (cache.seedDay !== todayStr()) seedSamples(cache);
   if (cache.session && !cache.seededMine) {
     seedMine(cache);
@@ -671,6 +675,66 @@ export const api = {
     const [removed] = d.reflections.splice(i, 1);
     persist();
     return clone(removed);
+  },
+
+  // ------------------------------------------------------------ post-meal check-in
+  async getFeelings(tableId) {
+    const d = requireUser();
+    const t = need(tableId);
+    if (!memberOf(t)) throw new ApiError("not_allowed");
+    const mine = d.feelings.find((f) => f.table_id === tableId && f.user_id === ME) || null;
+    const others = t.members.filter((m) => m.status === "joined" && m.user_id !== ME && !isBlockedPair(m.user_id));
+    // simulated people: most have already shared how it felt, one is still "writing"
+    const sim = (m, i) => {
+      const h = [...(tableId + m.user_id)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 997, 7);
+      if (others.length > 1 && i === others.length - 1) return null;
+      const pool = ["relaxed", "easy_talk", "funny", "warm", "deep", "new_friends"];
+      const u = userInfo(m.user_id);
+      return { user_id: m.user_id, display_name: u.display_name, avatar_emoji: u.avatar_emoji, overall: 3 + (h % 3), vibes: [pool[h % 6], pool[(h + 2) % 6]] };
+    };
+    const shown = others.map(sim);
+    return clone({
+      mine: mine ? { overall: mine.overall, mood_before: mine.mood_before, mood_after: mine.mood_after, vibes: mine.vibes, note: mine.note, shared: mine.shared, created_at: mine.created_at } : null,
+      peers: d.peerSignals[tableId] || {},
+      waiting: shown.filter((x) => !x).length,
+      others: mine ? shown.filter(Boolean) : [],
+    });
+  },
+  async saveFeeling(p) {
+    const d = requireUser();
+    const t = need(p.table_id);
+    if (!memberOf(t)) throw new ApiError("not_allowed");
+    if (t.is_sample) throw new ApiError("sample_table");
+    if (new Date(t.starts_at) > new Date()) throw new ApiError("too_early");
+    if (!(p.overall >= 1 && p.overall <= 5)) throw new ApiError("bad_request");
+    const row = {
+      table_id: p.table_id, user_id: ME, overall: p.overall, mood_before: p.mood_before ?? null, mood_after: p.mood_after ?? null,
+      vibes: [...(p.vibes || [])].slice(0, 5), note: (p.note || "").slice(0, 300) || null, shared: p.shared !== false, created_at: new Date().toISOString(),
+    };
+    const i = d.feelings.findIndex((f) => f.table_id === p.table_id && f.user_id === ME);
+    if (i >= 0) d.feelings[i] = { ...d.feelings[i], ...row, created_at: d.feelings[i].created_at };
+    else d.feelings.push(row);
+    const sig = (d.peerSignals[p.table_id] = d.peerSignals[p.table_id] || {});
+    for (const peer of p.peers || []) {
+      if (peer.user_id === ME || !t.members.some((m) => m.user_id === peer.user_id && m.status === "joined")) continue;
+      if (["again", "neutral", "pass"].includes(peer.signal)) sig[peer.user_id] = peer.signal;
+      else delete sig[peer.user_id];
+    }
+    persist();
+    return { ok: true };
+  },
+  async listMyFeelings() {
+    const d = requireUser();
+    return clone(
+      d.feelings
+        .filter((f) => f.user_id === ME)
+        .map((f) => {
+          const t = d.tables.find((x) => x.id === f.table_id);
+          return t ? { table_id: f.table_id, overall: f.overall, mood_before: f.mood_before, mood_after: f.mood_after, vibes: f.vibes, created_at: f.created_at, cuisine: t.cuisine ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at, seats: joinedCount(t), title: t.title || null } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at))
+    );
   },
 
   // ------------------------------------------------------------ safety

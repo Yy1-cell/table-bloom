@@ -6,6 +6,8 @@ import { api } from "../api.js";
 import { openSheet, closeSheet, toast, announce } from "../ui.js";
 import { MOODS } from "../data.js";
 import { showError, withBusy } from "./common.js";
+import { buildProfile } from "../dining-profile.js";
+import { diningCardHTML } from "./dining-card.js";
 
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
@@ -18,6 +20,13 @@ export async function render(root) {
   } catch (e) {
     showError(e);
   }
+  let prof = { n: 0 };
+  try {
+    prof = buildProfile(await api.listMyFeelings());
+    state.diningProfile = prof;
+  } catch {
+    /* the profile is a bonus: the journal still works without it */
+  }
   if (!alive) return;
 
   const moods = items.map((x) => x.mood).filter(Boolean);
@@ -28,6 +37,7 @@ export async function render(root) {
     const am = avg(moodsNow);
     root.innerHTML = `
       <div class="row wrap-row" style="margin-bottom:6px"><h1 style="margin:0">${esc(t("jr.title"))}</h1><span class="spacer"></span><button type="button" class="btn primary" id="add">＋ ${esc(t("jr.add"))}</button></div>
+      ${diningCardHTML(prof)}
       <p class="muted">🔒 ${esc(t("jr.private"))}</p>
       <div class="stats">
         <div class="stat"><b>${items.length}</b><span>${esc(t("jr.statCount"))}</span></div>

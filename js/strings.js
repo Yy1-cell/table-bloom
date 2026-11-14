@@ -174,6 +174,25 @@ export const EN = {
   "map.googleView": "Google Maps view", "map.openGoogle": "Open in Google Maps", "map.restaurantWord": "restaurants", "map.nearWord": "near",
   "map.googleNote": "Pins, ratings and reviews on this map come from Google Maps.", "map.offlineMap": "You're offline, so the map can't load. Search results below may be out of date.",
   "map.hintFromName": "Opens your map app. Directions start from {name}.", "map.hintFrom": "Opens your map app. Directions start from your saved location.", "map.hintNow": "Opens your map app. Directions start from where you are now.",
+  // post-meal check-in
+  "fb.quick": "30-second check-in", "fb.cta": "Write a quick check-in", "fb.edit": "Edit my check-in", "fb.sectionTitle": "How the table felt",
+  "fb.intro": "Tell the table how the meal felt. You'll see theirs once you've shared yours.",
+  "fb.lockHint": "Everyone sees the others only after writing their own, so nobody is swayed.", "fb.waiting": "{n} still to write", "fb.noOthers": "Nobody else has shared yet.", "fb.mine": "You",
+  "fb.overallQ": "How did the meal feel overall?", "fb.moodBeforeQ": "Mood before", "fb.moodAfterQ": "Mood after", "fb.vibesQ": "What was it like? (pick any)",
+  "fb.vibesPrivate": "Only you will see these:", "fb.noteQ": "A line for yourself (private)", "fb.peersQ": "Would you eat with them again? (private: they never see this)",
+  "fb.shared": "Let my table see my overall feeling and positive tags", "fb.privacy": "Your mood, note, private tags and “eat again” picks are never shared with anyone.",
+  "fb.saved": "Check-in saved. Thank you!", "fb.needOverall": "Pick how the meal felt first.", "fb.label": "Meal check-in", "fb.optional": "optional",
+  "peer.again": "Again", "peer.neutral": "Fine", "peer.pass": "Not really",
+  "vibe.relaxed": "Relaxed", "vibe.easy_talk": "Easy to talk to", "vibe.funny": "Fun", "vibe.deep": "Meaningful", "vibe.warm": "Warm", "vibe.new_friends": "Made new friends",
+  "vibe.awkward": "A bit awkward", "vibe.tiring": "Tiring", "vibe.rushed": "Felt rushed",
+  "err.too_early": "You can check in once the meal has started.",
+  // dining profile + recommendations
+  "dp.title": "My dining profile", "dp.empty": "After a meal, write a 30-second check-in. Your dining profile grows from them.", "dp.count": "Meals checked in: {n}",
+  "dp.eatMost": "You eat most", "dp.relaxed": "Most relaxed at", "dp.size": "Best table size", "dp.time": "Best time of day", "dp.vibes": "What your meals feel like", "dp.lift": "Mood after vs before",
+  "dp.few": "Based on only {n} meal(s) so far. It gets sharper with more.", "dp.private": "Only you can see this.",
+  "dp.size.small": "2–3 people", "dp.size.mid": "4–6 people", "dp.size.big": "7+ people",
+  "dp.time.morning": "Brunch", "dp.time.lunch": "Lunch", "dp.time.afternoon": "Afternoon", "dp.time.dinner": "Dinner", "dp.time.late": "Late night",
+  "sort.foryou": "For you", "rec.badge": "Suits you", "rec.cuisine": "You enjoy {name}", "rec.occasion": "{name} feels good to you", "rec.size": "A table size you like", "rec.time": "A time that suits you",
 };
 
 export const ZH = {
@@ -336,4 +355,23 @@ export const ZH = {
   "map.googleView": "谷歌地图", "map.openGoogle": "在谷歌地图中打开", "map.restaurantWord": "餐厅", "map.nearWord": "附近",
   "map.googleNote": "这张地图上的标记、评分和评价都来自谷歌地图。", "map.offlineMap": "当前离线，地图无法加载。下面的搜索结果可能不是最新的。",
   "map.hintFromName": "会打开手机上的地图应用，路线从“{name}”出发。", "map.hintFrom": "会打开手机上的地图应用，路线从你保存的位置出发。", "map.hintNow": "会打开手机上的地图应用，路线从你当前位置出发。",
+  // post-meal check-in
+  "fb.quick": "30 秒快评", "fb.cta": "写快评", "fb.edit": "修改我的快评", "fb.sectionTitle": "同桌的感受",
+  "fb.intro": "告诉同桌这顿饭感觉怎么样。你分享之后，就能看到大家的。",
+  "fb.lockHint": "大家都是写完自己的才能看别人的，互不影响。", "fb.waiting": "还有 {n} 位没写", "fb.noOthers": "还没有其他人分享。", "fb.mine": "我",
+  "fb.overallQ": "这顿饭整体感觉如何？", "fb.moodBeforeQ": "吃之前的心情", "fb.moodAfterQ": "吃之后的心情", "fb.vibesQ": "这顿饭的氛围？（可多选）",
+  "fb.vibesPrivate": "下面这些只有你自己看得到：", "fb.noteQ": "给自己留一句话（仅自己可见）", "fb.peersQ": "愿意再和他们同桌吗？（仅自己可见，对方看不到）",
+  "fb.shared": "让同桌看到我的整体感受和正面标签", "fb.privacy": "你的心情、备注、私人标签和“再同桌”的选择，不会分享给任何人。",
+  "fb.saved": "快评已保存，谢谢你！", "fb.needOverall": "请先选一下整体感觉。", "fb.label": "饭后快评", "fb.optional": "可不填",
+  "peer.again": "愿意再来", "peer.neutral": "都行", "peer.pass": "不太想",
+  "vibe.relaxed": "放松", "vibe.easy_talk": "聊得来", "vibe.funny": "好玩", "vibe.deep": "有深度", "vibe.warm": "暖心", "vibe.new_friends": "认识了新朋友",
+  "vibe.awkward": "有点尴尬", "vibe.tiring": "有点累", "vibe.rushed": "有点赶",
+  "err.too_early": "饭局开始之后才能写快评。",
+  // dining profile + recommendations
+  "dp.title": "我的小画像", "dp.empty": "吃完饭写一条 30 秒快评，你的饭局画像会慢慢长出来。", "dp.count": "已记录 {n} 顿饭",
+  "dp.eatMost": "吃得最多", "dp.relaxed": "最放松的场合", "dp.size": "最舒服的人数", "dp.time": "最舒服的时段", "dp.vibes": "你的饭局常有的氛围", "dp.lift": "吃完后的心情变化",
+  "dp.few": "目前只有 {n} 顿饭的数据，记录越多越准。", "dp.private": "只有你自己看得到。",
+  "dp.size.small": "2–3 人小聚", "dp.size.mid": "4–6 人", "dp.size.big": "7 人以上",
+  "dp.time.morning": "早午餐", "dp.time.lunch": "午餐", "dp.time.afternoon": "下午茶", "dp.time.dinner": "晚餐", "dp.time.late": "夜宵",
+  "sort.foryou": "为你推荐", "rec.badge": "适合你", "rec.cuisine": "你吃{name}很开心", "rec.occasion": "你在「{name}」场合最放松", "rec.size": "你喜欢的人数", "rec.time": "适合你的时段",
 };

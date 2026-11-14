@@ -365,3 +365,23 @@ details.more[open] summary { margin-bottom: 12px; }
 /* Cuisine menu, grouped */
 .cuisine-groups { display: flex; flex-direction: column; gap: 10px; }
 .cuisine-groups .cg-label { font-size: 12.5px; color: var(--muted); margin: 0 0 5px 2px; letter-spacing: .02em; }
+
+/* post-meal check-in, dining profile, "For you" */
+.feels { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.feel { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper); }
+.feel.me { border-color: var(--green-700); }
+.feel .fe { font-size: 30px; line-height: 1; flex: none; }
+.feel .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.feel .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.peer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.peer-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.peer-list .nm { font-weight: 600; min-width: 4em; }
+.chip.sm { padding: 5px 10px; font-size: 13.5px; }
+label.check { display: flex; align-items: flex-start; gap: 8px; font-size: 14.5px; cursor: pointer; }
+label.check input { margin-top: 3px; }
+.dp { margin-bottom: 16px; }
+.dp h2 { margin: 0 0 6px; font-size: 20px; }
+.dp-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.dp-k { color: var(--muted); font-size: 14px; min-width: 9em; }
+.dp-v { display: flex; flex-wrap: wrap; gap: 6px; }
+.reason { margin-top: 8px; font-size: 13.5px; color: var(--green-700); font-weight: 600; }
