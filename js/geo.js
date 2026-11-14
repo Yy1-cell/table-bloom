@@ -150,6 +150,14 @@ export async function restaurantsNear(center, cuisineSlug, { radius = 2200, sign
   signal?.throwIfAborted();
   if (local.length) return local;
 
+  // Overpass is often blocked or down in the browser, so ask Photon first (same source the shared-table suggestions use).
+  try {
+    const found = await cuisinePlaces(center, cuisineSlug || "", { radiusKm: Math.max(radius / 1000, 5), signal });
+    if (found.length) return found.slice(0, 20);
+  } catch (e) {
+    if (e?.name === "AbortError" || signal?.aborted) throw e;
+  }
+
   const preferred = CUISINE_FILTERS[cuisineSlug] || [];
   const nearby = ['[amenity~"^(restaurant|cafe|fast_food|food_court)$"]'];
   const around = (filters) => filters.map((filter) =>

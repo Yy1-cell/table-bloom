@@ -159,6 +159,7 @@ export const EN = {
   // map
   "nav.map": "Map", "map.title": "Find a place", "map.sub": "Search a spot or use your location. Tap through to Google Maps for ratings, reviews, opening hours and how to get there.",
   "map.search": "Search a place or address", "map.searchPh": "e.g. Pai, Pacific Mall, Union Station", "map.searchHint": "Type at least 2 letters, then pick a result.",
+  "map.mapView": "Map", "map.me": "Me", "map.mePin": "Me · {name}", "map.kmFromPlace": "{km} km from {name}", "map.mapLegend": "The avatar is you, at the place you picked · numbers are restaurants, closest first. Tap one to see it.",
   "map.useMe": "Use my location", "map.here": "your location", "map.near": "Showing places near {name}", "map.cuisine": "Cuisine", "map.anyCuisine": "Any food",
   "map.tables": "Tables nearby", "map.noTables": "No open tables near here yet.", "map.viewTable": "View table",
   "map.restaurants": "Restaurants nearby", "map.noRestaurants": "No matching restaurants found here. Try another cuisine or place.", "map.loadError": "Couldn't load restaurants right now. Try again in a moment.", "map.retry": "Retry",
@@ -319,6 +320,7 @@ export const ZH = {
   "err.too_many_photos": "这桌相册已满（最多 12 张）。", "err.storage_full": "本设备存放演示照片的空间满了，删掉一张再试。", "err.bad_photo": "这个文件不能作为照片使用。",  // map
   "nav.map": "地图", "map.title": "找地方", "map.sub": "搜一个地点，或用你当前的位置。点进去就能在谷歌地图里看评分、评价、营业时间和怎么去。",
   "map.search": "搜索地点或地址", "map.searchPh": "例如：Pai 餐厅、Pacific Mall、Union Station", "map.searchHint": "至少输入 2 个字，然后选择一个结果。",
+  "map.mapView": "地图", "map.me": "我", "map.mePin": "我 · {name}", "map.kmFromPlace": "距{name} {km} 公里", "map.mapLegend": "头像是你，在你选的位置 · 数字是餐厅，从近到远。点一下可以查看。",
   "map.useMe": "用我的位置", "map.here": "你的位置", "map.near": "显示{name}附近", "map.cuisine": "菜系", "map.anyCuisine": "不限",
   "map.tables": "附近的饭局", "map.noTables": "这附近暂时没有开放的饭局。", "map.viewTable": "查看饭局",
   "map.restaurants": "附近的餐厅", "map.noRestaurants": "这里没找到合适的餐厅，换个菜系或地点试试。", "map.loadError": "暂时加载不出餐厅，稍后再试。", "map.retry": "重试",

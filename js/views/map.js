@@ -6,6 +6,7 @@ import { state } from "../state.js";
 import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
+import { mountGroupMap } from "../group-map.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText, cuisineGroupsHTML } from "./common.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
@@ -33,18 +34,19 @@ export async function render(root) {
     <div class="cuisine-groups" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
       ${cuisineGroupsHTML({ attr: "c", isOn: (s) => cuisine === s, any: `<button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>` })}
     </div>
-    <section class="card" style="margin-top:16px"><h2>${esc(t("map.googleView"))}</h2><div id="gmap"></div></section>
+    <section class="card" style="margin-top:16px"><h2>${esc(t("map.mapView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.restaurants"))}</h2><div id="rest" aria-live="polite"></div></section>`;
 
   const distLine = (p) => {
     const parts = [];
-    if (p.dist != null) parts.push(t("map.kmFromCenter", { km: km(p.dist) }));
-    if (state.pos && p.lat != null && center.label !== t("map.here")) parts.push(t("map.kmFromYou", { km: km(haversineKm(state.pos, p))}));
+    if (p.dist != null) parts.push(t("map.kmFromPlace", { km: km(p.dist), name: center.label || t("map.here") }));
     return parts.join(" · ");
   };
 
   const isHere = () => center.label === t("map.here");
+  // Directions always start from the place the person picked (typed address or "my location"), never from some other position.
+  const fromHere = () => ({ origin: { lat: center.lat, lng: center.lng }, originName: center.label || "", hint: false });
   function paintCenter() {
     qs("#center", root).innerHTML = `<strong>📌 ${esc(t("map.near", { name: center.label || "" }))}</strong>`;
   }
@@ -54,7 +56,73 @@ export async function render(root) {
     return `${c ? c.name_en + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
   }
 
-  /** The real Google Maps view (with Google's own ratings on the pins) around the centre, filtered by cuisine. */
+  // ---- map: "me" at the picked place + numbered restaurants (closest first)
+  let restList = [];
+  let picked = -1;
+  let groupMap = null;
+  let mapPromise = null;
+  let mapFailed = false;
+  const meName = () => t("map.mePin", { name: center.label || t("map.here") });
+  function mapData() {
+    return {
+      people: [{ name: meName(), avatar: state.me?.avatar_emoji || "📍", lat: center.lat, lng: center.lng }],
+      middle: null,
+      venue: null,
+      suggestions: restList,
+      onPick: choose,
+      fallbackCenter: center,
+      labels: {},
+    };
+  }
+  function ensureMap() {
+    if (mapPromise) return mapPromise;
+    qs("#gmap", root).innerHTML = `<div class="gmap-frame group-map" id="map-leaflet"></div>
+      <p class="hint">${esc(t("map.mapLegend"))}</p><div id="pick-card"></div>`;
+    mapPromise = mountGroupMap(qs("#map-leaflet", root), mapData()).then((c) => {
+      if (!alive) {
+        c?.destroy();
+        return null;
+      }
+      if (!c) {
+        mapFailed = true;
+        mapPromise = null;
+        paintGoogle();
+        return null;
+      }
+      groupMap = c;
+      return c;
+    });
+    return mapPromise;
+  }
+  async function paintMap() {
+    if (mapFailed) return paintGoogle();
+    if (navigator.onLine === false && !groupMap) {
+      qs("#gmap", root).innerHTML = `<p class="muted">${esc(t("map.offlineMap"))}</p>`;
+      return;
+    }
+    const c = await ensureMap();
+    if (alive && c) c.update(mapData());
+  }
+  function choose(i) {
+    picked = picked === i ? -1 : i;
+    groupMap?.select(picked);
+    qsa("#rest .place-row[data-ri]", root).forEach((row) => row.classList.toggle("chosen", Number(row.dataset.ri) === picked));
+    const box = qs("#pick-card", root);
+    const r = restList[picked];
+    if (!box) return;
+    if (!r) {
+      box.innerHTML = "";
+      return;
+    }
+    const q = [r.name, r.address || "Toronto"].filter(Boolean).join(", ");
+    box.innerHTML = `<div class="pick-card">
+      <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, distLine({ dist: r.distKm, lat: r.lat, lng: r.lng })].filter(Boolean).join(" · "))}</small></div>
+      <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
+      ${mapActionsHTML(r, { ...fromHere(), hint: true })}</div>`;
+    box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  /** Fallback only (map library could not load): the real Google Maps view around the centre. */
   function paintGoogle() {
     const box = qs("#gmap", root);
     const q = googleQuery();
@@ -120,7 +188,7 @@ export async function render(root) {
             return `<div class="place-row"><h3>${esc(tableTitle(x))}</h3>
               <div class="sub">${esc(fmtWhen(x.starts_at, t))} · ${esc(placeText(x))} · ${esc(distLine({ dist, lat: place.lat, lng: place.lng }))}</div>
               <div class="row wrap-row" style="margin-top:8px"><button type="button" class="btn sm primary" data-open="${esc(x.id)}">${esc(t("map.viewTable"))}</button></div>
-              ${mapActionsHTML(place, { hint: false })}</div>`;
+              ${mapActionsHTML(place, fromHere())}</div>`;
           })
           .join("")
       : `<p class="muted">${esc(t("map.noTables"))}</p>`;
@@ -132,16 +200,24 @@ export async function render(root) {
     ctl?.abort();
     const request = ctl = new AbortController();
     box.innerHTML = `<p class="muted">${esc(t("ps.searching"))}</p>`;
+    restList = [];
+    picked = -1;
+    const pc = qs("#pick-card", root);
+    if (pc) pc.innerHTML = "";
+    paintMap();
     try {
-      const list = await restaurantsNear(center, cuisine || undefined, { signal: request.signal });
+      const found = await restaurantsNear(center, cuisine || undefined, { signal: request.signal });
       if (!alive || request.signal.aborted) return;
+      const list = [...found].sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
+      restList = list;
       box.innerHTML = list.length
         ? list
-            .map((r) => `<div class="place-row"><h3>${esc(r.name)}</h3>
+            .map((r, i) => `<div class="place-row" data-ri="${i}" tabindex="0" role="button" style="cursor:pointer"><h3>${i < 10 ? `${i + 1}. ` : ""}${esc(r.name)}</h3>
               <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
-              ${mapActionsHTML(r, { hint: false })}</div>`)
+              ${mapActionsHTML(r, fromHere())}</div>`)
             .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
         : restaurantFallback("map.noRestaurants");
+      paintMap();
       announce(t("map.found", { n: list.length }));
     } catch (e) {
       if (!alive || request.signal.aborted) return;
@@ -158,7 +234,6 @@ export async function render(root) {
 
   function refresh() {
     paintCenter();
-    paintGoogle();
     loadTables();
     loadRestaurants();
   }
@@ -181,8 +256,21 @@ export async function render(root) {
     if (!b) return;
     cuisine = state.mapCuisine = b.dataset.c;
     qsa("[data-c]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === cuisine)));
-    paintGoogle();
     loadRestaurants();
+  });
+  // tap a restaurant row (not its buttons) to see it on the map
+  qs("#rest", root).addEventListener("click", (e) => {
+    if (e.target.closest("a, button")) return;
+    const row = e.target.closest("[data-ri]");
+    if (row) choose(Number(row.dataset.ri));
+  });
+  qs("#rest", root).addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest?.("[data-ri]");
+    if (row && e.target === row) {
+      e.preventDefault();
+      choose(Number(row.dataset.ri));
+    }
   });
 
   refresh();
@@ -207,5 +295,6 @@ export async function render(root) {
   return () => {
     alive = false;
     ctl?.abort();
+    groupMap?.destroy();
   };
 }
