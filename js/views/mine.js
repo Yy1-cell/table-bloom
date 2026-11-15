@@ -44,8 +44,12 @@ export async function render(root) {
     }
     panel.innerHTML = `<div class="grid">${list
       .map((tb) => {
-        const canReflect = tab === "past" && ["host", "joined"].includes(tb.my_status) && tb.status !== "cancelled";
-        return `<div>${tableCardHTML(tb, { showMatch: false })}${canReflect ? `<div class="row wrap-row" style="margin-top:8px">${tb.is_sample ? "" : `<button type="button" class="btn sm primary" data-feel="${esc(tb.id)}">⏱ ${esc(t("fb.quick"))}</button>`}<button type="button" class="btn sm" data-reflect="${esc(tb.id)}">✍️ ${esc(t("td.reflect"))}</button></div>` : ""}</div>`;
+        const member = ["host", "joined"].includes(tb.my_status) && tb.status !== "cancelled";
+        const canReflect = tab === "past" && member;
+        // the 30-second check-in opens as soon as the meal has started (the server allows it from the start time on)
+        const canFeel = member && !tb.is_sample && isPast(tb.starts_at);
+        const btns = `${canFeel ? `<button type="button" class="btn sm primary" data-feel="${esc(tb.id)}">⏱ ${esc(t("fb.quick"))}</button>` : ""}${canReflect ? `<button type="button" class="btn sm" data-reflect="${esc(tb.id)}">✍️ ${esc(t("td.reflect"))}</button>` : ""}`;
+        return `<div>${tableCardHTML(tb, { showMatch: false })}${btns ? `<div class="row wrap-row" style="margin-top:8px">${btns}</div>` : ""}</div>`;
       })
       .join("")}</div>`;
     bindCards(panel);

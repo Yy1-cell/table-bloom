@@ -208,7 +208,7 @@ export async function openTable(id, { onClose } = {}) {
     if (isMember && !tb.is_sample) html.push(`<div class="section" id="photo-section">${photosHTML()}</div>`);
 
     // ---- how the meal felt (after the meal, members only)
-    if (isMember && ended && !tb.is_sample) html.push(`<div class="section" id="feel-section">${feelingSectionHTML(feelings)}</div>`);
+    if (isMember && started && !tb.is_sample) html.push(`<div class="section" id="feel-section">${feelingSectionHTML(feelings)}</div>`);
 
     // ---- venue / midpoint
     if ((isHost || (tb.is_private && isMember)) && live) {
@@ -248,7 +248,7 @@ export async function openTable(id, { onClose } = {}) {
     paintPick();
     wirePlaceSearches();
     if (isMember && !tb.is_sample) loadPhotos();
-    if (isMember && ended && !tb.is_sample) loadFeelings();
+    if (isMember && started && !tb.is_sample) loadFeelings();
     autoSuggest();
   }
 
