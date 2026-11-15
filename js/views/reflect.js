@@ -7,6 +7,7 @@ import { openSheet, closeSheet, toast, announce } from "../ui.js";
 import { MOODS } from "../data.js";
 import { showError, withBusy } from "./common.js";
 import { buildProfile } from "../dining-profile.js";
+import { groupOfSlug } from "./menu-picker.js";
 import { diningCardHTML, againPeopleHTML } from "./dining-card.js";
 
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -22,7 +23,7 @@ export async function render(root) {
   }
   let prof = { n: 0 };
   try {
-    prof = buildProfile(await api.listMyFeelings());
+    prof = buildProfile(await api.listMyFeelings(), groupOfSlug);
     state.diningProfile = prof;
   } catch {
     /* the profile is a bonus: the journal still works without it */

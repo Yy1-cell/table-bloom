@@ -4,9 +4,10 @@ import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES } from "../data.js";
-import { go, nameOf, showError, withBusy, mapActionsHTML, cuisineGroupsHTML } from "./common.js";
-import { restaurantsNear, currentPosition } from "../geo.js";
+import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, searchKeys } from "../data.js";
+import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
+import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
+import { restaurantsForKeys, currentPosition } from "../geo.js";
 
 export function openCreate({ onClose } = {}) {
   // The Map tab can hand over a restaurant the person already found ("Host a table here").
@@ -15,7 +16,10 @@ export function openCreate({ onClose } = {}) {
   const d = {
     title: "",
     audience: "friends_and_new",
-    cuisine: pre?.cuisine || state.ranks[0] || "",
+    cuisine: pre?.cuisine && !isFormat(pre.cuisine) ? pre.cuisine : "",
+    formats: pre?.cuisine && isFormat(pre.cuisine) ? [pre.cuisine] : [],
+    vtype: "",
+    craving: undefined, // friends tables: what I feel like eating (a cuisine or a format); starts from the table's own choice
     capacity: 4,
     join_mode: "request",
     date: todayStr(),
@@ -59,9 +63,11 @@ export function openCreate({ onClose } = {}) {
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
           ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
         </div></fieldset>
-        <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div class="cuisine-groups" id="c-cuisines">
-          ${cuisineGroupsHTML({ attr: "cuisine", isOn: (s) => d.cuisine === s })}
-        </div></fieldset>
+        <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div id="c-menu"></div></fieldset>
+        <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("common.optional"))} · ${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
+          <div class="chips" id="c-formats">${FORMATS.map((f) => `<button type="button" class="chip" data-fmt="${f.slug}" aria-pressed="${d.formats.includes(f.slug)}"><span aria-hidden="true">${f.emoji}</span> ${esc(t("fm." + f.slug))}</button>`).join("")}</div></fieldset>
+        <fieldset><legend>${esc(t("cr.vtype"))} <span class="muted">(${esc(t("common.optional"))})</span></legend>
+          <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}<small class="chip-sub">${esc(t("vtHint." + v.slug))}</small></button>`).join("")}</div></fieldset>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
@@ -76,15 +82,14 @@ export function openCreate({ onClose } = {}) {
         ids[key] = ps.id;
         return ps.html;
       };
-      const cuisineChips = (attr, current) =>
-        `<div class="cuisine-groups" data-chips="${attr}">${cuisineGroupsHTML({ attr, isOn: (s) => current === s })}</div>`;
+      if (d.craving === undefined) d.craving = d.cuisine || d.formats[0] || "";
       const startBlock = isFriends()
         ? `<div class="section-lite">
             <h3>${esc(t("cr.pairTitle"))}</h3>
             <p class="hint">${esc(t("cr.pairHint"))}</p>
             ${mk("me", t("cr.startMe"), t("cr.startPh"), t("cr.startHint"))}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
-            <fieldset><legend>${esc(t("cr.myCraving"))}</legend>${cuisineChips("cuisine", d.cuisine)}</fieldset>
+            <fieldset><legend>${esc(t("cr.myCraving"))}</legend><div id="c-craving"></div></fieldset>
           </div>`
         : `<div class="section-lite">
             ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
@@ -152,8 +157,8 @@ export function openCreate({ onClose } = {}) {
     return isFriends() && !d.place ? area : d.place?.name || d.area_label || area;
   }
   function summary() {
-    const c = state.cuisines.find((x) => x.slug === d.cuisine);
-    return `<strong>${esc(d.title || (c ? `${c.emoji} ${nameOf(c)}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
+    const c = menuItem(d.cuisine || d.formats[0] || "");
+    return `<strong>${esc(d.title || (c ? `${c.emoji} ${c.name}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
   }
 
   function stopSuggest() {
@@ -220,11 +225,10 @@ export function openCreate({ onClose } = {}) {
     sug = "loading";
     renderSuggest();
     try {
-      const wanted = [d.cuisine];
-      const list = await restaurantsNear(origin.center, d.cuisine, { radius: 2200, signal: sugCtl.signal });
+      const keys = searchKeys({ cuisine: d.cuisine, formats: d.formats, venue_type: d.vtype });
+      const { list, wanted } = await restaurantsForKeys(origin.center, keys, { radius: 2200, signal: sugCtl.signal });
       if (seq !== sugSeq) return;
-      const out = list.map((r) => ({ ...r, forCuisine: d.cuisine, score: r.distKm })).sort((x, y) => x.score - y.score);
-      sug = { list: out.slice(0, 8), mode: origin.mode, wanted };
+      sug = { list, mode: origin.mode, wanted };
     } catch (e) {
       if (seq !== sugSeq || e?.name === "AbortError") return;
       sug = "error";
@@ -260,7 +264,7 @@ export function openCreate({ onClose } = {}) {
         const dist = sug.mode === "middle"
           ? t("cr.fromBoth", { a: km(r.dMe), b: km(r.dFriend) })
           : t(sug.mode === "me" ? "cr.fromYou" : "cr.fromArea", { km: km(r.distKm) });
-        const tag = multi ? `${state.cuisines.find((c) => c.slug === r.forCuisine)?.emoji || ""} ` : "";
+        const tag = multi ? `${menuItem(r.forCuisine)?.emoji || ""} ` : "";
         return `<li${chosen ? ' class="chosen"' : ""}><span class="who"><strong>${esc(tag + r.name)}</strong><small>${esc(r.address || "")} · ${esc(dist)}</small></span>
           <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
           <button type="button" class="btn sm ${chosen ? "primary" : ""}" data-use="${i}" aria-pressed="${chosen}">${esc(chosen ? t("cr.picked") : t("td.useVenue"))}</button></li>`;
@@ -298,11 +302,21 @@ export function openCreate({ onClose } = {}) {
         })
       );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
-      qs("#c-cuisines", b).addEventListener("click", (e) => {
-        const c = e.target.closest("[data-cuisine]");
+      mountMenuPicker(qs("#c-menu", b), { value: d.cuisine, onChange: (v) => (d.cuisine = v) });
+      qs("#c-formats", b).addEventListener("click", (e) => {
+        const c = e.target.closest("[data-fmt]");
         if (!c) return;
-        d.cuisine = d.cuisine === c.dataset.cuisine ? "" : c.dataset.cuisine;
-        qsa("[data-cuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.cuisine === d.cuisine)));
+        const s = c.dataset.fmt;
+        if (d.formats.includes(s)) d.formats = d.formats.filter((x) => x !== s);
+        else if (d.formats.length < MAX_FORMATS) d.formats = [...d.formats, s];
+        else return toast(t("cr.formatsMaxHit", { n: MAX_FORMATS }));
+        qsa("[data-fmt]", b).forEach((x) => x.setAttribute("aria-pressed", String(d.formats.includes(x.dataset.fmt))));
+      });
+      qs("#c-vtype", b).addEventListener("click", (e) => {
+        const c = e.target.closest("[data-vtype]");
+        if (!c) return;
+        d.vtype = d.vtype === c.dataset.vtype ? "" : c.dataset.vtype;
+        qsa("[data-vtype]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.vtype === d.vtype)));
       });
       qsa("[data-cap]", b).forEach((x) =>
         x.addEventListener("click", () => {
@@ -356,13 +370,8 @@ export function openCreate({ onClose } = {}) {
           btn.disabled = false;
         }
       });
-      qs("[data-chips]", b)?.closest("fieldset")?.addEventListener("click", (e) => {
-        const c = e.target.closest("[data-cuisine]");
-        if (!c) return;
-        d.cuisine = d.cuisine === c.dataset.cuisine ? "" : c.dataset.cuisine;
-        qsa("[data-cuisine]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.cuisine === d.cuisine)));
-        scheduleSuggest();
-      });
+      const craving = qs("#c-craving", b);
+      if (craving) mountMenuPicker(craving, { value: d.craving, formats: true, onChange: (v) => (d.craving = v) });
       qs("[data-sug-refresh]", b)?.addEventListener("click", () => loadSuggest());
       qs("#c-sug", b)?.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-use]");
@@ -419,6 +428,8 @@ export function openCreate({ onClose } = {}) {
       title: d.title || null,
       audience: d.audience,
       cuisine: d.cuisine || null,
+      formats: d.formats,
+      venue_type: d.vtype || null,
       capacity: d.capacity,
       join_mode: isFriends() ? "instant" : d.join_mode,
       starts_at: toISO(d.date, d.time),
@@ -446,7 +457,7 @@ export function openCreate({ onClose } = {}) {
                 intention: d.intention || null, pace: d.pace || null,
               });
             }
-            if (d.cuisine) await api.setCraving(made.id, d.cuisine);
+            if (d.craving) await api.setCraving(made.id, d.craving);
           } catch { /* the table exists; they can add these from its page */ }
         }
         return made;

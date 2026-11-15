@@ -4,7 +4,7 @@ import { t, getLang } from "../i18n.js";
 import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
 import { codeOf } from "../errors.js";
-import { CUISINES, CUISINE_GROUPS, OCCASIONS } from "../data.js";
+import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
 
 // The "what is this table for" badge (date, family meal…), shown before the vibe tags.
 export function occasionTag(tb) {
@@ -13,6 +13,24 @@ export function occasionTag(tb) {
 }
 
 export const nameOf = (o) => (o ? (getLang() === "zh" ? o.name_zh : o.name_en) : "");
+
+/** Format and venue-type badges of a table (hot pot, café…), shown next to the cuisine. */
+export function menuTagsHTML(tb) {
+  const f = (tb?.formats || []).map((s) => FORMATS.find((x) => x.slug === s)).filter(Boolean);
+  const v = VENUE_TYPES.find((x) => x.slug === tb?.venue_type);
+  return [...f.map((x) => `<span class="tag fmt"><span aria-hidden="true">${x.emoji}</span> ${esc(t("fm." + x.slug))}</span>`),
+    v ? `<span class="tag fmt"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}</span>` : ""].join("");
+}
+
+/** Taste match for a table. A table that only says "Chinese" counts as the best-ranked Chinese cuisine. */
+export function tasteOf(tb) {
+  const c = cuisineOf(tb.cuisine);
+  if (c && c.slug === c.grp) {
+    const sib = state.cuisines.filter((x) => x.grp === c.grp);
+    if (sib.length > 1) return Math.max(...sib.map((x) => tasteMatch(x.slug, state.ranks)));
+  }
+  return tasteMatch(tb.cuisine, state.ranks);
+}
 
 /** Cuisine chips grouped under small headings. `attr` is the data-attribute each chip carries; `isOn(slug)` says if it is selected. */
 export function cuisineGroupsHTML({ attr, isOn, any = "" }) {
@@ -74,7 +92,11 @@ export function seatsText(tb) {
 export function tableTitle(tb) {
   if (tb.title) return tb.title;
   const c = cuisineOf(tb.cuisine);
-  return c ? `${c.emoji} ${nameOf(c)}` : t("card.untitled");
+  if (c) return `${c.emoji} ${nameOf(c)}`;
+  const f = FORMATS.find((x) => x.slug === tb.formats?.[0]);
+  if (f) return `${f.emoji} ${t("fm." + f.slug)}`;
+  const v = VENUE_TYPES.find((x) => x.slug === tb.venue_type);
+  return v ? `${v.emoji} ${t("vt." + v.slug)}` : t("card.untitled");
 }
 
 export function placeText(tb) {
@@ -102,7 +124,7 @@ export function distanceKm(tb) {
 
 export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
   const c = cuisineOf(tb.cuisine);
-  const match = tasteMatch(tb.cuisine, state.ranks);
+  const match = tasteOf(tb);
   const d = distanceKm(tb);
   const pending = tb.pending_count > 0 ? `<span class="badge warn">${esc(t("card.pending", { n: tb.pending_count }))}</span>` : "";
   return `
@@ -121,7 +143,7 @@ export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
       ${c ? `<li><span aria-hidden="true">${esc(c.emoji)}</span>${esc(nameOf(c))}</li>` : ""}
       ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</li>` : ""}
     </ul>
-    ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+    ${tb.tags?.length || tb.occasion || tb.formats?.length || tb.venue_type ? `<div class="tags">${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
     ${reason ? `<div class="reason">✨ ${esc(reason)}</div>` : ""}
     <div class="foot"><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(seatsText(tb))}</span><span class="muted">${esc(t("aud." + tb.audience))}</span></div>
   </button>`;

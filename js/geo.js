@@ -112,13 +112,18 @@ export function searchLandmarks(query) {
 // OpenStreetMap tag filters per cuisine. Each entry is a list of Overpass filters (OR-ed together).
 const CUISINE_FILTERS = {
   hotpot: ['[amenity=restaurant][cuisine~"hot_?pot|shabu"]', '[amenity=restaurant][name~"hot ?pot|shabu|火锅|海底捞",i]'],
-  korean_bbq: ['[amenity=restaurant][cuisine~"korean|barbecue|bbq"]', '[amenity=restaurant][name~"bbq|korean|烤肉",i]'],
+  bbq: ['[amenity=restaurant][cuisine~"korean|barbecue|bbq|yakiniku|grill"]', '[amenity=restaurant][name~"bbq|korean|烤肉|烧烤|串",i]'],
   japanese: ['[amenity=restaurant][cuisine~"japanese|sushi|ramen|izakaya"]'],
   sichuan: ['[amenity=restaurant][cuisine~"sichuan|szechuan"]', '[amenity=restaurant][name~"川|sichuan|szechuan",i]'],
+  hunan: ['[amenity=restaurant][cuisine~"hunan"]', '[amenity=restaurant][name~"湘|hunan",i]'],
+  dongbei: ['[amenity=restaurant][name~"东北|dongbei|northeast",i]'],
+  jiangzhe: ['[amenity=restaurant][cuisine~"shanghai"]', '[amenity=restaurant][name~"上海|江浙|shanghai|jiangnan|zhejiang",i]'],
+  xibei: ['[amenity=restaurant][name~"西北|新疆|兰州|xinjiang|lanzhou",i]'],
+  yungui: ['[amenity=restaurant][name~"云南|贵州|云贵|yunnan|guizhou",i]'],
   noodles: ['[amenity=restaurant][cuisine~"noodle|ramen|pho"]', '[amenity=restaurant][name~"noodle|面",i]'],
-  pizza: ['[amenity=restaurant][cuisine=pizza]'],
   dimsum: ['[amenity=restaurant][cuisine~"dim_sum|cantonese"]', '[amenity=restaurant][name~"dim sum|点心|茶",i]'],
   cafe: ["[amenity=cafe]"],
+  bar: ["[amenity~'^(pub|bar)$']", '[amenity=restaurant][name~"izakaya|居酒屋|pub",i]'],
 };
 
 // The free public Overpass servers are often slow or down. After one failure we stop asking for a couple of
@@ -187,39 +192,40 @@ export async function restaurantsNear(center, cuisineSlug, { radius = 2200, sign
 
 // What to ask Photon for, per cuisine. Photon matches names, so a few typical words per cuisine.
 const PHOTON_TERMS = {
-  hotpot: ["hot pot", "hotpot", "shabu"],
-  korean_bbq: ["korean bbq", "korean", "kbbq"],
-  japanese: ["japanese", "sushi", "ramen"],
+  // cuisines
+  chinese: ["chinese restaurant", "chinese"],
   sichuan: ["sichuan", "szechuan"],
-  noodles: ["noodle", "ramen", "pho"],
-  pizza: ["pizza"],
-  dimsum: ["dim sum", "cantonese"],
-  cafe: ["cafe", "coffee"],
-  cantonese: ["cantonese", "roast duck", "bbq pork"],
-  skewers: ["skewer", "chuan", "bbq"],
-  hk_cafe: ["hong kong cafe", "hk cafe", "cha chaan teng"],
+  hunan: ["hunan", "xiang"],
+  cantonese: ["cantonese", "roast duck", "bbq pork", "hong kong cafe", "cha chaan teng"],
+  dongbei: ["dongbei", "northeastern chinese"],
+  jiangzhe: ["shanghai", "jiangnan", "zhejiang"],
+  xibei: ["xinjiang", "lanzhou", "northwest chinese"],
+  yungui: ["yunnan", "guizhou"],
   taiwanese: ["taiwanese", "taiwan"],
-  regional: ["hunan", "dongbei", "shanghai"],
-  ramen: ["ramen", "udon"],
-  izakaya: ["izakaya"],
+  japanese: ["japanese", "sushi", "ramen"],
   korean: ["korean", "soondubu", "bibimbap"],
+  asia: ["thai", "vietnamese", "indian"],
   thai: ["thai"],
   vietnamese: ["pho", "vietnamese", "banh mi"],
   indian: ["indian", "tandoor", "curry"],
+  western: ["bistro", "grill", "steakhouse"],
   american: ["burger", "american", "diner"],
-  steak: ["steakhouse", "steak", "grill"],
-  italian: ["italian", "pasta", "trattoria"],
-  mexican: ["mexican", "taco", "burrito"],
-  latin: ["brazilian", "peruvian", "argentin", "latin american", "churrasco"],
+  italian: ["italian", "pasta", "pizza", "trattoria"],
+  french: ["french", "bistro", "brasserie"],
+  mexican: ["mexican", "taco", "burrito", "peruvian", "brazilian"],
   mediterranean: ["mediterranean", "shawarma", "greek"],
+  // formats
+  hotpot: ["hot pot", "hotpot", "shabu"],
+  bbq: ["bbq", "korean bbq", "yakiniku", "skewer"],
+  dimsum: ["dim sum", "cantonese"],
+  noodles: ["noodle", "ramen", "pho"],
   seafood: ["seafood", "oyster", "fish"],
-  brunch: ["brunch", "breakfast", "pancake"],
-  fried_chicken: ["fried chicken", "wings", "chicken"],
-  pub: ["pub", "tavern"],
   buffet: ["buffet", "all you can eat"],
-  vegetarian: ["vegetarian", "vegan"],
-  bubble_tea: ["bubble tea", "milk tea", "boba"],
-  dessert: ["dessert", "bakery", "ice cream"],
+  brunch: ["brunch", "breakfast", "pancake"],
+  veg: ["vegetarian", "vegan"],
+  // venue types that narrow the search
+  cafe: ["cafe", "coffee", "bubble tea", "dessert", "bakery"],
+  bar: ["pub", "izakaya", "tavern"],
   "": ["restaurant"],
 };
 
@@ -259,6 +265,29 @@ async function photonPlaces(term, center, radiusKm, signal) {
   } finally {
     timeout.done();
   }
+}
+
+/**
+ * One search per key (cuisine, formats, venue type), merged: a place that matches several keys shows once.
+ * Results carry `forCuisine` (the key they were found for). Throws only if every search failed.
+ */
+export async function restaurantsForKeys(center, keys, { radius = 2200, signal, limit = 8 } = {}) {
+  const wanted = keys?.length ? keys.slice(0, 3) : [""];
+  const runs = await Promise.allSettled(wanted.map((k) => restaurantsNear(center, k, { radius, signal })));
+  signal?.throwIfAborted();
+  if (runs.every((r) => r.status === "rejected")) throw runs[0].reason;
+  const seen = new Set();
+  const out = [];
+  runs.forEach((r, i) => {
+    if (r.status !== "fulfilled") return;
+    for (const x of r.value) {
+      const id = x.poi_id || `${x.name}|${x.lat}|${x.lng}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ ...x, forCuisine: wanted[i], score: x.distKm - (i === 0 ? 0.3 : 0) });
+    }
+  });
+  return { list: out.sort((a, b) => a.score - b.score).slice(0, limit), wanted };
 }
 
 /** Restaurants of a cuisine anywhere within `radiusKm` of `center` (OpenStreetMap via Photon). Throws only if every lookup failed. */

@@ -5,11 +5,12 @@ import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
-import { restaurantsNear, groupSuggestions } from "../geo.js";
+import { restaurantsForKeys, groupSuggestions } from "../geo.js";
 import { mountGroupMap } from "../group-map.js";
-import { INTENTIONS, PACES, REPORT_REASONS } from "../data.js";
+import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys } from "../data.js";
+import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
-import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag } from "./common.js";
+import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
 
@@ -50,7 +51,8 @@ export async function openTable(id, { onClose } = {}) {
   function nearbyMapsLink() {
     const center = restaurantCenter();
     const cuisine = cuisineOf(tb.cuisine);
-    const name = `${cuisine ? cuisine.name_en + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+    const fm = (tb.formats || []).map((k) => FORMAT_QUERY[k]).filter(Boolean).join(" ");
+    const name = `${[cuisine?.name_en, fm].filter(Boolean).join(" ")} restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
     return mapsUrl({ name });
   }
 
@@ -67,6 +69,16 @@ export async function openTable(id, { onClose } = {}) {
 
   function selectOptions(values, prefix, current) {
     return `<option value="">${esc(t("td.noPref"))}</option>` + values.map((v) => `<option value="${v}" ${current === v ? "selected" : ""}>${esc(t(prefix + v))}</option>`).join("");
+  }
+
+  // The "what I feel like eating" list: cuisines grouped by region, then the formats.
+  function cravingOptions(current) {
+    const opt = (slug, emoji, name) => `<option value="${esc(slug)}" ${current === slug ? "selected" : ""}>${esc(emoji)} ${esc(name)}</option>`;
+    const groups = menuGroups()
+      .map((x) => `<optgroup label="${esc(t("cg." + x.g))}">${x.leaves.map((cu) => opt(cu.slug, cu.emoji, nameOf(cu))).join("")}</optgroup>`)
+      .join("");
+    const fmts = `<optgroup label="${esc(t("mp.formats"))}">${FORMATS.map((f) => opt(f.slug, f.emoji, t("fm." + f.slug))).join("")}</optgroup>`;
+    return groups + fmts;
   }
 
   function draw() {
@@ -97,6 +109,7 @@ export async function openTable(id, { onClose } = {}) {
         <li><span class="k" aria-hidden="true">📍</span><span>${esc(placeText(tb))}${tb.venue?.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}
         </span></li>
         ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(nameOf(c))}</span></li>` : ""}
+        ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</span></li>` : ""}
         <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>
       </ul>
@@ -142,7 +155,7 @@ export async function openTable(id, { onClose } = {}) {
             return ps.html;
           })()}
           ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}
-          <div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${state.cuisines.map((cu) => `<option value="${cu.slug}" ${mine?.cuisine === cu.slug ? "selected" : ""}>${esc(cu.emoji)} ${esc(nameOf(cu))}</option>`).join("")}</select></div>
+          <div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${cravingOptions(mine?.cuisine)}</select></div>
           <div class="field"><label for="d-int">${esc(t("td.intention"))}</label><select id="d-int">${selectOptions(INTENTIONS, "int.", mine?.intention)}</select></div>
           <div class="field" style="margin-bottom:0"><label for="d-pace">${esc(t("td.pace"))}</label><select id="d-pace">${selectOptions(PACES, "pace.", mine?.pace)}</select></div>
         </details>`);
@@ -181,7 +194,7 @@ export async function openTable(id, { onClose } = {}) {
             <span class="av" aria-hidden="true">${esc(m.avatar_emoji)}</span>
             <span class="who"><strong>${esc(personName(m.display_name))}</strong>${m.role === "host" ? ` <span class="badge ok">${esc(t("td.hostTag"))}</span>` : ""}${isMe ? ` <span class="muted">(${esc(t("td.you"))})</span>` : ""}
               ${(isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
-              ${m.cuisine && cuisineOf(m.cuisine) ? `<small>${esc(cuisineOf(m.cuisine).emoji)} ${esc(nameOf(cuisineOf(m.cuisine)))}</small>` : ""}
+              ${m.cuisine && menuItem(m.cuisine) ? `<small>${esc(menuItem(m.cuisine).emoji)} ${esc(menuItem(m.cuisine).name)}</small>` : ""}
               ${isHost && m.no_show_count > 0 ? `<small>⚠️ ${esc(t("td.noShows", { n: m.no_show_count }))}</small>` : ""}</span>
             ${req ? `<button type="button" class="btn sm primary" data-act="accept" data-uid="${esc(m.user_id)}">${esc(t("td.accept"))}</button><button type="button" class="btn sm" data-act="decline" data-uid="${esc(m.user_id)}">${esc(t("td.decline"))}</button>` : ""}
             ${isHost && !req && m.role !== "host" ? `<button type="button" class="btn sm ghost" data-act="remove" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.remove"))}</button>${started ? `<button type="button" class="btn sm ghost" data-act="noshow" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.noShow"))}</button>` : ""}` : ""}
@@ -408,10 +421,10 @@ export async function openTable(id, { onClose } = {}) {
         const wanted = cravings();
         suggestions = await groupSuggestions({
           points: pts.length ? pts : [restaurantCenter()],
-          cuisines: wanted.length ? wanted : [tb.cuisine].filter(Boolean),
+          cuisines: wanted.length ? wanted : searchKeys(tb),
         });
       } else {
-        suggestions = await restaurantsNear(restaurantCenter(), tb.cuisine);
+        suggestions = (await restaurantsForKeys(restaurantCenter(), searchKeys(tb), { limit: 10 })).list;
       }
     } catch {
       suggestions = "error";

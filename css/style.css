@@ -393,3 +393,17 @@ label.check input { margin-top: 3px; }
 .ad-list input[type="checkbox"] { margin-top: 10px; flex: none; accent-color: var(--green-700); }
 .ad-list li.rep { align-items: stretch; }
 .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* Two-level food menu: second row of regions, formats row, type hints, extra filters */
+.mp .chips { margin-bottom: 8px; }
+.mp-sub { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; margin: 0 0 10px; background: var(--green-50); border-radius: 12px; }
+.mp-sub .chip { background: #fff; }
+.mp-sub .chip[aria-pressed="true"] { background: var(--green-700); }
+.mp-fmt { margin-top: 6px; }
+.mp-fmt .cg-label { font-size: 12.5px; color: var(--muted); margin: 0 0 5px 2px; }
+.chip .chip-sub { display: block; font-size: 11.5px; font-weight: 400; opacity: .75; line-height: 1.25; }
+.tag.fmt { background: #fff7e6; color: #8a5a00; }
+.more-filters { margin: 4px 0 12px; }
+.more-filters > summary { cursor: pointer; font-weight: 600; padding: 6px 0; color: var(--green-700); }
+.more-filters .mf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.more-filters .mf-label { font-size: 12.5px; color: var(--muted); min-width: 36px; }

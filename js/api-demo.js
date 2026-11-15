@@ -97,11 +97,11 @@ function seedSamples(db) {
   const rows = [
     sample(1, "u_lin", {
       seats: 2,
-      row: { area_id: A[0], title: "Hotpot on a cold day", audience: "friends_and_new", starts_at: atDay(todayOffset, 18), capacity: 4, budget_cents: 3000, cuisine: "hotpot", occasion: "classmates", area_label: "Spadina & Dundas", meet_lat: 43.6532, meet_lng: -79.3985, tags: ["new_to_toronto", "mandarin_friendly", "split_bill"], note: "New to Toronto? You're very welcome." },
+      row: { area_id: A[0], title: "Hotpot on a cold day", audience: "friends_and_new", starts_at: atDay(todayOffset, 18), capacity: 4, budget_cents: 3000, cuisine: "chinese", formats: ["hotpot"], occasion: "classmates", area_label: "Spadina & Dundas", meet_lat: 43.6532, meet_lng: -79.3985, tags: ["new_to_toronto", "mandarin_friendly", "split_bill"], note: "New to Toronto? You're very welcome." },
     }),
     sample(2, "u_mia", {
       seats: 3,
-      row: { area_id: A[0], title: "Korean BBQ after class", audience: "new_people", starts_at: atDay(1, 19), capacity: 5, budget_cents: 2800, cuisine: "korean_bbq", area_label: "Bloor–Yonge Station", meet_lat: 43.6709, meet_lng: -79.3857, tags: ["easy_conversation", "split_bill"], note: "Easy chat, no pressure. Listening counts too." },
+      row: { area_id: A[0], title: "Korean BBQ after class", audience: "new_people", starts_at: atDay(1, 19), capacity: 5, budget_cents: 2800, cuisine: "korean", formats: ["bbq"], area_label: "Bloor–Yonge Station", meet_lat: 43.6709, meet_lng: -79.3857, tags: ["easy_conversation", "split_bill"], note: "Easy chat, no pressure. Listening counts too." },
     }),
     sample(3, "u_annie", {
       seats: 2,
@@ -109,11 +109,11 @@ function seedSamples(db) {
     }),
     sample(4, "u_kevin", {
       seats: 3,
-      row: { area_id: A[1], title: "Weekend dim sum, slow chat", audience: "friends_and_new", starts_at: atDay(3, 11), capacity: 6, budget_cents: 2200, cuisine: "dimsum", occasion: "family", area_label: "Finch Station, North York", meet_lat: 43.7806, meet_lng: -79.415, tags: ["mandarin_friendly", "split_bill"], note: null },
+      row: { area_id: A[1], title: "Weekend dim sum, slow chat", audience: "friends_and_new", starts_at: atDay(3, 11), capacity: 6, budget_cents: 2200, cuisine: "cantonese", formats: ["dimsum"], occasion: "family", area_label: "Finch Station, North York", meet_lat: 43.7806, meet_lng: -79.415, tags: ["mandarin_friendly", "split_bill"], note: null },
     }),
     sample(5, "u_jenny", {
       seats: 2,
-      row: { area_id: A[4], title: "Noodle night in Markham", audience: "friends", starts_at: atDay(2, 18), capacity: 4, budget_cents: 1800, cuisine: "noodles", area_label: "Markham — Pacific Mall area", meet_lat: 43.8268, meet_lng: -79.2995, tags: ["bring_a_friend"], note: null },
+      row: { area_id: A[4], title: "Noodle night in Markham", audience: "friends", starts_at: atDay(2, 18), capacity: 4, budget_cents: 1800, cuisine: "chinese", formats: ["noodles"], area_label: "Markham — Pacific Mall area", meet_lat: 43.8268, meet_lng: -79.2995, tags: ["bring_a_friend"], note: null },
     }),
   ];
   db.tables = db.tables.filter((t) => !t.is_sample && !(t.demoAuto && !t.members.some((m) => m.user_id === ME))).concat(rows);
@@ -135,7 +135,7 @@ function seedSamples(db) {
       starts_at: atDay(4, 11, 30),
       capacity: 4,
       budget_cents: 2500,
-      cuisine: "dimsum",
+      cuisine: "cantonese", formats: ["dimsum"],
       venue: null,
       area_label: "Chinatown, Spadina Ave",
       meet_lat: 43.6535,
@@ -167,7 +167,7 @@ function seedMine(d) {
   d.tables.push(
     {
       ...base, id: "demo-up-1", host_id: "u_annie", status: "open", area_id: A[0], title: "Korean BBQ Thursday",
-      audience: "friends_and_new", starts_at: atDay(2, 19), capacity: 5, budget_cents: 3200, cuisine: "korean_bbq",
+      audience: "friends_and_new", starts_at: atDay(2, 19), capacity: 5, budget_cents: 3200, cuisine: "korean", formats: ["bbq"],
       area_label: "Koreatown, Bloor St W", meet_lat: 43.6643, meet_lng: -79.4131, tags: ["easy_conversation", "split_bill"], note: "You're in! Try the “Demo: skip to after the meal” button at the bottom right.",
       members: [m("u_annie", "host"), m(ME, "guest", "joined", { start_label: "Robarts Library", start_lat: 43.6644, start_lng: -79.3995 }), m("u_mia", "guest")],
     },
@@ -179,13 +179,13 @@ function seedMine(d) {
     },
     {
       ...base, id: "demo-past-1", host_id: "u_kevin", status: "completed", area_id: A[0], title: "Last weekend's dim sum",
-      audience: "friends_and_new", starts_at: atDay(-4, 11, 30), capacity: 4, budget_cents: 2500, cuisine: "dimsum",
+      audience: "friends_and_new", starts_at: atDay(-4, 11, 30), capacity: 4, budget_cents: 2500, cuisine: "cantonese", formats: ["dimsum"],
       area_label: "Chinatown, Spadina Ave", meet_lat: 43.6535, meet_lng: -79.3987, tags: ["mandarin_friendly", "split_bill"], note: null,
       members: [m("u_kevin", "host"), m(ME, "guest"), m("u_lin", "guest"), m("u_mia", "guest")],
     },
     {
       ...base, id: "demo-past-2", host_id: ME, status: "completed", area_id: A[0], title: "Coffee & chat",
-      audience: "new_people", starts_at: atDay(-9, 15), capacity: 4, budget_cents: 1200, cuisine: "cafe",
+      audience: "new_people", starts_at: atDay(-9, 15), capacity: 4, budget_cents: 1200, cuisine: null, venue_type: "cafe",
       area_label: "Kensington Market", meet_lat: 43.6547, meet_lng: -79.4005, tags: ["easy_conversation"], note: "A table you hosted: mark no-shows and write a reflection.",
       members: [m(ME, "host"), m("u_annie", "guest"), m("u_jenny", "guest")],
     }
@@ -305,6 +305,8 @@ function tableJson(t) {
     capacity: t.capacity,
     budget_cents: t.budget_cents ?? null,
     cuisine: t.cuisine ?? null,
+    formats: t.formats ?? [],
+    venue_type: t.venue_type ?? null,
     venue: t.venue || null,
     area_label: (L ? L.area : t.area_label) || null,
     meet_lat: t.meet_lat ?? null,
@@ -492,6 +494,8 @@ export const api = {
       capacity: cap,
       budget_cents: p.budget_cents ?? null,
       cuisine: p.cuisine || null,
+      formats: (p.formats || []).slice(0, 3),
+      venue_type: p.venue_type || null,
       venue: p.venue && p.venue.name ? { id: uid(), name: p.venue.name, address: p.venue.address || null, lat: p.venue.lat ?? null, lng: p.venue.lng ?? null } : null,
       area_label: (p.area_label || "").slice(0, 120) || null,
       meet_lat: p.meet_lat ?? null,
@@ -709,7 +713,7 @@ export const api = {
     const d = requireUser();
     return clone(
       d.tables.map((t) => ({
-        id: t.id, title: demoText(t)?.title || t.title || null, cuisine: t.cuisine ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at,
+        id: t.id, title: demoText(t)?.title || t.title || null, cuisine: t.cuisine ?? null, formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at,
         status: t.status, is_private: !!t.is_private, is_sample: !!t.is_sample, host_id: t.host_id || null, host_name: userInfo(t.host_id)?.display_name || t.sample_host_name || null,
         host_is_guest: true, members: joinedCount(t), created_at: t.created_at || t.starts_at,
       }))
@@ -796,7 +800,7 @@ export const api = {
         .filter((f) => f.user_id === ME)
         .map((f) => {
           const t = d.tables.find((x) => x.id === f.table_id);
-          return t ? { table_id: f.table_id, overall: f.overall, mood_before: f.mood_before, mood_after: f.mood_after, vibes: f.vibes, created_at: f.created_at, cuisine: t.cuisine ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at, seats: joinedCount(t), title: t.title || null } : null;
+          return t ? { table_id: f.table_id, overall: f.overall, mood_before: f.mood_before, mood_after: f.mood_after, vibes: f.vibes, created_at: f.created_at, cuisine: t.cuisine ?? null, formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at, seats: joinedCount(t), title: t.title || null } : null;
         })
         .filter(Boolean)
         .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at))

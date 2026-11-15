@@ -95,7 +95,7 @@ export const EN = {
 
   // create
   "cr.label": "Host a table", "cr.stepOf": "Step {n} of {total}", "cr.s1": "Who and what", "cr.s2": "When and where", "cr.s3": "Final touches",
-  "cr.title": "Title", "cr.titlePh": "e.g. Hot pot night", "cr.audience": "Who is it for?", "cr.cuisine": "What are you craving?",
+  "cr.title": "Title", "cr.titlePh": "e.g. Hot pot night", "cr.audience": "Who is it for?", "cr.cuisine": "Which cuisine?",
   "cr.capacity": "How many people (including you)?", "cr.capacityHint": "2–12. Smaller groups make easier conversation.", "cr.fewer": "Fewer seats", "cr.more": "More seats",
   "cr.joinMode": "How do people join?", "jm.request": "Ask first", "jm.instant": "Instant join", "jmHint.request": "You approve each person", "jmHint.instant": "Seats fill first come, first served",
   "cr.date": "Date", "cr.time": "Time", "cr.area": "Area", "cr.place": "Restaurant or meeting place", "cr.placePh": "Search a restaurant or address", "cr.placeHint": "Type at least 2 letters, then pick a result. Not decided yet? Describe the area below.",
@@ -128,7 +128,7 @@ export const EN = {
   "pf.title": "Your profile", "pf.welcome": "Welcome! Set up your profile", "pf.onbTitle": "One minute to set up", "pf.onbBody": "Pick a name and a few tastes. Only your name, emoji and spoken languages are shown to others.",
   "pf.name": "Display name", "pf.namePh": "What should people call you?", "pf.nameNeeded": "Please enter a name.", "pf.avatar": "Pick an emoji", "pf.area": "Home area", "pf.language": "App language",
   "pf.spoken": "Languages you speak", "pf.diet": "Dietary notes", "pf.dietPh": "e.g. no pork, vegetarian", "pf.budget": "Usual budget per person (C$)", "pf.budgetRange": "Enter an amount between 5 and 500.",
-  "pf.rank": "Your favourite cuisines", "pf.rankHint": "Tap the ones you love most. The ones you tap first count most for your taste match.", "cg.chinese": "Chinese", "cg.japan_korea": "Japanese & Korean", "cg.asia": "Southeast & South Asian", "cg.western": "Western & American", "cg.casual": "Casual & pub", "cg.sweet": "Café, sweets & drinks", "cg.other": "Other", "pf.moveUp": "Move {name} up", "pf.moveDown": "Move {name} down", "pf.moved": "{name} is now number {n}",
+  "pf.rank": "Your favourite cuisines", "pf.rankHint": "Tap the ones you love most. The ones you tap first count most for your taste match.", "cg.chinese": "Chinese", "cg.asia": "Southeast & South Asian", "cg.western": "Western", "cg.other": "Other", "pf.moveUp": "Move {name} up", "pf.moveDown": "Move {name} down", "pf.moved": "{name} is now number {n}",
   "pf.saveStart": "Save and start", "pf.saved": "Profile saved.",
   "pf.blocked": "Blocked people", "pf.noBlocks": "You haven't blocked anyone.", "pf.unblock": "Unblock", "pf.unblocked": "Unblocked.",
   "pf.app": "Install the app", "pf.install": "Install Table & Bloom", "pf.installed": "Installed on this device.", "pf.installIOS": "On iPhone: tap the Share button, then “Add to Home Screen”.", "pf.installOther": "Use your browser menu and choose “Install app” or “Add to Home screen”.",
@@ -208,6 +208,15 @@ export const EN = {
   "ad.suspend": "Suspend", "ad.unsuspend": "Restore", "ad.suspendQ": "Suspend this account?", "ad.suspendBody": "They won't be able to use the app until you restore the account.",
   "ad.host": "Host", "ad.members": "{n} joined", "ad.cancelSel": "Cancel selected ({n})", "ad.cancelTable": "Cancel table", "ad.cancelQ": "Cancel {n} table(s)?", "ad.cancelBody": "Members will see the table as cancelled.", "ad.cancelled": "Cancelled {n} table(s).",
   "ad.noReports": "No reports.", "ad.reporter": "From", "ad.reported": "About", "ad.resolve": "Mark resolved", "ad.reopen": "Reopen",
+
+  "cg.japanese": "Japanese", "cg.korean": "Korean", "cg.latin": "Mexican & Latin American", "cg.mideast": "Mediterranean & Middle Eastern",
+  "mp.anySub": "Any", "mp.formats": "How we eat",
+  "fm.hotpot": "Hot pot", "fm.bbq": "BBQ & grill", "fm.dimsum": "Dim sum & tea", "fm.noodles": "Noodles & dumplings", "fm.seafood": "Seafood", "fm.buffet": "Buffet", "fm.brunch": "Brunch", "fm.veg": "Vegetarian & light",
+  "vt.fast": "Fast food", "vt.casual": "Casual", "vt.dine": "Sit-down", "vt.cafe": "Café & sweets", "vt.bar": "Bar & pub",
+  "vtHint.fast": "Quick, grab & go", "vtHint.casual": "Easy and low-key", "vtHint.dine": "Take your time", "vtHint.cafe": "Coffee, tea, desserts", "vtHint.bar": "Drinks and small plates",
+  "cr.formats": "How do you want to eat?", "cr.formatsMax": "up to {n}", "cr.formatsMaxHit": "You can pick up to {n}.", "cr.vtype": "Kind of place",
+  "disc.moreFilters": "More filters: type & how we eat", "disc.vtype": "Type", "disc.fmt": "How we eat",
+  "rec.format": "You enjoy {name}", "rec.type": "You like {name} places", "dp.styleMost": "How you like to eat",
 };
 
 export const ZH = {
@@ -298,7 +307,7 @@ export const ZH = {
   "rep.harassment": "骚扰或言行不当", "rep.no_show": "没有出现", "rep.unsafe": "让我感到不安全", "rep.spam": "垃圾信息或虚假账号", "rep.other": "其他",
 
   "cr.label": "发起饭局", "cr.stepOf": "第 {n} 步，共 {total} 步", "cr.s1": "和谁、吃什么", "cr.s2": "时间和地点", "cr.s3": "最后几项",
-  "cr.title": "标题", "cr.titlePh": "例如：火锅之夜", "cr.audience": "欢迎哪些人？", "cr.cuisine": "想吃什么？",
+  "cr.title": "标题", "cr.titlePh": "例如：火锅之夜", "cr.audience": "欢迎哪些人？", "cr.cuisine": "想吃哪种菜系？",
   "cr.capacity": "一共几个人（包括你）？", "cr.capacityHint": "2–12 人。人少一点，聊天更轻松。", "cr.fewer": "减少座位", "cr.more": "增加座位",
   "cr.joinMode": "大家怎么加入？", "jm.request": "需要我同意", "jm.instant": "直接加入", "jmHint.request": "由你逐个审核", "jmHint.instant": "先到先得",
   "cr.date": "日期", "cr.time": "时间", "cr.area": "地区", "cr.place": "餐厅或集合地点", "cr.placePh": "搜索餐厅或地址", "cr.placeHint": "至少输入 2 个字，然后选择一个结果。还没想好？在下面写个大概区域也行。",
@@ -328,7 +337,7 @@ export const ZH = {
   "pf.title": "我的资料", "pf.welcome": "欢迎！先设置你的资料", "pf.onbTitle": "一分钟就好", "pf.onbBody": "起个名字，选几个口味。其他人只能看到你的名字、头像表情和会说的语言。",
   "pf.name": "昵称", "pf.namePh": "大家怎么称呼你？", "pf.nameNeeded": "请输入昵称。", "pf.avatar": "选一个表情当头像", "pf.area": "常住地区", "pf.language": "应用语言",
   "pf.spoken": "你会说的语言", "pf.diet": "饮食备注", "pf.dietPh": "例如：不吃猪肉、素食", "pf.budget": "通常人均预算（加元）", "pf.budgetRange": "请输入 5 到 500 之间的金额。",
-  "pf.rank": "你最爱的菜系", "pf.rankHint": "点选你最喜欢的菜系，先点的更重要，用来计算口味匹配度。", "cg.chinese": "中餐", "cg.japan_korea": "日韩", "cg.asia": "东南亚·南亚", "cg.western": "西餐·美式", "cg.casual": "快餐·酒馆", "cg.sweet": "咖啡·甜品·饮品", "cg.other": "其他", "pf.moveUp": "把{name}上移", "pf.moveDown": "把{name}下移", "pf.moved": "{name}现在排第 {n}",
+  "pf.rank": "你最爱的菜系", "pf.rankHint": "点选你最喜欢的菜系，先点的更重要，用来计算口味匹配度。", "cg.chinese": "中餐", "cg.asia": "东南亚·南亚", "cg.western": "西餐", "cg.other": "其他", "pf.moveUp": "把{name}上移", "pf.moveDown": "把{name}下移", "pf.moved": "{name}现在排第 {n}",
   "pf.saveStart": "保存并开始", "pf.saved": "资料已保存。",
   "pf.blocked": "已屏蔽的人", "pf.noBlocks": "你还没有屏蔽任何人。", "pf.unblock": "取消屏蔽", "pf.unblocked": "已取消屏蔽。",
   "pf.app": "安装到手机", "pf.install": "安装 Table & Bloom", "pf.installed": "已安装在这台设备上。", "pf.installIOS": "iPhone：点浏览器的“分享”按钮，选择“添加到主屏幕”。", "pf.installOther": "在浏览器菜单里选择“安装应用”或“添加到主屏幕”。",
@@ -404,4 +413,13 @@ export const ZH = {
   "ad.suspend": "封号", "ad.unsuspend": "解封", "ad.suspendQ": "封掉这个账号？", "ad.suspendBody": "解封之前，对方无法使用这个应用。",
   "ad.host": "发起人", "ad.members": "已加入 {n} 人", "ad.cancelSel": "取消所选（{n}）", "ad.cancelTable": "取消饭局", "ad.cancelQ": "取消 {n} 个饭局？", "ad.cancelBody": "成员会看到这个饭局已取消。", "ad.cancelled": "已取消 {n} 个饭局。",
   "ad.noReports": "没有举报。", "ad.reporter": "举报人", "ad.reported": "被举报", "ad.resolve": "标记已处理", "ad.reopen": "重新打开",
+
+  "cg.japanese": "日料", "cg.korean": "韩餐", "cg.latin": "墨西哥·拉美", "cg.mideast": "中东·地中海",
+  "mp.anySub": "不限", "mp.formats": "吃法",
+  "fm.hotpot": "火锅", "fm.bbq": "烧烤·烤肉·串串", "fm.dimsum": "早茶点心", "fm.noodles": "面食·饺子", "fm.seafood": "海鲜", "fm.buffet": "自助餐", "fm.brunch": "早午餐", "fm.veg": "素食·轻食",
+  "vt.fast": "快餐", "vt.casual": "简餐", "vt.dine": "正餐", "vt.cafe": "咖啡·茶饮·甜品", "vt.bar": "酒吧·酒馆",
+  "vtHint.fast": "快速·可外带", "vtHint.casual": "随便吃·轻松", "vtHint.dine": "坐下来慢慢吃", "vtHint.cafe": "咖啡·奶茶·甜品", "vtHint.bar": "喝点东西·小食",
+  "cr.formats": "想怎么吃？", "cr.formatsMax": "最多选 {n} 个", "cr.formatsMaxHit": "最多选 {n} 个。", "cr.vtype": "想去哪种店？",
+  "disc.moreFilters": "更多筛选：类型和吃法", "disc.vtype": "类型", "disc.fmt": "吃法",
+  "rec.format": "你吃{name}很开心", "rec.type": "你喜欢{name}", "dp.styleMost": "常见的吃法",
 };

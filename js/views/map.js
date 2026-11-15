@@ -7,7 +7,9 @@ import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mountGroupMap } from "../group-map.js";
-import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText, cuisineGroupsHTML } from "./common.js";
+import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
+import { mountMenuPicker, menuItem } from "./menu-picker.js";
+import { FORMAT_QUERY } from "../data.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
@@ -33,9 +35,7 @@ export async function render(root) {
     <div class="map-center" id="center"></div>
     <details class="cuis-details" id="cuis-wrap" ${window.innerWidth >= 820 ? "open" : ""}>
       <summary id="cuis-sum"></summary>
-      <div class="cuisine-groups" id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}">
-        ${cuisineGroupsHTML({ attr: "c", isOn: (s) => cuisine === s, any: `<button type="button" class="chip" data-c="" aria-pressed="${cuisine === ""}">${esc(t("map.anyCuisine"))}</button>` })}
-      </div>
+      <div id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}"></div>
     </details>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.mapView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
@@ -49,8 +49,8 @@ export async function render(root) {
 
   // On phones the 30+ cuisine chips are folded away so the map and the list stay near the top.
   function paintCuisineSummary() {
-    const c = state.cuisines.find((x) => x.slug === cuisine);
-    qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${c ? `${c.emoji} ${nameOf(c)}` : t("map.anyCuisine")}`;
+    const c = menuItem(cuisine);
+    qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${c ? `${c.emoji} ${c.name}` : t("map.anyCuisine")}`;
   }
   paintCuisineSummary();
   const isHere = () => center.label === t("map.here");
@@ -62,7 +62,8 @@ export async function render(root) {
 
   function googleQuery() {
     const c = state.cuisines.find((x) => x.slug === cuisine);
-    return `${c ? c.name_en + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+    const word = c ? c.name_en : FORMAT_QUERY[cuisine] || "";
+    return `${word ? word + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
   }
 
   // ---- map: "me" at the picked place + numbered restaurants (closest first)
@@ -262,14 +263,15 @@ export async function render(root) {
     onClear: () => {},
   });
   qs("#use-me", root).addEventListener("click", () => locate());
-  qs("#cuis", root).addEventListener("click", (e) => {
-    const b = e.target.closest("[data-c]");
-    if (!b) return;
-    cuisine = state.mapCuisine = b.dataset.c;
-    paintCuisineSummary();
-    if (window.innerWidth < 820) qs("#cuis-wrap", root).open = false;
-    qsa("[data-c]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.c === cuisine)));
-    loadRestaurants();
+  mountMenuPicker(qs("#cuis", root), {
+    value: cuisine,
+    formats: true,
+    anyLabel: t("map.anyCuisine"),
+    onChange: (v) => {
+      cuisine = state.mapCuisine = v;
+      paintCuisineSummary();
+      loadRestaurants();
+    },
   });
   // "Host a table here": open the Host-a-table sheet with this restaurant already chosen
   function hostHere(r) {

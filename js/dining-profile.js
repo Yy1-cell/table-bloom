@@ -34,13 +34,18 @@ function tally(rows, keyOf, center) {
     .sort((a, b) => b.aff - a.aff || b.n - a.n);
 }
 
-export function buildProfile(rows = []) {
+/** `groupOf(slug)` says which cuisine group a leaf belongs to ("Sichuan" -> "chinese"), so a table that only says "Chinese" still gets a signal. */
+export function buildProfile(rows = [], groupOf = () => "") {
   const clean = rows.filter((r) => r && r.overall);
   const n = clean.length;
   if (!n) return { n: 0 };
   const mean = avg(clean.map(mealScore));
   const NEUTRAL = 3; // a meal that felt "okay" neither pulls a kind of table up nor down
   const cuisine = tally(clean, (r) => r.cuisine, NEUTRAL);
+  const group = tally(clean, (r) => groupOf(r.cuisine), NEUTRAL);
+  // a meal can have several formats (hot pot + BBQ): it counts once for each
+  const format = tally(clean.flatMap((r) => (r.formats || []).map((f) => ({ ...r, _f: f }))), (r) => r._f, NEUTRAL);
+  const vtype = tally(clean, (r) => r.venue_type, NEUTRAL);
   const occasion = tally(clean, (r) => r.occasion, NEUTRAL);
   const size = tally(clean, (r) => sizeBucket(Number(r.seats) || 0), NEUTRAL);
   const time = tally(clean, (r) => timeBucket(r.starts_at), NEUTRAL);
@@ -48,10 +53,14 @@ export function buildProfile(rows = []) {
   for (const r of clean) for (const v of r.vibes || []) if (VIBES_PUBLIC.includes(v)) vibes.set(v, (vibes.get(v) || 0) + 1);
   const lifts = clean.filter((r) => r.mood_before && r.mood_after).map((r) => r.mood_after - r.mood_before);
   const best = (list) => list.find((e) => e.avg >= 3.5) || null;
-  return {
+  const prof = {
     n,
     mean,
     eatMost: [...cuisine].sort((a, b) => b.n - a.n || b.avg - a.avg).slice(0, 3),
+    // how I like to eat: formats and kinds of place, most frequent first
+    styleMost: [...format.map((e) => ({ ...e, kind: "fm" })), ...vtype.map((e) => ({ ...e, kind: "vt" }))]
+      .sort((a, b) => b.n - a.n || b.avg - a.avg)
+      .slice(0, 3),
     bestOccasion: best(occasion),
     bestSize: best(size),
     bestTime: best(time),
@@ -59,18 +68,30 @@ export function buildProfile(rows = []) {
     lift: avg(lifts),
     aff: {
       cuisine: Object.fromEntries(cuisine.map((e) => [e.key, e.aff])),
+      group: Object.fromEntries(group.map((e) => [e.key, e.aff])),
+      format: Object.fromEntries(format.map((e) => [e.key, e.aff])),
+      vtype: Object.fromEntries(vtype.map((e) => [e.key, e.aff])),
       occasion: Object.fromEntries(occasion.map((e) => [e.key, e.aff])),
       size: Object.fromEntries(size.map((e) => [e.key, e.aff])),
       time: Object.fromEntries(time.map((e) => [e.key, e.aff])),
     },
   };
+  Object.defineProperty(prof, "groupOf", { value: groupOf, enumerable: false });
+  return prof;
 }
 
 /** How well an upcoming table fits this profile. `score` is 0 for no signal; `why` lists up to two reasons. */
 export function scoreTable(tb, prof) {
   if (!prof || !prof.n) return { score: 0, why: [] };
+  // a specific cuisine I know; otherwise what I know about its region, counted a bit less
+  const groupAff = prof.aff.group?.[prof.groupOf?.(tb.cuisine) || ""];
+  const cuisineAff = prof.aff.cuisine[tb.cuisine] ?? (groupAff == null ? null : groupAff * 0.6);
+  const fmtAffs = (tb.formats || []).map((f) => prof.aff.format?.[f]).filter((a) => a != null);
+  const formatAff = fmtAffs.length ? fmtAffs.reduce((a, b) => a + b, 0) / fmtAffs.length : null;
   const parts = [
-    ["cuisine", prof.aff.cuisine[tb.cuisine], 1.0],
+    ["cuisine", cuisineAff, 1.0],
+    ["format", formatAff, 0.8],
+    ["type", prof.aff.vtype?.[tb.venue_type], 0.4],
     ["occasion", prof.aff.occasion[tb.occasion], 0.8],
     ["size", prof.aff.size[sizeBucket(Number(tb.capacity) || 0)], 0.6],
     ["time", prof.aff.time[timeBucket(tb.starts_at)], 0.5],

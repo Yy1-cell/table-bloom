@@ -8,44 +8,70 @@ export const AREAS = [
   { id: "6f1a0001-0000-4000-8000-000000000005", name_en: "Markham & Richmond Hill", name_zh: "Markham／Richmond Hill", center_lat: 43.8561, center_lng: -79.337 },
 ];
 
-export const CUISINE_GROUPS = ["chinese", "japan_korea", "asia", "western", "casual", "sweet"];
+// The food menu has three independent questions:
+//  1. cuisine (CUISINES): two levels. The group (grp) is the first level. A group with several leaves (Chinese, Southeast &
+//     South Asian, Western) opens a second level; the leaf whose slug equals the group is "any".
+//  2. format (FORMATS): how we eat (hot pot, BBQ…). Optional, up to three per table.
+//  3. venue type (VENUE_TYPES): what kind of place. Optional, one per table.
+// Keep in sync with supabase/migrations/2026-11-15_menu_two_level.sql so demo mode and the live database look the same.
+export const CUISINE_GROUPS = ["chinese", "japanese", "korean", "asia", "western", "latin", "mideast"];
 
-// Grouped like the big Chinese review apps (by cuisine and by kind of place), tuned for friends eating out in the GTA.
 export const CUISINES = [
-  { slug: "hotpot", name_en: "Hot pot", name_zh: "火锅", emoji: "🥘", grp: "chinese", sort: 1 },
+  { slug: "chinese", name_en: "Chinese", name_zh: "中餐", emoji: "🥢", grp: "chinese", sort: 1 },
   { slug: "sichuan", name_en: "Sichuan", name_zh: "川菜", emoji: "🌶️", grp: "chinese", sort: 2 },
-  { slug: "cantonese", name_en: "Cantonese & roast meats", name_zh: "粤菜·烧腊", emoji: "🦆", grp: "chinese", sort: 3 },
-  { slug: "dimsum", name_en: "Dim sum", name_zh: "早茶点心", emoji: "🥟", grp: "chinese", sort: 4 },
-  { slug: "noodles", name_en: "Noodles & dumplings", name_zh: "面食饺子", emoji: "🍜", grp: "chinese", sort: 5 },
-  { slug: "skewers", name_en: "BBQ & skewers", name_zh: "烧烤串串", emoji: "🍢", grp: "chinese", sort: 6 },
-  { slug: "hk_cafe", name_en: "HK café", name_zh: "港式茶餐厅", emoji: "🍍", grp: "chinese", sort: 7 },
-  { slug: "taiwanese", name_en: "Taiwanese", name_zh: "台湾菜", emoji: "🍚", grp: "chinese", sort: 8 },
-  { slug: "regional", name_en: "Other regional Chinese", name_zh: "湘菜·东北·江浙", emoji: "🥢", grp: "chinese", sort: 9 },
-  { slug: "japanese", name_en: "Japanese & sushi", name_zh: "日料·寿司", emoji: "🍣", grp: "japan_korea", sort: 10 },
-  { slug: "ramen", name_en: "Ramen & udon", name_zh: "拉面乌冬", emoji: "🍥", grp: "japan_korea", sort: 11 },
-  { slug: "izakaya", name_en: "Izakaya", name_zh: "居酒屋", emoji: "🏮", grp: "japan_korea", sort: 12 },
-  { slug: "korean_bbq", name_en: "Korean BBQ", name_zh: "韩式烤肉", emoji: "🍖", grp: "japan_korea", sort: 13 },
-  { slug: "korean", name_en: "Korean", name_zh: "韩餐·炖锅", emoji: "🍲", grp: "japan_korea", sort: 14 },
-  { slug: "thai", name_en: "Thai", name_zh: "泰餐", emoji: "🥥", grp: "asia", sort: 15 },
-  { slug: "vietnamese", name_en: "Vietnamese", name_zh: "越南菜", emoji: "🥖", grp: "asia", sort: 16 },
-  { slug: "indian", name_en: "Indian", name_zh: "印度菜", emoji: "🍛", grp: "asia", sort: 17 },
-  { slug: "american", name_en: "American & burgers", name_zh: "美式·汉堡", emoji: "🍔", grp: "western", sort: 18 },
-  { slug: "steak", name_en: "Steak & grill", name_zh: "牛排·扒房", emoji: "🥩", grp: "western", sort: 19 },
-  { slug: "italian", name_en: "Italian & pasta", name_zh: "意餐·意面", emoji: "🍝", grp: "western", sort: 20 },
-  { slug: "pizza", name_en: "Pizza", name_zh: "披萨", emoji: "🍕", grp: "western", sort: 21 },
-  { slug: "mexican", name_en: "Mexican", name_zh: "墨西哥菜", emoji: "🌮", grp: "western", sort: 22 },
-  { slug: "mediterranean", name_en: "Mediterranean & Middle Eastern", name_zh: "中东·地中海", emoji: "🥙", grp: "western", sort: 23 },
-  { slug: "seafood", name_en: "Seafood", name_zh: "海鲜", emoji: "🦞", grp: "western", sort: 24 },
-  { slug: "brunch", name_en: "Brunch", name_zh: "早午餐", emoji: "🥞", grp: "western", sort: 25 },
-  { slug: "fried_chicken", name_en: "Fried chicken & wings", name_zh: "炸鸡·鸡翅", emoji: "🍗", grp: "casual", sort: 26 },
-  { slug: "pub", name_en: "Pub & bar food", name_zh: "酒馆 Pub", emoji: "🍻", grp: "casual", sort: 27 },
-  { slug: "buffet", name_en: "Buffet", name_zh: "自助餐", emoji: "🍱", grp: "casual", sort: 28 },
-  { slug: "vegetarian", name_en: "Vegetarian & vegan", name_zh: "素食·轻食", emoji: "🥗", grp: "casual", sort: 29 },
-  { slug: "cafe", name_en: "Café & light bites", name_zh: "咖啡轻食", emoji: "☕", grp: "sweet", sort: 30 },
-  { slug: "bubble_tea", name_en: "Bubble tea", name_zh: "奶茶", emoji: "🧋", grp: "sweet", sort: 31 },
-  { slug: "latin", name_en: "Latin American & South American", name_zh: "拉美·南美菜", emoji: "🦙", grp: "western", sort: 33 },
-  { slug: "dessert", name_en: "Dessert & bakery", name_zh: "甜品·烘焙", emoji: "🍰", grp: "sweet", sort: 32 },
+  { slug: "hunan", name_en: "Hunan", name_zh: "湘菜", emoji: "🌶️", grp: "chinese", sort: 3 },
+  { slug: "cantonese", name_en: "Cantonese & Hong Kong", name_zh: "粤菜·港式", emoji: "🦆", grp: "chinese", sort: 4 },
+  { slug: "dongbei", name_en: "Northeastern", name_zh: "东北菜", emoji: "🥟", grp: "chinese", sort: 5 },
+  { slug: "jiangzhe", name_en: "Jiangsu, Zhejiang & Shanghai", name_zh: "江浙沪菜", emoji: "🦀", grp: "chinese", sort: 6 },
+  { slug: "xibei", name_en: "Northwestern & Xinjiang", name_zh: "西北·新疆菜", emoji: "🍢", grp: "chinese", sort: 7 },
+  { slug: "yungui", name_en: "Yunnan & Guizhou", name_zh: "云贵菜", emoji: "🍄", grp: "chinese", sort: 8 },
+  { slug: "taiwanese", name_en: "Taiwanese", name_zh: "台湾菜", emoji: "🍚", grp: "chinese", sort: 9 },
+  { slug: "japanese", name_en: "Japanese", name_zh: "日料", emoji: "🍣", grp: "japanese", sort: 10 },
+  { slug: "korean", name_en: "Korean", name_zh: "韩餐", emoji: "🍲", grp: "korean", sort: 11 },
+  { slug: "asia", name_en: "Southeast & South Asian", name_zh: "东南亚·南亚", emoji: "🥥", grp: "asia", sort: 12 },
+  { slug: "thai", name_en: "Thai", name_zh: "泰餐", emoji: "🥥", grp: "asia", sort: 13 },
+  { slug: "vietnamese", name_en: "Vietnamese", name_zh: "越南菜", emoji: "🥖", grp: "asia", sort: 14 },
+  { slug: "indian", name_en: "Indian", name_zh: "印度菜", emoji: "🍛", grp: "asia", sort: 15 },
+  { slug: "western", name_en: "Western", name_zh: "西餐", emoji: "🍽️", grp: "western", sort: 16 },
+  { slug: "american", name_en: "American", name_zh: "美式", emoji: "🍔", grp: "western", sort: 17 },
+  { slug: "italian", name_en: "Italian", name_zh: "意餐", emoji: "🍝", grp: "western", sort: 18 },
+  { slug: "french", name_en: "French & European", name_zh: "法餐·欧陆", emoji: "🥐", grp: "western", sort: 19 },
+  { slug: "mexican", name_en: "Mexican & Latin American", name_zh: "墨西哥·拉美", emoji: "🌮", grp: "latin", sort: 20 },
+  { slug: "mediterranean", name_en: "Mediterranean & Middle Eastern", name_zh: "中东·地中海", emoji: "🥙", grp: "mideast", sort: 21 },
 ];
+
+// How we eat (many can apply to one table). Names live in strings.js as fm.<slug>.
+export const FORMATS = [
+  { slug: "hotpot", emoji: "🥘" },
+  { slug: "bbq", emoji: "🍖" },
+  { slug: "dimsum", emoji: "🥟" },
+  { slug: "noodles", emoji: "🍜" },
+  { slug: "seafood", emoji: "🦞" },
+  { slug: "buffet", emoji: "🍱" },
+  { slug: "brunch", emoji: "🥞" },
+  { slug: "veg", emoji: "🥗" },
+];
+export const MAX_FORMATS = 3;
+// English words for a Google Maps text search per format
+export const FORMAT_QUERY = { hotpot: "hot pot", bbq: "BBQ", dimsum: "dim sum", noodles: "noodle", seafood: "seafood", buffet: "buffet", brunch: "brunch", veg: "vegetarian" };
+
+// What kind of place (one per table). Names live in strings.js as vt.<slug>.
+export const VENUE_TYPES = [
+  { slug: "fast", emoji: "🍔" },
+  { slug: "casual", emoji: "🍜" },
+  { slug: "dine", emoji: "🍷" },
+  { slug: "cafe", emoji: "☕" },
+  { slug: "bar", emoji: "🍻" },
+];
+
+/** The restaurant-search keys for a table: its cuisine, then each format, then the venue type when it narrows the search. */
+export function searchKeys({ cuisine, formats = [], venue_type } = {}) {
+  const keys = [];
+  if (cuisine) keys.push(cuisine);
+  for (const f of formats || []) keys.push(f);
+  if (venue_type === "cafe" || venue_type === "bar") keys.push(venue_type);
+  return [...new Set(keys)];
+}
 
 export const TAGS = [
   "mandarin_friendly",
