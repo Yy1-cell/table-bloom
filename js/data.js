@@ -52,6 +52,32 @@ export const FORMATS = [
   { slug: "veg", emoji: "🥗" },
 ];
 export const MAX_FORMATS = 3;
+
+// Which formats make sense for which cuisine, so "Japanese + dim sum" can't be picked. With no cuisine chosen, all are offered.
+// Group lists first; a few leaves differ from their group.
+const FORMATS_BY_GROUP = {
+  chinese: ["hotpot", "bbq", "noodles", "seafood", "buffet", "veg"],
+  japanese: ["bbq", "noodles", "seafood", "buffet", "veg"],
+  korean: ["hotpot", "bbq", "noodles", "seafood", "buffet", "veg"],
+  asia: ["hotpot", "bbq", "noodles", "seafood", "buffet", "veg"],
+  western: ["bbq", "seafood", "buffet", "brunch", "veg"],
+  latin: ["bbq", "seafood", "buffet", "brunch", "veg"],
+  mideast: ["bbq", "seafood", "buffet", "veg"],
+};
+const FORMATS_BY_LEAF = {
+  chinese: ["hotpot", "bbq", "dimsum", "noodles", "seafood", "buffet", "veg"], // "any Chinese" still allows dim sum
+  cantonese: ["hotpot", "bbq", "dimsum", "noodles", "seafood", "buffet", "veg"],
+  indian: ["buffet", "veg"],
+  italian: ["seafood", "brunch", "buffet", "veg"],
+  french: ["seafood", "brunch", "buffet", "veg"],
+};
+/** Format slugs that fit this cuisine (all of them when there is no cuisine). */
+export function formatsFor(cuisineSlug) {
+  if (!cuisineSlug) return FORMATS.map((f) => f.slug);
+  const c = CUISINES.find((x) => x.slug === cuisineSlug);
+  const list = FORMATS_BY_LEAF[cuisineSlug] || (c && FORMATS_BY_GROUP[c.grp]);
+  return list ? [...list] : FORMATS.map((f) => f.slug);
+}
 // English words for a Google Maps text search per format
 export const FORMAT_QUERY = { hotpot: "hot pot", bbq: "BBQ", dimsum: "dim sum", noodles: "noodle", seafood: "seafood", buffet: "buffet", brunch: "brunch", veg: "vegetarian" };
 

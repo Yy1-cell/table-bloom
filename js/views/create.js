@@ -4,7 +4,7 @@ import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, searchKeys } from "../data.js";
+import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsFor, searchKeys } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
@@ -52,6 +52,15 @@ export function openCreate({ onClose } = {}) {
     return `<div class="steps" role="img" aria-label="${esc(t("cr.stepOf", { n: step, total: 3 }))}">${[1, 2, 3].map((i) => `<i class="${i <= step ? "on" : ""}"></i>`).join("")}</div>`;
   }
 
+  // Only the formats that fit the chosen cuisine are offered (no dim sum with Japanese); anything that no longer fits is dropped.
+  function formatChipsHTML() {
+    const ok = formatsFor(d.cuisine);
+    d.formats = d.formats.filter((f) => ok.includes(f));
+    return FORMATS.filter((f) => ok.includes(f.slug))
+      .map((f) => `<button type="button" class="chip" data-fmt="${f.slug}" aria-pressed="${d.formats.includes(f.slug)}"><span aria-hidden="true">${f.emoji}</span> ${esc(t("fm." + f.slug))}</button>`)
+      .join("");
+  }
+
   function draw() {
     let body = "";
     if (step === 1) {
@@ -65,7 +74,7 @@ export function openCreate({ onClose } = {}) {
         </div></fieldset>
         <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div id="c-menu"></div></fieldset>
         <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("common.optional"))} · ${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
-          <div class="chips" id="c-formats">${FORMATS.map((f) => `<button type="button" class="chip" data-fmt="${f.slug}" aria-pressed="${d.formats.includes(f.slug)}"><span aria-hidden="true">${f.emoji}</span> ${esc(t("fm." + f.slug))}</button>`).join("")}</div></fieldset>
+          <div class="chips" id="c-formats">${formatChipsHTML()}</div></fieldset>
         <fieldset><legend>${esc(t("cr.vtype"))} <span class="muted">(${esc(t("common.optional"))})</span></legend>
           <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}<small class="chip-sub">${esc(t("vtHint." + v.slug))}</small></button>`).join("")}</div></fieldset>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
@@ -302,7 +311,13 @@ export function openCreate({ onClose } = {}) {
         })
       );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
-      mountMenuPicker(qs("#c-menu", b), { value: d.cuisine, onChange: (v) => (d.cuisine = v) });
+      mountMenuPicker(qs("#c-menu", b), {
+        value: d.cuisine,
+        onChange: (v) => {
+          d.cuisine = v;
+          qs("#c-formats", b).innerHTML = formatChipsHTML();
+        },
+      });
       qs("#c-formats", b).addEventListener("click", (e) => {
         const c = e.target.closest("[data-fmt]");
         if (!c) return;
