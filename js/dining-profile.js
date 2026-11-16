@@ -41,8 +41,10 @@ export function buildProfile(rows = [], groupOf = () => "") {
   if (!n) return { n: 0 };
   const mean = avg(clean.map(mealScore));
   const NEUTRAL = 3; // a meal that felt "okay" neither pulls a kind of table up nor down
-  const cuisine = tally(clean, (r) => r.cuisine, NEUTRAL);
-  const group = tally(clean, (r) => groupOf(r.cuisine), NEUTRAL);
+  // a meal can have several cuisines (Sichuan + Hunan): it counts once for each, and once for each region they belong to
+  const cuisinesIn = (r) => (r.cuisines?.length ? r.cuisines : r.cuisine ? [r.cuisine] : []);
+  const cuisine = tally(clean.flatMap((r) => cuisinesIn(r).map((c) => ({ ...r, _c: c }))), (r) => r._c, NEUTRAL);
+  const group = tally(clean.flatMap((r) => [...new Set(cuisinesIn(r).map((c) => groupOf(c)).filter(Boolean))].map((g) => ({ ...r, _g: g }))), (r) => r._g, NEUTRAL);
   // a meal can have several formats (hot pot + BBQ): it counts once for each
   const format = tally(clean.flatMap((r) => (r.formats || []).map((f) => ({ ...r, _f: f }))), (r) => r._f, NEUTRAL);
   const vtype = tally(clean, (r) => r.venue_type, NEUTRAL);
@@ -84,8 +86,14 @@ export function buildProfile(rows = [], groupOf = () => "") {
 export function scoreTable(tb, prof) {
   if (!prof || !prof.n) return { score: 0, why: [] };
   // a specific cuisine I know; otherwise what I know about its region, counted a bit less
-  const groupAff = prof.aff.group?.[prof.groupOf?.(tb.cuisine) || ""];
-  const cuisineAff = prof.aff.cuisine[tb.cuisine] ?? (groupAff == null ? null : groupAff * 0.6);
+  // with several cuisines the one I like best counts
+  const affs = (tb.cuisines?.length ? tb.cuisines : tb.cuisine ? [tb.cuisine] : [])
+    .map((c) => {
+      const g = prof.aff.group?.[prof.groupOf?.(c) || ""];
+      return prof.aff.cuisine[c] ?? (g == null ? null : g * 0.6);
+    })
+    .filter((a) => a != null);
+  const cuisineAff = affs.length ? Math.max(...affs) : null;
   const fmtAffs = (tb.formats || []).map((f) => prof.aff.format?.[f]).filter((a) => a != null);
   const formatAff = fmtAffs.length ? fmtAffs.reduce((a, b) => a + b, 0) / fmtAffs.length : null;
   const parts = [

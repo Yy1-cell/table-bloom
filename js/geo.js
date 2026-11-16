@@ -272,7 +272,7 @@ async function photonPlaces(term, center, radiusKm, signal) {
  * Results carry `forCuisine` (the key they were found for). Throws only if every search failed.
  */
 export async function restaurantsForKeys(center, keys, { radius = 2200, signal, limit = 8 } = {}) {
-  const wanted = keys?.length ? keys.slice(0, 3) : [""];
+  const wanted = keys?.length ? keys.slice(0, 4) : [""];
   const runs = await Promise.allSettled(wanted.map((k) => restaurantsNear(center, k, { radius, signal })));
   signal?.throwIfAborted();
   if (runs.every((r) => r.status === "rejected")) throw runs[0].reason;

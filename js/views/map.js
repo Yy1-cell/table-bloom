@@ -9,7 +9,7 @@ import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML
 import { mountGroupMap } from "../group-map.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
 import { mountMenuPicker, menuItem } from "./menu-picker.js";
-import { FORMAT_QUERY } from "../data.js";
+import { searchWord } from "../data.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
@@ -38,6 +38,7 @@ export async function render(root) {
       <summary id="cuis-sum"></summary>
       <div id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}"></div>
     </details>
+    <p class="gmaps-jump"><a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a> <span class="hint">${esc(t("map.googleNote"))}</span></p>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.mapView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.restaurants"))}</h2><div id="rest" aria-live="polite"></div></section>`;
@@ -62,8 +63,7 @@ export async function render(root) {
   }
 
   function googleQuery() {
-    const words = picks.map((k) => state.cuisines.find((x) => x.slug === k)?.name_en || FORMAT_QUERY[k] || "").filter(Boolean);
-    const word = words.join(" or ");
+    const word = picks.map(searchWord).filter(Boolean).join(" ");
     return `${word ? word + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
   }
 
@@ -245,7 +245,12 @@ export async function render(root) {
       <a class="btn sm" href="${esc(mapsUrl({ name: googleQuery() }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>`;
   }
 
+  function paintGoogleLink() {
+    const a = qs("#gmaps-link", root);
+    if (a) a.href = mapsUrl({ name: googleQuery() });
+  }
   function refresh() {
+    paintGoogleLink();
     paintCenter();
     loadTables();
     loadRestaurants();
@@ -274,6 +279,7 @@ export async function render(root) {
     onChange: (v) => {
       picks = state.mapCuisines = v;
       paintCuisineSummary();
+      paintGoogleLink();
       loadRestaurants();
     },
   });

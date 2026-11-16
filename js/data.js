@@ -71,6 +71,14 @@ const FORMATS_BY_LEAF = {
   italian: ["seafood", "brunch", "buffet", "veg"],
   french: ["seafood", "brunch", "buffet", "veg"],
 };
+/** A table's cuisines as a list (up to 3; the first is the main one). Older rows only have `cuisine`. */
+export const cuisinesOf = (tb) => (tb?.cuisines?.length ? tb.cuisines : tb?.cuisine ? [tb.cuisine] : []);
+/** Formats that fit at least one of these cuisines (all of them when none is chosen). */
+export function formatsForMany(slugs) {
+  if (!slugs?.length) return FORMATS.map((f) => f.slug);
+  const ok = new Set(slugs.flatMap((s) => formatsFor(s)));
+  return FORMATS.map((f) => f.slug).filter((f) => ok.has(f));
+}
 /** Format slugs that fit this cuisine (all of them when there is no cuisine). */
 export function formatsFor(cuisineSlug) {
   if (!cuisineSlug) return FORMATS.map((f) => f.slug);
@@ -78,6 +86,10 @@ export function formatsFor(cuisineSlug) {
   const list = FORMATS_BY_LEAF[cuisineSlug] || (c && FORMATS_BY_GROUP[c.grp]);
   return list ? [...list] : FORMATS.map((f) => f.slug);
 }
+// English words for a Google Maps text search where the cuisine's display name is too long or odd to search for
+const SEARCH_WORD = { asia: "Southeast Asian", cantonese: "Cantonese", dongbei: "Dongbei Northeastern Chinese", jiangzhe: "Shanghainese", xibei: "Xinjiang Lanzhou", yungui: "Yunnan", french: "French", mexican: "Mexican", mediterranean: "Mediterranean", taiwanese: "Taiwanese", western: "Western" };
+/** What to type into Google Maps for a cuisine or format slug. */
+export const searchWord = (slug) => SEARCH_WORD[slug] || CUISINES.find((c) => c.slug === slug)?.name_en || FORMAT_QUERY[slug] || "";
 // English words for a Google Maps text search per format
 export const FORMAT_QUERY = { hotpot: "hot pot", bbq: "BBQ", dimsum: "dim sum", noodles: "noodle", seafood: "seafood", buffet: "buffet", brunch: "brunch", veg: "vegetarian" };
 
@@ -91,9 +103,8 @@ export const VENUE_TYPES = [
 ];
 
 /** The restaurant-search keys for a table: its cuisine, then each format, then the venue type when it narrows the search. */
-export function searchKeys({ cuisine, formats = [], venue_type } = {}) {
-  const keys = [];
-  if (cuisine) keys.push(cuisine);
+export function searchKeys({ cuisine, cuisines, formats = [], venue_type } = {}) {
+  const keys = [...(cuisines?.length ? cuisines : cuisine ? [cuisine] : [])];
   for (const f of formats || []) keys.push(f);
   if (venue_type === "cafe" || venue_type === "bar") keys.push(venue_type);
   return [...new Set(keys)];

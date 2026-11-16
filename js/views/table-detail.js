@@ -7,10 +7,10 @@ import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlace
 import { invitationUrl } from "../invitation.js";
 import { restaurantsForKeys, groupSuggestions } from "../geo.js";
 import { mountGroupMap } from "../group-map.js";
-import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys } from "../data.js";
+import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys, searchWord, cuisinesOf } from "../data.js";
 import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
-import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML } from "./common.js";
+import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML, cuisineNames } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
 
@@ -50,9 +50,9 @@ export async function openTable(id, { onClose } = {}) {
 
   function nearbyMapsLink() {
     const center = restaurantCenter();
-    const cuisine = cuisineOf(tb.cuisine);
-    const fm = (tb.formats || []).map((k) => FORMAT_QUERY[k]).filter(Boolean).join(" ");
-    const name = `${[cuisine?.name_en, fm].filter(Boolean).join(" ")} restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
+    const names = cuisinesOf(tb).map(searchWord).filter(Boolean).join(" ");
+    const fm = (tb.formats || []).map(searchWord).filter(Boolean).join(" ");
+    const name = `${[names, fm].filter(Boolean).join(" ")} restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
     return mapsUrl({ name });
   }
 
@@ -82,7 +82,8 @@ export async function openTable(id, { onClose } = {}) {
   }
 
   function draw() {
-    const c = cuisineOf(tb.cuisine);
+    const c = cuisineOf(cuisinesOf(tb)[0]);
+    const cn = cuisineNames(tb, { emoji: false });
     const me = tb.my_status;
     const isHost = me === "host";
     const isMember = me === "joined" || isHost;
@@ -108,7 +109,7 @@ export async function openTable(id, { onClose } = {}) {
         <li><span class="k" aria-hidden="true">🕖</span><span>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}</span></li>
         <li><span class="k" aria-hidden="true">📍</span><span>${esc(placeText(tb))}${tb.venue?.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}
         </span></li>
-        ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(nameOf(c))}</span></li>` : ""}
+        ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : ""}
         ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</span></li>` : ""}
         <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>

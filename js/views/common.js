@@ -4,7 +4,7 @@ import { t, getLang } from "../i18n.js";
 import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
 import { codeOf } from "../errors.js";
-import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
+import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES, cuisinesOf } from "../data.js";
 
 // The "what is this table for" badge (date, family meal…), shown before the vibe tags.
 export function occasionTag(tb) {
@@ -24,12 +24,21 @@ export function menuTagsHTML(tb) {
 
 /** Taste match for a table. A table that only says "Chinese" counts as the best-ranked Chinese cuisine. */
 export function tasteOf(tb) {
-  const c = cuisineOf(tb.cuisine);
-  if (c && c.slug === c.grp) {
-    const sib = state.cuisines.filter((x) => x.grp === c.grp);
-    if (sib.length > 1) return Math.max(...sib.map((x) => tasteMatch(x.slug, state.ranks)));
-  }
-  return tasteMatch(tb.cuisine, state.ranks);
+  const list = cuisinesOf(tb);
+  if (!list.length) return tasteMatch(tb.cuisine, state.ranks);
+  return Math.max(...list.map((slug) => {
+    const c = cuisineOf(slug);
+    if (c && c.slug === c.grp) {
+      const sib = state.cuisines.filter((x) => x.grp === c.grp);
+      if (sib.length > 1) return Math.max(...sib.map((x) => tasteMatch(x.slug, state.ranks)));
+    }
+    return tasteMatch(slug, state.ranks);
+  }));
+}
+
+/** "🌶️ Sichuan · 🌶️ Hunan" — every cuisine of a table, or "" when it has none. */
+export function cuisineNames(tb, { emoji = true } = {}) {
+  return cuisinesOf(tb).map(cuisineOf).filter(Boolean).map((c) => (emoji ? `${c.emoji} ` : "") + nameOf(c)).join(" · ");
 }
 
 /** Cuisine chips grouped under small headings. `attr` is the data-attribute each chip carries; `isOn(slug)` says if it is selected. */
@@ -91,8 +100,9 @@ export function seatsText(tb) {
 
 export function tableTitle(tb) {
   if (tb.title) return tb.title;
-  const c = cuisineOf(tb.cuisine);
-  if (c) return `${c.emoji} ${nameOf(c)}`;
+  const names = cuisineNames(tb, { emoji: false });
+  const c = cuisineOf(cuisinesOf(tb)[0]);
+  if (c) return `${c.emoji} ${names}`;
   const f = FORMATS.find((x) => x.slug === tb.formats?.[0]);
   if (f) return `${f.emoji} ${t("fm." + f.slug)}`;
   const v = VENUE_TYPES.find((x) => x.slug === tb.venue_type);
@@ -123,7 +133,7 @@ export function distanceKm(tb) {
 }
 
 export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
-  const c = cuisineOf(tb.cuisine);
+  const cn = cuisineNames(tb);
   const match = tasteOf(tb);
   const d = distanceKm(tb);
   const pending = tb.pending_count > 0 ? `<span class="badge warn">${esc(t("card.pending", { n: tb.pending_count }))}</span>` : "";
@@ -140,7 +150,7 @@ export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
     <ul class="meta">
       <li><span aria-hidden="true">🕖</span>${esc(fmtWhen(tb.starts_at, t))}</li>
       <li><span aria-hidden="true">📍</span>${esc(placeText(tb))}${d != null ? ` · ${d < 10 ? d.toFixed(1) : Math.round(d)} km` : ""}</li>
-      ${c ? `<li><span aria-hidden="true">${esc(c.emoji)}</span>${esc(nameOf(c))}</li>` : ""}
+      ${cn ? `<li><span aria-hidden="true">${esc(cuisineOf(cuisinesOf(tb)[0])?.emoji || "🍽️")}</span>${esc(cuisineNames(tb, { emoji: false }))}</li>` : ""}
       ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</li>` : ""}
     </ul>
     ${tb.tags?.length || tb.occasion || tb.formats?.length || tb.venue_type ? `<div class="tags">${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}

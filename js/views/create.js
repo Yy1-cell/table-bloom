@@ -4,7 +4,7 @@ import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsFor, searchKeys } from "../data.js";
+import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
@@ -16,7 +16,7 @@ export function openCreate({ onClose } = {}) {
   const d = {
     title: "",
     audience: "friends_and_new",
-    cuisine: pre?.cuisine && !isFormat(pre.cuisine) ? pre.cuisine : "",
+    cuisines: pre?.cuisine && !isFormat(pre.cuisine) ? [pre.cuisine] : [], // up to 3; the first is the main one
     formats: pre?.cuisine && isFormat(pre.cuisine) ? [pre.cuisine] : [],
     vtype: "",
     craving: undefined, // friends tables: what I feel like eating (a cuisine or a format); starts from the table's own choice
@@ -54,7 +54,7 @@ export function openCreate({ onClose } = {}) {
 
   // Only the formats that fit the chosen cuisine are offered (no dim sum with Japanese); anything that no longer fits is dropped.
   function formatChipsHTML() {
-    const ok = formatsFor(d.cuisine);
+    const ok = formatsForMany(d.cuisines);
     d.formats = d.formats.filter((f) => ok.includes(f));
     return FORMATS.filter((f) => ok.includes(f.slug))
       .map((f) => `<button type="button" class="chip" data-fmt="${f.slug}" aria-pressed="${d.formats.includes(f.slug)}"><span aria-hidden="true">${f.emoji}</span> ${esc(t("fm." + f.slug))}</button>`)
@@ -72,7 +72,7 @@ export function openCreate({ onClose } = {}) {
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
           ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
         </div></fieldset>
-        <fieldset><legend>${esc(t("cr.cuisine"))}</legend><div id="c-menu"></div></fieldset>
+        <fieldset><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
         <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("common.optional"))} · ${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
           <div class="chips" id="c-formats">${formatChipsHTML()}</div></fieldset>
         <fieldset><legend>${esc(t("cr.vtype"))} <span class="muted">(${esc(t("common.optional"))})</span></legend>
@@ -91,7 +91,7 @@ export function openCreate({ onClose } = {}) {
         ids[key] = ps.id;
         return ps.html;
       };
-      if (d.craving === undefined) d.craving = d.cuisine || d.formats[0] || "";
+      if (d.craving === undefined) d.craving = d.cuisines[0] || d.formats[0] || "";
       const startBlock = isFriends()
         ? `<div class="section-lite">
             <h3>${esc(t("cr.pairTitle"))}</h3>
@@ -166,8 +166,9 @@ export function openCreate({ onClose } = {}) {
     return isFriends() && !d.place ? area : d.place?.name || d.area_label || area;
   }
   function summary() {
-    const c = menuItem(d.cuisine || d.formats[0] || "");
-    return `<strong>${esc(d.title || (c ? `${c.emoji} ${c.name}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
+    const c = menuItem(d.cuisines[0] || d.formats[0] || "");
+    const names = d.cuisines.map((k) => menuItem(k)?.name).filter(Boolean).join(" · ");
+    return `<strong>${esc(d.title || (c ? `${c.emoji} ${names || c.name}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
   }
 
   function stopSuggest() {
@@ -234,7 +235,7 @@ export function openCreate({ onClose } = {}) {
     sug = "loading";
     renderSuggest();
     try {
-      const keys = searchKeys({ cuisine: d.cuisine, formats: d.formats, venue_type: d.vtype });
+      const keys = searchKeys({ cuisines: d.cuisines, formats: d.formats, venue_type: d.vtype });
       const { list, wanted } = await restaurantsForKeys(origin.center, keys, { radius: 2200, signal: sugCtl.signal });
       if (seq !== sugSeq) return;
       sug = { list, mode: origin.mode, wanted };
@@ -312,9 +313,12 @@ export function openCreate({ onClose } = {}) {
       );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
       mountMenuPicker(qs("#c-menu", b), {
-        value: d.cuisine,
+        value: d.cuisines,
+        multi: true,
+        max: 3,
+        onLimit: () => toast(t("cr.cuisineMaxHit", { n: 3 })),
         onChange: (v) => {
-          d.cuisine = v;
+          d.cuisines = v;
           qs("#c-formats", b).innerHTML = formatChipsHTML();
         },
       });
@@ -442,7 +446,8 @@ export function openCreate({ onClose } = {}) {
     const payload = {
       title: d.title || null,
       audience: d.audience,
-      cuisine: d.cuisine || null,
+      cuisine: d.cuisines[0] || null,
+      cuisines: d.cuisines,
       formats: d.formats,
       venue_type: d.vtype || null,
       capacity: d.capacity,

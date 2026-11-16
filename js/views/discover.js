@@ -5,7 +5,7 @@ import { state, areaOf, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { currentPosition } from "../geo.js";
 import { toast, announce } from "../ui.js";
-import { tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf } from "./common.js";
+import { tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
 import { OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
 import { buildProfile, scoreTable } from "../dining-profile.js";
 import { groupOfSlug } from "./menu-picker.js";
@@ -35,9 +35,8 @@ function visible(list) {
 function reasonFor(tb) {
   if (state.filters.sort !== "foryou" || !state.diningProfile?.n) return "";
   const { why } = scoreTable(tb, state.diningProfile);
-  const c = cuisineOf(tb.cuisine);
   const text = {
-    cuisine: () => t("rec.cuisine", { name: c ? nameOf(c) : "" }),
+    cuisine: () => t("rec.cuisine", { name: cuisineNames(tb, { emoji: false }) }),
     occasion: () => t("rec.occasion", { name: tb.occasion ? t("oc." + tb.occasion) : "" }),
     format: () => t("rec.format", { name: (tb.formats || []).map((k) => t("fm." + k)).join("·") }),
     type: () => t("rec.type", { name: tb.venue_type ? t("vt." + tb.venue_type) : "" }),

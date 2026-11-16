@@ -305,6 +305,7 @@ function tableJson(t) {
     capacity: t.capacity,
     budget_cents: t.budget_cents ?? null,
     cuisine: t.cuisine ?? null,
+    cuisines: t.cuisines?.length ? t.cuisines : t.cuisine ? [t.cuisine] : [],
     formats: t.formats ?? [],
     venue_type: t.venue_type ?? null,
     venue: t.venue || null,
@@ -493,7 +494,8 @@ export const api = {
       starts_at: starts.toISOString(),
       capacity: cap,
       budget_cents: p.budget_cents ?? null,
-      cuisine: p.cuisine || null,
+      cuisine: (p.cuisines?.[0] || p.cuisine) || null,
+      cuisines: (p.cuisines?.length ? p.cuisines : p.cuisine ? [p.cuisine] : []).slice(0, 3),
       formats: (p.formats || []).slice(0, 3),
       venue_type: p.venue_type || null,
       venue: p.venue && p.venue.name ? { id: uid(), name: p.venue.name, address: p.venue.address || null, lat: p.venue.lat ?? null, lng: p.venue.lng ?? null } : null,
@@ -713,7 +715,7 @@ export const api = {
     const d = requireUser();
     return clone(
       d.tables.map((t) => ({
-        id: t.id, title: demoText(t)?.title || t.title || null, cuisine: t.cuisine ?? null, formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at,
+        id: t.id, title: demoText(t)?.title || t.title || null, cuisine: t.cuisine ?? null, cuisines: t.cuisines?.length ? t.cuisines : t.cuisine ? [t.cuisine] : [], formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at,
         status: t.status, is_private: !!t.is_private, is_sample: !!t.is_sample, host_id: t.host_id || null, host_name: userInfo(t.host_id)?.display_name || t.sample_host_name || null,
         host_is_guest: true, members: joinedCount(t), created_at: t.created_at || t.starts_at,
       }))
@@ -800,7 +802,7 @@ export const api = {
         .filter((f) => f.user_id === ME)
         .map((f) => {
           const t = d.tables.find((x) => x.id === f.table_id);
-          return t ? { table_id: f.table_id, overall: f.overall, mood_before: f.mood_before, mood_after: f.mood_after, vibes: f.vibes, created_at: f.created_at, cuisine: t.cuisine ?? null, formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at, seats: joinedCount(t), title: t.title || null } : null;
+          return t ? { table_id: f.table_id, overall: f.overall, mood_before: f.mood_before, mood_after: f.mood_after, vibes: f.vibes, created_at: f.created_at, cuisine: t.cuisine ?? null, cuisines: t.cuisines?.length ? t.cuisines : t.cuisine ? [t.cuisine] : [], formats: t.formats ?? [], venue_type: t.venue_type ?? null, occasion: t.occasion ?? null, starts_at: t.starts_at, seats: joinedCount(t), title: t.title || null } : null;
         })
         .filter(Boolean)
         .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at))
