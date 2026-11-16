@@ -27,68 +27,123 @@ export function menuGroups() {
 /** "Sichuan" under "Chinese": the group a leaf belongs to ("" for formats and unknown slugs). */
 export const groupOfSlug = (slug) => cuisineOf(slug)?.grp || "";
 
-function html(value, { formats, anyLabel }) {
+function html(sel, open, { formats, anyLabel, multi }) {
   const groups = menuGroups();
-  const cur = groupOfSlug(value);
-  const open = groups.find((x) => x.g === cur && x.subs);
-  const chip = (attr, val, label, on) => `<button type="button" class="chip" data-${attr}="${esc(val)}" aria-pressed="${on}">${label}</button>`;
+  const has = (slug) => sel.includes(slug);
+  const chip = (attr, val, label, on, extra = "") => `<button type="button" class="chip" data-${attr}="${esc(val)}" aria-pressed="${on}" ${extra}>${label}</button>`;
+  const groupOn = (x) => x.leaves.some((c) => has(c.slug));
+  const cur = multi ? open : groupOfSlug(sel[0]);
+  const openG = groups.find((x) => x.g === cur && x.subs);
   const top = groups
     .map((x) => {
-      if (!x.subs) return chip("pk", x.leaves[0].slug, `${esc(x.leaves[0].emoji)} ${esc(nameOf(x.leaves[0]))}`, value === x.leaves[0].slug);
-      return chip("pg", x.g, `${esc(x.generic.emoji)} ${esc(t("cg." + x.g))}`, cur === x.g);
+      if (!x.subs) return chip("pk", x.leaves[0].slug, `${esc(x.leaves[0].emoji)} ${esc(nameOf(x.leaves[0]))}`, has(x.leaves[0].slug));
+      const n = multi ? x.leaves.filter((c) => has(c.slug)).length : 0;
+      return chip("pg", x.g, `${esc(x.generic.emoji)} ${esc(t("cg." + x.g))}${n > 1 ? ` · ${n}` : ""}`, multi ? groupOn(x) : cur === x.g, `aria-expanded="${openG?.g === x.g}"`);
     })
     .join("");
-  const any = anyLabel ? chip("pk", "", esc(anyLabel), value === "") : "";
-  const subRow = open
-    ? `<div class="mp-sub" aria-label="${esc(t("cg." + open.g))}">
-        ${chip("pk", open.generic.slug, esc(t("mp.anySub")), value === open.generic.slug)}
-        ${open.leaves.filter((c) => c !== open.generic).map((c) => chip("pk", c.slug, `${esc(c.emoji)} ${esc(nameOf(c))}`, value === c.slug)).join("")}
+  const any = anyLabel ? chip("pk", "", esc(anyLabel), sel.length === 0) : "";
+  const subRow = openG
+    ? `<div class="mp-sub" aria-label="${esc(t("cg." + openG.g))}">
+        ${chip("pk", openG.generic.slug, esc(t("mp.anySub")), has(openG.generic.slug))}
+        ${openG.leaves.filter((c) => c !== openG.generic).map((c) => chip("pk", c.slug, `${esc(c.emoji)} ${esc(nameOf(c))}`, has(c.slug))).join("")}
       </div>`
     : "";
   const fmtRow = formats
-    ? `<div class="mp-fmt"><div class="cg-label">${esc(t("mp.formats"))}</div><div class="chips">${FORMATS.map((f) => chip("pk", f.slug, `${esc(f.emoji)} ${esc(t("fm." + f.slug))}`, value === f.slug)).join("")}</div></div>`
+    ? `<div class="mp-fmt"><div class="cg-label">${esc(t("mp.formats"))}</div><div class="chips">${FORMATS.map((f) => chip("pk", f.slug, `${esc(f.emoji)} ${esc(t("fm." + f.slug))}`, has(f.slug))).join("")}</div></div>`
     : "";
   return `<div class="mp"><div class="chips">${any}${top}</div>${subRow}${fmtRow}</div>`;
 }
 
 /**
- * Render into `el` and keep it up to date. `onChange(slug)` runs after every change.
- * Options: formats (also offer the formats), anyLabel (adds a leading "any" chip that sets "").
+ * Render into `el` and keep it up to date.
+ * Single choice (default): value is one slug, `onChange(slug)`.
+ * multi: value is an array of up to `max` slugs (cuisines, plus formats when `formats` is on), `onChange(array)`; `onLimit()` runs
+ * when a further one is tapped. A region and its "any" exclude each other.
+ * Options: formats (also offer the formats), anyLabel (adds a leading "any" chip that clears everything).
  */
-export function mountMenuPicker(el, { value = "", onChange = () => {}, formats = false, anyLabel = "" } = {}) {
-  let cur = value || "";
+export function mountMenuPicker(el, { value, onChange = () => {}, formats = false, anyLabel = "", multi = false, max = 3, onLimit = () => {} } = {}) {
+  let sel = multi ? [...(value || [])] : value ? [value] : [];
+  let open = multi ? groupOfSlug(sel[0]) : "";
   const draw = () => {
-    el.innerHTML = html(cur, { formats, anyLabel });
+    el.innerHTML = html(sel, open, { formats, anyLabel, multi });
   };
-  const set = (v) => {
-    cur = v;
+  const emit = () => {
     draw();
-    onChange(cur);
+    onChange(multi ? [...sel] : sel[0] || "");
   };
+  const genericOf = (g) => menuGroups().find((x) => x.g === g)?.generic.slug;
+
   el.addEventListener("click", (e) => {
     const g = e.target.closest("[data-pg]");
     if (g && el.contains(g)) {
       const grp = g.dataset.pg;
-      return set(groupOfSlug(cur) === grp ? "" : menuGroups().find((x) => x.g === grp).generic.slug);
+      if (!multi) {
+        sel = groupOfSlug(sel[0]) === grp ? [] : [genericOf(grp)];
+        return emit();
+      }
+      if (open === grp) {
+        open = "";
+        return draw();
+      }
+      open = grp;
+      const mine = menuGroups().find((x) => x.g === grp).leaves;
+      if (!mine.some((c) => sel.includes(c.slug))) {
+        if (sel.length >= max) {
+          draw();
+          return onLimit();
+        }
+        sel.push(genericOf(grp));
+        return emit();
+      }
+      return draw();
     }
     const k = e.target.closest("[data-pk]");
     if (!k || !el.contains(k)) return;
     const v = k.dataset.pk;
-    // tapping a chosen leaf again steps back: a region goes back to its "any", everything else clears
-    if (v === cur && v !== "") {
-      const c = cuisineOf(v);
-      const grp = c && menuGroups().find((x) => x.g === c.grp);
-      return set(grp?.subs && c !== grp.generic ? grp.generic.slug : "");
+    if (!multi) {
+      // tapping a chosen leaf again steps back: a region goes back to its "any", everything else clears
+      if (v === sel[0] && v !== "") {
+        const c = cuisineOf(v);
+        const grp = c && menuGroups().find((x) => x.g === c.grp);
+        sel = grp?.subs && c !== grp.generic ? [grp.generic.slug] : [];
+      } else sel = v ? [v] : [];
+      return emit();
     }
-    set(v);
+    if (v === "") {
+      sel = [];
+      open = "";
+      return emit();
+    }
+    if (sel.includes(v)) {
+      sel = sel.filter((x) => x !== v);
+      return emit();
+    }
+    const c = cuisineOf(v);
+    const grp = c && menuGroups().find((x) => x.g === c.grp);
+    // a region and its "any" exclude each other; swapping one for the other never needs a free slot
+    let next = sel;
+    if (grp?.subs) {
+      const isGeneric = c === grp.generic;
+      next = sel.filter((x) => {
+        const o = cuisineOf(x);
+        return !(o && o.grp === grp.g && (isGeneric || o === grp.generic));
+      });
+    }
+    if (next.length >= max) {
+      draw();
+      return onLimit();
+    }
+    sel = [...next, v];
+    emit();
   });
   draw();
   return {
     get value() {
-      return cur;
+      return multi ? [...sel] : sel[0] || "";
     },
     set value(v) {
-      cur = v || "";
+      sel = multi ? [...(v || [])] : v ? [v] : [];
+      open = multi ? groupOfSlug(sel[0]) : "";
       draw();
     },
   };

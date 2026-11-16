@@ -193,7 +193,7 @@ export async function restaurantsNear(center, cuisineSlug, { radius = 2200, sign
 // What to ask Photon for, per cuisine. Photon matches names, so a few typical words per cuisine.
 const PHOTON_TERMS = {
   // cuisines
-  chinese: ["chinese restaurant", "chinese"],
+  chinese: ["chinese restaurant", "chinese", "dumpling", "noodle house", "szechuan"],
   sichuan: ["sichuan", "szechuan"],
   hunan: ["hunan", "xiang"],
   cantonese: ["cantonese", "roast duck", "bbq pork", "hong kong cafe", "cha chaan teng"],

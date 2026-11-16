@@ -4,7 +4,7 @@ import { esc, qs, qsa, haversineKm, fmtWhen, googleEmbedUrl, mapsUrl } from "../
 import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
-import { currentPosition, locationPermission, restaurantsNear } from "../geo.js";
+import { currentPosition, locationPermission, restaurantsForKeys } from "../geo.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mountGroupMap } from "../group-map.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
@@ -17,7 +17,8 @@ export async function render(root) {
   let alive = true;
   let ctl = null;
   let centerRevision = 0;
-  let cuisine = state.mapCuisine || "";
+  // Up to three picks (cuisines and/or formats); an older single string in state is carried over.
+  let picks = Array.isArray(state.mapCuisines) ? [...state.mapCuisines] : state.mapCuisine ? [state.mapCuisine] : [];
   const areaC = () => {
     const a = state.areas.find((x) => x.id === state.me?.area_id) || state.areas[0];
     const d = window.TB_CONFIG?.DEFAULT_CENTER || { lat: 43.6532, lng: -79.3832 };
@@ -49,8 +50,8 @@ export async function render(root) {
 
   // On phones the 30+ cuisine chips are folded away so the map and the list stay near the top.
   function paintCuisineSummary() {
-    const c = menuItem(cuisine);
-    qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${c ? `${c.emoji} ${c.name}` : t("map.anyCuisine")}`;
+    const items = picks.map(menuItem).filter(Boolean);
+    qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${items.length ? items.map((c) => `${c.emoji} ${c.name}`).join(" + ") : t("map.anyCuisine")}`;
   }
   paintCuisineSummary();
   const isHere = () => center.label === t("map.here");
@@ -61,8 +62,8 @@ export async function render(root) {
   }
 
   function googleQuery() {
-    const c = state.cuisines.find((x) => x.slug === cuisine);
-    const word = c ? c.name_en : FORMAT_QUERY[cuisine] || "";
+    const words = picks.map((k) => state.cuisines.find((x) => x.slug === k)?.name_en || FORMAT_QUERY[k] || "").filter(Boolean);
+    const word = words.join(" or ");
     return `${word ? word + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`;
   }
 
@@ -217,7 +218,7 @@ export async function render(root) {
     if (pc) pc.innerHTML = "";
     paintMap();
     try {
-      const found = await restaurantsNear(center, cuisine || undefined, { signal: request.signal });
+      const { list: found } = await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 });
       if (!alive || request.signal.aborted) return;
       const list = [...found].sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
       restList = list;
@@ -264,11 +265,14 @@ export async function render(root) {
   });
   qs("#use-me", root).addEventListener("click", () => locate());
   mountMenuPicker(qs("#cuis", root), {
-    value: cuisine,
+    value: picks,
+    multi: true,
+    max: 3,
     formats: true,
     anyLabel: t("map.anyCuisine"),
+    onLimit: () => toast(t("map.pickMax"), { kind: "error" }),
     onChange: (v) => {
-      cuisine = state.mapCuisine = v;
+      picks = state.mapCuisines = v;
       paintCuisineSummary();
       loadRestaurants();
     },
@@ -282,7 +286,7 @@ export async function render(root) {
       .sort((x, y) => x.d - y.d)[0];
     state.createPrefill = {
       place: { name: r.name, address: r.address || "", lat: r.lat, lng: r.lng, poi_id: r.poi_id || null },
-      cuisine: cuisine || "",
+      cuisine: picks[0] || "",
       area_id: nearest?.id || "",
     };
     go("#new");

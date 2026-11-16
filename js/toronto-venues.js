@@ -52,6 +52,15 @@ const cuisines = {
   veg: /vegetarian|vegan|veggie|plant[- ]based/i,
   bar: /\bpub\b|tavern|taproom|brewery|gastropub|izakaya|居酒屋|\bbar\b/i,
 };
+// Group keys (Chinese, Southeast & South Asian, Western) match anything their regions match, plus words typical of the whole group.
+const unite = (extra, ...keys) => new RegExp([extra, ...keys.map((k) => cuisines[k].source)].join("|"), "i");
+Object.assign(cuisines, {
+  chinese: unite(
+    "chinese|china|\\bchen?g ?du\\b|beijing|peking|dumpling|wonton|mala\\b|malatang|jiaozi|bao\\b|\\bwok\\b|kung ?pao|[\\u4e00-\\u9fff]",
+    "sichuan", "hunan", "dongbei", "jiangzhe", "xibei", "yungui", "cantonese", "taiwanese", "dimsum", "hotpot"),
+  asia: unite("southeast asia|malay|indonesia|singapor|filipino|philippine|\\bpad thai\\b|laksa|nasi|satay|roti|dosa|\\bnaan\\b|masala|bombay|delhi|mumbai|lanka|nepal|himalay", "thai", "vietnamese", "indian"),
+  western: unite("steak|grill|chophouse|gastropub|european|german|spanish|tapas|portuguese|british|irish|pub food|bbq ribs|bistro", "american", "italian", "french"),
+});
 const publicDining = /restaurant|kitchen|eatery|diner|bistro|grill|tavern|trattoria|cantina|steakhouse|\bfood court\b/i;
 
 export async function searchTorontoVenues(query, center) {
