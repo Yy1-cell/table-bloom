@@ -16,8 +16,8 @@ export function openCreate({ onClose } = {}) {
   const d = {
     title: "",
     audience: "friends_and_new",
-    cuisines: pre?.cuisine && !isFormat(pre.cuisine) ? [pre.cuisine] : [], // up to 3; the first is the main one
-    formats: pre?.cuisine && isFormat(pre.cuisine) ? [pre.cuisine] : [],
+    cuisines: (pre?.cuisines?.length ? pre.cuisines : pre?.cuisine ? [pre.cuisine] : []).filter((k) => !isFormat(k)).slice(0, 3), // up to 3; the first is the main one
+    formats: (pre?.formats || (pre?.cuisine ? [pre.cuisine] : [])).filter(isFormat).slice(0, MAX_FORMATS),
     vtype: "",
     craving: undefined, // friends tables: what I feel like eating (a cuisine or a format); starts from the table's own choice
     capacity: 4,
