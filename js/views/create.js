@@ -113,7 +113,7 @@ export function openCreate({ onClose } = {}) {
         : (() => {
             const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
             ids.venue = ps.id;
-            return `<div class="section-lite" id="c-sug-wrap">
+            return `<div class="section-lite" id="c-sug-wrap"${d.place ? " hidden" : ""}>
           <h3>${esc(t("cr.sugTitle"))}</h3>
           <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
           <ul class="suggest" id="c-sug" aria-live="polite"></ul>
@@ -200,11 +200,28 @@ export function openCreate({ onClose } = {}) {
   // Directions in the map links start from the start point picked here (typed address or "my location"), never silently from the device position.
   function mapLinkHTML(place) {
     if (!place) return "";
-    const picked = `<p class="hint" style="margin:6px 0"><strong>✓ ${esc(t("cr.placeChosen", { name: place.name }))}</strong>${place.address ? ` · ${esc(place.address)}` : ""}</p>`;
+    const picked = `<p class="hint" style="margin:6px 0"><strong>✓ ${esc(t("cr.placeChosen", { name: place.name }))}</strong>${place.address ? ` · ${esc(place.address)}` : ""} <button type="button" class="btn sm ghost" data-change-place>${esc(t("cr.changePlace"))}</button></p>`;
     return picked + (d.startMe
       ? mapActionsHTML(place, { origin: { lat: d.startMe.lat, lng: d.startMe.lng }, originName: d.startMe.name })
       : mapActionsHTML(place, { hint: false }));
   }
+
+  // Once a restaurant is chosen the suggestion list is not needed; it comes back if the choice is cleared.
+  function syncSuggestions() {
+    const wrap = qs("#c-sug-wrap", sheet.body);
+    if (wrap) wrap.hidden = !!d.place;
+    if (!d.place) scheduleSuggest();
+  }
+
+  function clearPlace() {
+    d.place = null;
+    const box = qs("#c-maplink", sheet.body);
+    if (box) box.innerHTML = "";
+    const input = ids_venue();
+    if (input) input.value = "";
+    syncSuggestions();
+  }
+  const ids_venue = () => (draw._ids?.venue ? qs(`#${draw._ids.venue}`, sheet.body) : null);
 
   function refreshMapLink() {
     const box = qs("#c-maplink", sheet.body);
@@ -222,7 +239,7 @@ export function openCreate({ onClose } = {}) {
   }
 
   async function loadSuggest() {
-    if (step !== 2 || isFriends()) return;
+    if (step !== 2 || isFriends() || d.place) return;
     clearTimeout(sugTimer);
     sugCtl?.abort();
     const origin = suggestOrigin();
@@ -356,13 +373,17 @@ export function openCreate({ onClose } = {}) {
         onSelect: (p) => {
           d.place = p;
           qs("#c-maplink", b).innerHTML = mapLinkHTML(p);
-          renderSuggest();
+          sugCtl?.abort();
+          syncSuggestions();
         },
         onClear: () => {
           d.place = null;
           qs("#c-maplink", b).innerHTML = "";
-          renderSuggest();
+          syncSuggestions();
         },
+      });
+      qs("#c-maplink", b)?.addEventListener("click", (e) => {
+        if (e.target.closest("[data-change-place]")) clearPlace();
       });
       qs("[data-clear-place]", b)?.addEventListener("click", () => {
         readStep();
@@ -400,7 +421,7 @@ export function openCreate({ onClose } = {}) {
         d.place = { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id || null };
         qs("#c-maplink", b).innerHTML = mapLinkHTML(d.place);
         qs("#c-err", b).textContent = "";
-        renderSuggest();
+        syncSuggestions();
       });
       loadSuggest();
     } else {

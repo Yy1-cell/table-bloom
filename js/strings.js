@@ -214,7 +214,7 @@ export const EN = {
   "fm.hotpot": "Hot pot", "fm.bbq": "BBQ & grill", "fm.dimsum": "Dim sum & tea", "fm.noodles": "Noodles & dumplings", "fm.seafood": "Seafood", "fm.buffet": "Buffet", "fm.brunch": "Brunch", "fm.veg": "Vegetarian & light",
   "vt.fast": "Fast food", "vt.casual": "Casual", "vt.dine": "Sit-down", "vt.cafe": "Café & sweets", "vt.bar": "Bar & pub",
   "vtHint.fast": "Quick, grab & go", "vtHint.casual": "Easy and low-key", "vtHint.dine": "Take your time", "vtHint.cafe": "Coffee, tea, desserts", "vtHint.bar": "Drinks and small plates",
-  "cr.formats": "How do you want to eat?", "cr.formatsMax": "up to {n}", "cr.formatsMaxHit": "You can pick up to {n}.", "cr.cuisineMax": "pick up to {n}", "cr.cuisineMaxHit": "You can pick up to {n} cuisines — tap one again to remove it.", "cr.vtype": "Kind of place",
+  "cr.formats": "How do you want to eat?", "cr.formatsMax": "up to {n}", "cr.formatsMaxHit": "You can pick up to {n}.", "cr.changePlace": "Change", "cr.cuisineMax": "pick up to {n}", "cr.cuisineMaxHit": "You can pick up to {n} cuisines — tap one again to remove it.", "cr.vtype": "Kind of place",
   "disc.moreFilters": "More filters: type & how we eat", "disc.vtype": "Type", "disc.fmt": "How we eat",
   "rec.format": "You enjoy {name}", "rec.type": "You like {name} places", "dp.styleMost": "How you like to eat",
 };
@@ -419,7 +419,7 @@ export const ZH = {
   "fm.hotpot": "火锅", "fm.bbq": "烧烤·烤肉·串串", "fm.dimsum": "早茶点心", "fm.noodles": "面食·饺子", "fm.seafood": "海鲜", "fm.buffet": "自助餐", "fm.brunch": "早午餐", "fm.veg": "素食·轻食",
   "vt.fast": "快餐", "vt.casual": "简餐", "vt.dine": "正餐", "vt.cafe": "咖啡·茶饮·甜品", "vt.bar": "酒吧·酒馆",
   "vtHint.fast": "快速·可外带", "vtHint.casual": "随便吃·轻松", "vtHint.dine": "坐下来慢慢吃", "vtHint.cafe": "咖啡·奶茶·甜品", "vtHint.bar": "喝点东西·小食",
-  "cr.formats": "想怎么吃？", "cr.formatsMax": "最多选 {n} 个", "cr.formatsMaxHit": "最多选 {n} 个。", "cr.cuisineMax": "最多选 {n} 个", "cr.cuisineMaxHit": "菜系最多选 {n} 个，再点一下已选的可以取消。", "cr.vtype": "想去哪种店？",
+  "cr.formats": "想怎么吃？", "cr.formatsMax": "最多选 {n} 个", "cr.formatsMaxHit": "最多选 {n} 个。", "cr.changePlace": "换一家", "cr.cuisineMax": "最多选 {n} 个", "cr.cuisineMaxHit": "菜系最多选 {n} 个，再点一下已选的可以取消。", "cr.vtype": "想去哪种店？",
   "disc.moreFilters": "更多筛选：类型和吃法", "disc.vtype": "类型", "disc.fmt": "吃法",
   "rec.format": "你吃{name}很开心", "rec.type": "你喜欢{name}", "dp.styleMost": "常见的吃法",
 };
