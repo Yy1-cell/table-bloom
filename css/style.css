@@ -407,3 +407,6 @@ label.check input { margin-top: 3px; }
 .more-filters > summary { cursor: pointer; font-weight: 600; padding: 6px 0; color: var(--green-700); }
 .more-filters .mf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
 .more-filters .mf-label { font-size: 12.5px; color: var(--muted); min-width: 36px; }
+.have-code { margin-top: 12px; }
+.have-code > summary { cursor: pointer; color: var(--green-700); font-size: 14px; padding: 6px 0; }
+.have-code[open] > summary { margin-bottom: 8px; }

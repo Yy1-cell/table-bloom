@@ -21,6 +21,7 @@ export const EN = {
   "auth.sent": "We sent a 6-digit code to {email}.", "auth.code": "6-digit code", "auth.verify": "Verify and continue",
   "auth.other": "Use a different email", "auth.resend": "Resend code", "auth.resendIn": "Resend in {s}s",
   "auth.linkHint": "You can also tap the link in the email instead of typing the code.",
+  "auth.subLink": "Share a meal, meet someone new. We'll email you a sign-in link — no password needed.", "auth.sendLink": "Email me a sign-in link", "auth.sentLink": "We sent a sign-in link to {email}.", "auth.linkSteps": "Open that email on this phone or computer and tap the link. You'll come straight back here, signed in. Check your spam folder if you don't see it.", "auth.haveCode": "My email has a 6-digit code", "auth.resendLink": "Resend link",
 
   // discover
   "disc.title": "Eat together this week", "disc.sub": "Join a table with a few people, or host your own. Easy conversation, good food.",
@@ -238,6 +239,7 @@ export const ZH = {
   "auth.sent": "已向 {email} 发送 6 位验证码。", "auth.code": "6 位验证码", "auth.verify": "验证并继续",
   "auth.other": "换一个邮箱", "auth.resend": "重新发送", "auth.resendIn": "{s} 秒后可重发",
   "auth.linkHint": "你也可以直接点击邮件里的链接登录。",
+  "auth.subLink": "一起吃饭，认识新朋友。我们会把登录链接发到你的邮箱，不用设密码。", "auth.sendLink": "发送登录链接", "auth.sentLink": "已向 {email} 发送登录链接。", "auth.linkSteps": "请在这部手机或这台电脑上打开那封邮件，点里面的链接，就会直接回到这里并登录。没收到的话看看垃圾邮件文件夹。", "auth.haveCode": "我的邮件里有 6 位验证码", "auth.resendLink": "重新发送链接",
 
   "disc.title": "这周一起吃顿饭", "disc.sub": "加入一桌几个人的饭局，或自己发起一桌。聊得轻松，吃得开心。",
   "disc.host": "发起饭局", "disc.filters": "筛选", "disc.area": "地区", "disc.allAreas": "所有地区", "disc.sort": "排序",

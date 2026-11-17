@@ -16,7 +16,7 @@ export async function render(root) {
     const demo = state.mode === "demo";
     root.innerHTML = `
     <section class="card auth-card stack">
-      <div class="center"><div style="font-size:42px" aria-hidden="true">🍲</div><h1>${esc(t("auth.title"))}</h1><p class="muted">${esc(t("auth.sub"))}</p></div>
+      <div class="center"><div style="font-size:42px" aria-hidden="true">🍲</div><h1>${esc(t("auth.title"))}</h1><p class="muted">${esc(t(demo ? "auth.sub" : "auth.subLink"))}</p></div>
       ${demo ? `<div class="notice">🧪 ${esc(t("auth.demo"))}</div>` : ""}
       ${
         step === "email"
@@ -25,27 +25,29 @@ export async function render(root) {
                 <input id="a-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required value="${esc(email)}" placeholder="you@example.com"></div>
               <label class="row" style="align-items:flex-start;margin-bottom:14px"><input id="a-age" type="checkbox" style="width:22px;height:22px;margin-top:2px;accent-color:var(--green-700)"> <span style="font-size:14px">${esc(t("auth.age"))}</span></label>
               <div class="err-text" id="a-err" role="alert"></div>
-              <button class="btn primary block" type="submit">${esc(t("auth.send"))}</button>
+              <button class="btn primary block" type="submit">${esc(t(demo ? "auth.send" : "auth.sendLink"))}</button>
               <div class="auth-or" aria-hidden="true"><span>${esc(t("auth.or"))}</span></div>
               <button class="btn block" type="button" id="a-guest">${esc(t("auth.guest"))}</button>
               <p class="hint">${esc(t("auth.guestHint"))}</p>
             </form>`
           : `<form id="f-code" novalidate>
-              <p>${esc(t("auth.sent", { email }))}</p>
+              <p>${esc(t(demo ? "auth.sent" : "auth.sentLink", { email }))}</p>
+              ${demo ? "" : `<div class="notice">📬 ${esc(t("auth.linkSteps"))}</div>`}
+              ${demo ? "" : `<details class="have-code"><summary>${esc(t("auth.haveCode"))}</summary>`}
               <div class="field"><label for="a-code">${esc(t("auth.code"))}</label>
-                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required placeholder="••••••"></div>
+                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" ${demo ? "required" : ""} placeholder="••••••"></div>
               <div class="err-text" id="a-err" role="alert"></div>
-              <button class="btn primary block" type="submit">${esc(t("auth.verify"))}</button>
+              <button class="btn ${demo ? "primary " : ""}block" type="submit">${esc(t("auth.verify"))}</button>
+              ${demo ? "" : "</details>"}
               <div class="row" style="justify-content:space-between;margin-top:10px">
                 <button type="button" class="btn sm ghost" id="a-back">${esc(t("auth.other"))}</button>
-                <button type="button" class="btn sm ghost" id="a-resend" ${cooldown ? "disabled" : ""}>${esc(cooldown ? t("auth.resendIn", { s: cooldown }) : t("auth.resend"))}</button>
+                <button type="button" class="btn sm ghost" id="a-resend" ${cooldown ? "disabled" : ""}>${esc(cooldown ? t("auth.resendIn", { s: cooldown }) : t(demo ? "auth.resend" : "auth.resendLink"))}</button>
               </div>
-              ${demo ? "" : `<p class="hint">${esc(t("auth.linkHint"))}</p>`}
             </form>`
       }
     </section>`;
     wire();
-    (qs("#a-email", root) || qs("#a-code", root))?.focus();
+    (qs("#a-email", root) || (state.mode === "demo" ? qs("#a-code", root) : null))?.focus();
   }
 
   const setErr = (m) => {
