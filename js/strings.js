@@ -30,6 +30,7 @@ export const EN = {
   "diet.allergyNote": "Allergy reminder when you pick a place:", "diet.tellRestaurant": "Tell the restaurant about the allergy directly when you order — we can't check menus.",
   "diet.applyAll": "Select all", "td.chosenVenue": "Place chosen", "td.changeVenue": "Choose another place", "td.keepVenue": "Keep this place",
   "map.barLabel": "Address, cuisine and budget", "map.budget": "Budget", "map.anyBudget": "Any", "map.builtIn": "Built-in map & restaurant list",
+  "map.listOnly": "Restaurant list (free map data)", "map.spotTitle": "The spot you tapped", "map.spotName": "Restaurant name", "map.spotNamePh": "Type the name shown on the map", "map.spotHint": "Tap a place on the map to see its name and ratings, then type the name here if it is not filled in.", "map.spotNeedName": "Type the restaurant name first.",
   "diet.private": "Shared only with the host and people at this table.",
 
   // chrome
@@ -282,6 +283,7 @@ export const ZH = {
   "diet.allergyNote": "选餐厅时请留意过敏：", "diet.tellRestaurant": "点餐时请直接告诉餐厅过敏情况 —— 我们无法核对菜单。",
   "diet.applyAll": "全部选上", "td.chosenVenue": "已选好餐厅", "td.changeVenue": "换一家", "td.keepVenue": "不换了",
   "map.barLabel": "地址、菜系和预算", "map.budget": "预算", "map.anyBudget": "不限", "map.builtIn": "内置地图和餐厅列表",
+  "map.listOnly": "餐厅列表（免费地图数据）", "map.spotTitle": "你点的位置", "map.spotName": "餐厅名称", "map.spotNamePh": "输入地图上显示的店名", "map.spotHint": "点地图上的店可以看店名和评分；如果这里没自动填上，请把店名输入进来。", "map.spotNeedName": "请先输入餐厅名称。",
   "diet.private": "只有发起人和同桌的人能看到。",
   "common.close": "关闭", "common.cancel": "取消", "common.confirm": "确定", "common.back": "上一步", "common.next": "下一步",
   "common.save": "保存", "common.edit": "编辑", "common.delete": "删除", "common.undo": "撤销", "common.retry": "重试",

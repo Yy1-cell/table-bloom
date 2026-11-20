@@ -7,7 +7,7 @@ import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
 import { restaurantsForKeys, groupSuggestions } from "../geo.js";
-import { mountGroupMap } from "../group-map.js";
+import { mountMap } from "../maps.js";
 import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys, searchWord, cuisinesOf } from "../data.js";
 import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
@@ -423,7 +423,7 @@ export async function openTable(id, { onClose } = {}) {
     const box = !sheet.closed && qs("#shared-map", sheet.body);
     if (!box) return;
     const seq = ++mapSeq;
-    const ctl = await mountGroupMap(box, mapData());
+    const ctl = await mountMap(box, mapData());
     if (seq !== mapSeq || sheet.closed) return ctl?.destroy();
     if (!ctl) {
       // map library could not load (offline?): fall back to the plain Google view

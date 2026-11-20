@@ -7,7 +7,7 @@ import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsForKeys, reverseGeocode } from "../geo.js";
 import { effectiveLoc, setLoc as saveLoc } from "../location.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
-import { mountGroupMap } from "../group-map.js";
+import { mountMap } from "../maps.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { searchWord } from "../data.js";
@@ -55,10 +55,11 @@ export async function render(root) {
         <a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a>
         <button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>
       </div>
-      <p class="hint">${esc(t("map.hostNearHint"))}</p></section>
+      <p class="hint">${esc(t("map.hostNearHint"))}</p>
+      <div id="spot-card"></div><div id="pick-card"></div></section>
     <section class="card page-section"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
     <details class="card built page-section" id="built" ${window.innerWidth >= 820 ? "open" : ""}>
-      <summary><strong>${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
+      <summary><strong id="built-title">${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
       <div id="gmap" style="margin-top:10px"></div>
       <p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></details>`;
 
@@ -124,6 +125,10 @@ export async function render(root) {
   let restList = [];
   let picked = -1;
   let groupMap = null;
+  let g = null; // Google JS map controller (only when the key + allowance + loading all work)
+  let gTried = false;
+  let gFailed = false;
+  const live = () => g || groupMap;
   let mapPromise = null;
   let mapFailed = false;
   const meName = () => t("map.mePin", { name: center.label || t("map.here") });
@@ -134,6 +139,7 @@ export async function render(root) {
       venue: null,
       suggestions: restList,
       onPick: choose,
+      onSpot: handleSpot,
       fallbackCenter: center,
       labels: {},
     };
@@ -141,8 +147,8 @@ export async function render(root) {
   function ensureMap() {
     if (mapPromise) return mapPromise;
     qs("#gmap", root).innerHTML = `<div class="gmap-frame group-map" id="map-leaflet"></div>
-      <p class="hint">${esc(t("map.mapLegend"))}</p><div id="pick-card"></div>`;
-    mapPromise = mountGroupMap(qs("#map-leaflet", root), mapData()).then((c) => {
+      <p class="hint">${esc(t("map.mapLegend"))}</p>`;
+    mapPromise = mountMap(qs("#map-leaflet", root), mapData(), { google: false }).then((c) => {
       if (!alive) {
         c?.destroy();
         return null;
@@ -159,6 +165,11 @@ export async function render(root) {
     return mapPromise;
   }
   async function paintMap() {
+    if (g) {
+      g.update(mapData());
+      return;
+    }
+    if (gTried && !gFailed) return; // Google is still being decided: do not start the free map yet
     if (!qs("#built", root).open) {
       mapDirty = true;
       return;
@@ -173,7 +184,7 @@ export async function render(root) {
   }
   function choose(i) {
     picked = picked === i ? -1 : i;
-    groupMap?.select(picked);
+    live()?.select(picked);
     qsa("#rest .place-row[data-ri]", root).forEach((row) => row.classList.toggle("chosen", Number(row.dataset.ri) === picked));
     const box = qs("#pick-card", root);
     const r = restList[picked];
@@ -185,7 +196,7 @@ export async function render(root) {
     const q = [r.name, r.address || center.label || ""].filter(Boolean).join(", ");
     box.innerHTML = `<div class="pick-card">
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, distLine({ dist: r.distKm, lat: r.lat, lng: r.lng })].filter(Boolean).join(" · "))}</small></div>
-      <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
+      ${g ? "" : `<div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>`}
       <div class="row wrap-row" style="margin-bottom:6px"><button type="button" class="btn sm primary" data-host="${picked}">🍽️ ${esc(t("map.hostHere"))}</button></div>
       ${mapActionsHTML(r, { ...fromHere(), hint: true })}</div>`;
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -302,6 +313,47 @@ export async function render(root) {
     }
   }
 
+  // Google map: the person tapped a spot (or one of Google's own places). Offer to host there; the name is typed or pre-filled
+  // from the nearest restaurant in our free data (Google's place details are not read, so nothing extra is billed).
+  let spotSeq = 0;
+  async function handleSpot(sp) {
+    const box = qs("#spot-card", root);
+    if (!box) return;
+    const seq = ++spotSeq;
+    box.innerHTML = `<div class="pick-card"><p class="muted">${esc(t("ps.searching"))}</p></div>`;
+    let near = restList.map((r) => ({ r, d: haversineKm(sp, r) })).filter((x) => x.d <= 0.08).sort((a, b) => a.d - b.d)[0]?.r || null;
+    try {
+      if (!near) {
+        const { list } = await restaurantsForKeys(sp, [], { radius: 120, limit: 3 });
+        near = list.filter((x) => haversineKm(sp, x) <= 0.08).sort((a, b) => a.distKm - b.distKm)[0] || null;
+      }
+    } catch {}
+    let geo = null;
+    if (!near) geo = await reverseGeocode(sp).catch(() => null);
+    if (!alive || seq !== spotSeq) return;
+    const spotPlace = { name: near?.name || "", address: near?.address || geo?.label || "", lat: sp.lat, lng: sp.lng, poi_id: near?.poi_id || null, cc: near?.cc || geo?.cc || center.cc };
+    box.innerHTML = `<div class="pick-card" id="spot-form">
+      <div class="pick-head"><strong>📍 ${esc(t("map.spotTitle"))}</strong>${spotPlace.address ? `<small class="muted">${esc(spotPlace.address)}</small>` : ""}</div>
+      <div class="field" style="margin:8px 0"><label for="spot-name">${esc(t("map.spotName"))}</label>
+        <input id="spot-name" type="text" maxlength="80" value="${esc(spotPlace.name)}" placeholder="${esc(t("map.spotNamePh"))}"></div>
+      <p class="hint" style="margin:0 0 8px">${esc(t("map.spotHint"))}</p>
+      <div class="row wrap-row"><button type="button" class="btn sm primary" id="spot-host">🍽️ ${esc(t("map.hostHere"))}</button>
+        <button type="button" class="btn sm ghost" id="spot-clear">${esc(t("common.cancel"))}</button>
+        ${mapActionsHTML({ name: spotPlace.name || "", address: spotPlace.address, lat: sp.lat, lng: sp.lng }, { ...fromHere(), hint: false })}</div></div>`;
+    qs("#spot-host", box).addEventListener("click", () => {
+      const name = qs("#spot-name", box).value.trim();
+      if (!name) {
+        qs("#spot-name", box).focus();
+        return toast(t("map.spotNeedName"), { kind: "error" });
+      }
+      hostHere({ ...spotPlace, name });
+    });
+    qs("#spot-clear", box).addEventListener("click", () => {
+      box.innerHTML = "";
+      g?.clearSpot();
+    });
+  }
+
   function restaurantFallback(key) {
     return `<p class="muted">${esc(t(key))}</p>
       <a class="btn sm" href="${esc(mapsUrl({ name: googleQuery() }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>`;
@@ -309,17 +361,49 @@ export async function render(root) {
 
   // The real Google map around the picked place, searching for what was chosen. Nothing is read back from it.
   let gKey = "";
-  function paintGoogleLink() {
-    const a = qs("#gmaps-link", root);
-    if (a) a.href = mapsUrl({ name: googleQuery() });
+  function drawEmbed() {
     const box = qs("#gsearch", root);
     if (!box) return;
     const key = googleQuery();
-    if (key === gKey) return;
+    if (key === gKey && box.querySelector("iframe")) return;
     gKey = key;
     box.innerHTML = navigator.onLine === false
       ? `<p class="muted">${esc(t("map.offlineMap"))}</p>`
       : `<iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(key, 14, center))}"></iframe>`;
+  }
+  // First call decides: a real Google map (key + free allowance + it loads) or the keyless Google embed.
+  async function startGoogle() {
+    const box = qs("#gsearch", root);
+    box.textContent = "";
+    const c = await mountMap(box, mapData(), { fallback: false });
+    if (!alive) return c?.destroy();
+    if (!c) {
+      gFailed = true;
+      drawEmbed();
+      return paintMap();
+    }
+    g = c;
+    root.classList.add("g-mode");
+    qs("#built-title", root).textContent = t("map.listOnly");
+    c.onSwap(() => {
+      g = null;
+      gFailed = true;
+      root.classList.remove("g-mode");
+      qs("#built-title", root).textContent = t("map.builtIn");
+      drawEmbed();
+      paintMap();
+    });
+    c.update(mapData());
+  }
+  function paintGoogleLink() {
+    const a = qs("#gmaps-link", root);
+    if (a) a.href = mapsUrl({ name: googleQuery() });
+    if (!qs("#gsearch", root)) return;
+    if (!gTried) {
+      gTried = true;
+      startGoogle();
+    } else if (g) g.update(mapData());
+    else if (gFailed) drawEmbed();
   }
   function refresh() {
     if (center.isDefault) {
@@ -374,7 +458,7 @@ export async function render(root) {
     };
     go("#new");
   }
-  for (const box of [qs("#rest", root), qs("#gmap", root)]) {
+  for (const box of [qs("#rest", root), qs("#gmap", root), qs("#pick-card", root)]) {
     box.addEventListener("click", (e) => {
       const b = e.target.closest("[data-host]");
       if (b) hostHere(restList[Number(b.dataset.host)]);
@@ -417,5 +501,6 @@ export async function render(root) {
     alive = false;
     ctl?.abort();
     groupMap?.destroy();
+    g?.destroy();
   };
 }

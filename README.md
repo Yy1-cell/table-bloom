@@ -79,6 +79,17 @@ python3 -m http.server 8123
 - 饭局详情、发起饭局选好地点后、推荐餐厅列表里也有同样的按钮。
 - 目前是“跳转到地图 App”的方式，不需要任何地图密钥，也不收费。要在应用内直接显示谷歌评分，需要申请 Google Places API Key（按调用量计费），之后可以再加。
 
+## 六·二、Google 地图 Key（可选，设好后才会启用）
+
+没有 Key 时一切照旧（Google 免 Key 嵌入地图找店 + 站内免费地图选中间点）。填了 `config.js` 里的 `GOOGLE_MAPS_KEY` 后，已登录用户（访客不用）会看到一张真正的 Google 地图：显示“你的位置”，点地图上的店就能“在这里发起饭局”，朋友局的共享地图也用它。
+
+**为了不花钱，有三道限制，请保持不动：**
+1. 站内闸门（`claim_google_map()`，已在数据库里）：每月最多 8,000 次、每天 300 次、每人每天 40 次地图加载，低于 Google 每月 10,000 次的免费额度。超出就自动用免费地图。想查用量：`select * from google_map_usage order by period desc;`
+2. Google Cloud 里：只开 **Maps JavaScript API**；Key 的“应用限制”选“网站”，只填你的域名（如 `https://tablebloom.netlify.app/*`）；“API 限制”只选 Maps JavaScript API；在“配额”里把“每天地图加载”上限设为 300；设预算提醒（如 $1）。
+3. 出现任何问题（Key 被拒、额度用完、加载失败）页面会自动退回免费地图，且本次访问不再重试。
+
+代码不读取 Google 的店铺详情（评分、照片等）——那类接口更贵；店名由人输入或用站内免费数据预填。
+
 ## 七、已知限制
 
 - 地图搜索用的是免费公共服务（Photon / Overpass），适合小规模；用户多了需换成自己的地图服务（Google Places、高德以外的海外服务等）。

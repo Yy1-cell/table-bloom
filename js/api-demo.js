@@ -573,6 +573,16 @@ export const api = {
     persist();
   },
 
+  async claimGoogleMap() {
+    // Demo mode mirrors the server gate in a simple way: only with a key configured, at most 40 loads a day.
+    if (!window.TB_CONFIG?.GOOGLE_MAPS_KEY) return false;
+    const k = "tb.gmUse." + new Date().toISOString().slice(0, 10);
+    const n = Number(localStorage.getItem(k) || 0);
+    if (n >= 40) return false;
+    localStorage.setItem(k, String(n + 1));
+    return true;
+  },
+
   async setMyDiet(id, tags, note) {
     requireUser();
     const t = need(id);

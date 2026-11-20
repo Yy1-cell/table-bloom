@@ -174,6 +174,9 @@ export async function createApi(cfg) {
     async setCraving(id, slug) {
       await changed(id, rpc("set_my_craving", { p_table: id, p_cuisine: slug || null }));
     },
+    async claimGoogleMap() {
+      return (await rpc("claim_google_map")) === true;
+    },
     async setMyDiet(id, tags, note) {
       await changed(id, rpc("set_my_diet", { p_table: id, p_tags: tags || [], p_note: note || null }));
     },

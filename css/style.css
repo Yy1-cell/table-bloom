@@ -569,3 +569,9 @@ select:not([multiple]) {
 .sheet .section { margin-top: var(--section-gap); padding-top: 18px; }
 .map-bar { margin-block: var(--section-gap); padding: 14px; gap: 12px; }
 #pf { display: grid; gap: 18px; }
+
+/* Google JS map (when a key is configured) */
+#gsearch.gmap-frame { min-height: 320px; }
+.g-wrap { display: flex; flex-direction: column; align-items: center; }
+.g-label { margin-top: 2px; font-weight: 600; font-size: 12px; background: #fff; padding: 1px 7px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.25); white-space: nowrap; }
+.gm-spot { background: #fff; }
