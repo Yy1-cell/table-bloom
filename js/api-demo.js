@@ -613,6 +613,15 @@ export const api = {
     persist();
   },
 
+  async setCapacity(id, capacity) {
+    requireUser();
+    const t = need(id);
+    if (t.host_id !== ME || ["cancelled", "completed"].includes(t.status)) throw new ApiError("not_allowed");
+    if (!Number.isInteger(capacity) || capacity < Math.max(2, joinedCount(t)) || capacity > 12) throw new ApiError("bad_capacity");
+    t.capacity = capacity;
+    refresh(t);
+    persist();
+  },
   async setVenue(id, venue) {
     requireUser();
     const t = need(id);

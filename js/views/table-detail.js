@@ -115,6 +115,8 @@ export async function openTable(id, { onClose } = {}) {
         ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</span></li>` : ""}
         <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>
+        ${isHost && live && !ended ? `<li class="seat-edit"><span class="k" aria-hidden="true">➕</span><span class="seat-edit-row"><strong>${esc(t("td.seatsEdit"))}</strong>
+          <span class="stepper" role="group" aria-label="${esc(t("td.seatsEdit"))}"><button type="button" data-act="cap" data-d="-1" aria-label="${esc(t("td.seatsLess"))}" ${tb.capacity <= Math.max(2, tb.seats_taken) ? "disabled" : ""}>−</button><output aria-live="polite">${tb.capacity}</output><button type="button" data-act="cap" data-d="1" aria-label="${esc(t("td.seatsMore"))}" ${tb.capacity >= 12 ? "disabled" : ""}>＋</button></span></span></li>` : ""}
       </ul>
       ${mapLink ? mapActionsHTML({ name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng }, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined, originName: mine?.start_lat != null ? mine.start_label || "" : "" }) : ""}
       ${tb.note ? `<p>${esc(tb.note)}</p>` : ""}
@@ -149,7 +151,7 @@ export async function openTable(id, { onClose } = {}) {
     if (showDetails) {
       const label = canJoin ? t("td.shareMore") : t("td.myDetails");
       act.push(`
-        <details class="more" ${canJoin ? "" : "open"}>
+        <details class="more" ${canJoin && !tb.is_private ? "" : "open"}>
           <summary>${esc(label)}</summary>
           <p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
           ${(() => {
@@ -197,6 +199,7 @@ export async function openTable(id, { onClose } = {}) {
             <span class="av" aria-hidden="true">${esc(m.avatar_emoji)}</span>
             <span class="who"><strong>${esc(personName(m.display_name))}</strong>${m.role === "host" ? ` <span class="badge ok">${esc(t("td.hostTag"))}</span>` : ""}${isMe ? ` <span class="muted">(${esc(t("td.you"))})</span>` : ""}
               ${(isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
+              ${tb.is_private && m.status === "joined" && !m.start_label && !isMe ? `<small class="muted">📍 ${esc(t("td.noStartYet"))}</small>` : ""}
               ${m.cuisine && menuItem(m.cuisine) ? `<small>${esc(menuItem(m.cuisine).emoji)} ${esc(menuItem(m.cuisine).name)}</small>` : ""}
               ${isHost && m.no_show_count > 0 ? `<small>⚠️ ${esc(t("td.noShows", { n: m.no_show_count }))}</small>` : ""}</span>
             ${req ? `<button type="button" class="btn sm primary" data-act="accept" data-uid="${esc(m.user_id)}">${esc(t("td.accept"))}</button><button type="button" class="btn sm" data-act="decline" data-uid="${esc(m.user_id)}">${esc(t("td.decline"))}</button>` : ""}
@@ -533,7 +536,11 @@ export async function openTable(id, { onClose } = {}) {
           const r = await api.requestJoin(tb.id, o);
           if (o.cuisine) await api.setCraving(tb.id, o.cuisine);
           toast(r.status === "joined" ? t("td.joined") : t("td.requested"));
+          if (tb.is_private && !o.start_label) setTimeout(() => toast(t("td.addStartNudge")), 1200);
         });
+        break;
+      case "cap":
+        await mutate(btn, () => api.setCapacity(tb.id, tb.capacity + Number(btn.dataset.d)), t("td.seatsDone"));
         break;
       case "save-details":
         await mutate(btn, async () => {

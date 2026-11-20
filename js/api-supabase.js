@@ -186,6 +186,9 @@ export async function createApi(cfg) {
     async cancelTable(id) {
       await changed(id, rpc("cancel_table", { p_table: id }));
     },
+    async setCapacity(id, capacity) {
+      await changed(id, rpc("set_capacity", { p_table: id, p_capacity: capacity }));
+    },
     async setVenue(id, venue) {
       await changed(id, rpc("set_venue", { p_table: id, p_venue: venue }));
     },

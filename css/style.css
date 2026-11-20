@@ -530,3 +530,7 @@ select:not([multiple]) {
 }
 .hero .btn.hero-how { margin-left: 0; margin-top: 8px; }
 @media (min-width: 520px) { .hero .btn.hero-how { margin-left: 8px; margin-top: 0; } }
+
+.seat-edit-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.seat-edit .stepper button { width: 38px; height: 38px; }
+.seat-edit .stepper button[disabled] { opacity: 0.35; cursor: not-allowed; }
