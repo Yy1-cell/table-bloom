@@ -68,13 +68,13 @@ export async function render(root) {
       <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
       <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>
       <select id="radius-sel">${[10, 25, 50, 200, 0].map((r) => `<option value="${r}" ${Number(f.radius) === r ? "selected" : ""}>${esc(r ? t("loc.within", { km: r }) : t("loc.anywhere"))}</option>`).join("")}</select>
+      <label class="sr-only" for="sort-sel">${esc(t("disc.sort"))}</label>
+      <select id="sort-sel">${sortOptions()}</select>
     </div>
     <div class="card loc-panel" id="loc-panel" hidden></div>
     <div class="toolbar" role="group" aria-label="${esc(t("disc.filters"))}">
       <div class="chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}</div>
       <span class="spacer"></span>
-      <label class="sr-only" for="sort-sel">${esc(t("disc.sort"))}</label>
-      <select id="sort-sel">${sortOptions()}</select>
     </div>
     <div class="toolbar" role="group" aria-label="${esc(t("disc.occasion"))}">
       <div class="chips" id="occ-chips">${[{ slug: "", emoji: "" }, ...OCCASIONS].map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${(f.occasion || "") === o.slug}">${o.slug ? `<span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}` : esc(t("disc.anyOccasion"))}</button>`).join("")}</div>

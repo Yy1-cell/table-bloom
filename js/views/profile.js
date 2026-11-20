@@ -60,7 +60,7 @@ export async function render(root) {
       <fieldset style="margin:0"><legend>${esc(t("pf.avatar"))}</legend><div class="avatar-pick">
         ${AVATARS.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
       </div></fieldset>
-      <div class="field" style="margin:0"><span class="lbl">${esc(t("pf.area"))}</span><div id="pf-loc"></div></div>
+      <div class="field" style="margin:0"><span class="lbl">${esc(t("pf.area"))}</span><details class="loc-details"${effectiveLoc() ? "" : " open"}><summary>📍 ${esc(effectiveLoc()?.label || t("loc.notSet"))}</summary><div id="pf-loc"></div></details></div>
       <div class="field" style="margin:0"><label for="pf-lang">${esc(t("pf.language"))}</label>
         <select id="pf-lang"><option value="en" ${getLang() === "en" ? "selected" : ""}>English</option><option value="zh" ${getLang() === "zh" ? "selected" : ""}>中文</option></select></div>
       <fieldset style="margin:0"><legend>${esc(t("pf.spoken"))}</legend><div class="chips" id="pf-spoken">
@@ -99,7 +99,14 @@ export async function render(root) {
   }
 
   function wire() {
-    mountLocPicker(qs("#pf-loc", root), { label: t("loc.search") });
+    mountLocPicker(qs("#pf-loc", root), {
+      label: t("loc.search"),
+      onChange: (loc) => {
+        const d = qs(".loc-details", root);
+        d.querySelector("summary").textContent = `📍 ${loc?.label || t("map.here")}`;
+        d.open = false;
+      },
+    });
     qs("#pf-lang", root).addEventListener("change", (e) => {
       // Apply immediately; keep whatever has been typed so far.
       stash = {

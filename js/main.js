@@ -277,6 +277,11 @@ async function onSession(session) {
 async function boot() {
   initLang();
   renderChrome();
+  // First visit: explain the whole app before anything else (sign-in comes after). Invite links go straight to the table.
+  if (!/^#(invite|t-)/.test(location.hash)) {
+    const g = await import("./views/guide.js");
+    if (!g.guideSeen()) g.openGuide();
+  }
   await initApi();
   state.mode = apiMod.api.mode;
   await loadRefs();

@@ -1,7 +1,8 @@
 // UI building blocks: live-region announcements, toasts, bottom sheets, confirm dialogs, place search.
 import { esc, qs, qsa, debounce, mapsUrl } from "./util.js";
 import { t } from "./i18n.js";
-import { searchPlaces, searchLandmarks } from "./geo.js";
+import { searchPlaces, searchLandmarks, nearToronto } from "./geo.js";
+import { effectiveLoc } from "./location.js";
 
 // ---------------------------------------------------------------- announce (screen readers)
 export function announce(message) {
@@ -170,7 +171,7 @@ export function placeSearchHTML({ label, placeholder, hint = "" }) {
       </div>
       <p class="ps-status hint" id="${id}-status" role="status" aria-live="polite">${esc(hint || t("ps.hint"))}</p>
       <div class="ps-chosen" hidden></div>
-      <p class="attrib">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · ${venueAttributionHTML()}</p>
+      <p class="attrib">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>${nearToronto(effectiveLoc()) ? ` · ${venueAttributionHTML()}` : ""}</p>
     </div>`,
   };
 }
