@@ -147,3 +147,16 @@ export const PEER_SIGNALS = [
   { slug: "neutral", emoji: "😐" },
   { slug: "pass", emoji: "🙅" },
 ];
+
+// Dietary needs. FIXED ones are set once on the profile ("I never eat…"); MEAL ones are just for one table ("light today").
+// Slugs are stored as-is in profiles.dietary_tags / table_members.diet_tags (a-z and _ only); labels live in strings as dt.<slug>.
+export const DIET_FIXED = [
+  { slug: "vegetarian", emoji: "🥬" }, { slug: "vegan", emoji: "🌱" }, { slug: "halal", emoji: "☪️" }, { slug: "kosher", emoji: "✡️" },
+  { slug: "no_pork", emoji: "🐖" }, { slug: "no_beef", emoji: "🐄" }, { slug: "no_seafood", emoji: "🦐" },
+  { slug: "allergy_peanut", emoji: "🥜", allergy: true }, { slug: "allergy_shellfish", emoji: "🦞", allergy: true },
+  { slug: "allergy_dairy", emoji: "🥛", allergy: true }, { slug: "allergy_gluten", emoji: "🌾", allergy: true }, { slug: "allergy_egg", emoji: "🥚", allergy: true },
+];
+export const DIET_MEAL = [
+  { slug: "light", emoji: "🍵" }, { slug: "no_spicy", emoji: "🌶️" }, { slug: "low_oil", emoji: "🫒" }, { slug: "hot_food", emoji: "🍲" }, { slug: "no_raw", emoji: "🍣" },
+];
+export const DIET_ALL = [...DIET_FIXED, ...DIET_MEAL];

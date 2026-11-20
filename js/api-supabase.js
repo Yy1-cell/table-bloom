@@ -122,7 +122,7 @@ export async function createApi(cfg) {
       return { ...prof, email: current.email, guest: !!current.guest, ranks: (prefs || []).map((p) => p.cuisine_slug) };
     },
     async saveProfile(patch) {
-      const allowed = ["display_name", "avatar_emoji", "area_id", "language", "languages_spoken", "dietary_notes", "budget_cents", "onboarded_at"];
+      const allowed = ["display_name", "avatar_emoji", "area_id", "language", "languages_spoken", "dietary_notes", "budget_cents", "dietary_tags", "onboarded_at"];
       const row = {};
       for (const k of allowed) if (k in patch) row[k] = patch[k];
       return wrap(sb.from("profiles").update(row).eq("id", uid()).select().single());
@@ -173,6 +173,9 @@ export async function createApi(cfg) {
     },
     async setCraving(id, slug) {
       await changed(id, rpc("set_my_craving", { p_table: id, p_cuisine: slug || null }));
+    },
+    async setMyDiet(id, tags, note) {
+      await changed(id, rpc("set_my_diet", { p_table: id, p_tags: tags || [], p_note: note || null }));
     },
     async leaveTable(id) {
       await changed(id, rpc("leave_table", { p_table: id }));

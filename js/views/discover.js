@@ -7,7 +7,7 @@ import { effectiveLoc, locateMe, kmFrom } from "../location.js";
 import { locationPermission } from "../geo.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { toast, announce } from "../ui.js";
-import { tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
+import { hasRanks, tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
 import { OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
 import { buildProfile, scoreTable } from "../dining-profile.js";
 import { groupOfSlug } from "./menu-picker.js";
@@ -32,7 +32,8 @@ function visible(list) {
   else if (sort === "foryou" && state.diningProfile?.n) {
     const fit = (x) => scoreTable(x, state.diningProfile).score * 20 + tasteOf(x) * 0.5;
     out.sort((a, b) => fit(b) - fit(a) || byTime(a, b));
-  } else out.sort((a, b) => tasteOf(b) - tasteOf(a) || byTime(a, b));
+  } else if (!hasRanks()) out.sort((a, b) => (distanceKm(a) ?? 1e9) - (distanceKm(b) ?? 1e9) || byTime(a, b));
+  else out.sort((a, b) => tasteOf(b) - tasteOf(a) || byTime(a, b));
   return out;
 }
 
@@ -55,7 +56,7 @@ export async function render(root) {
   let alive = true;
   const f = state.filters;
   // "For you" is offered once there are check-ins to learn from
-  const sortOptions = () => (state.diningProfile?.n ? ["foryou", "match", "budget", "closest"] : ["match", "budget", "closest"]).map((s) => `<option value="${s}" ${f.sort === s ? "selected" : ""}>${esc(t("sort." + s))}</option>`).join("");
+  const sortOptions = () => ([...(state.diningProfile?.n ? ["foryou"] : []), ...(hasRanks() ? ["match"] : []), ...(hasRanks() ? ["budget", "closest"] : ["closest", "budget"])]).map((s) => `<option value="${s}" ${f.sort === s ? "selected" : ""}>${esc(t("sort." + s))}</option>`).join("");
 
   root.innerHTML = `
     <section class="hero">
@@ -127,7 +128,7 @@ export async function render(root) {
       state.tables = tables;
       if (rows) state.diningProfile = buildProfile(rows, groupOfSlug);
       // with some check-ins on record, "For you" becomes the default order (until the person picks another)
-      if (!f.sortSet && state.diningProfile?.n && f.sort === "match") f.sort = "foryou";
+      if (!f.sortSet && f.sort === "match") f.sort = state.diningProfile?.n ? "foryou" : hasRanks() ? "match" : "closest";
       const sel = qs("#sort-sel", root);
       if (sel) {
         sel.innerHTML = sortOptions();

@@ -132,7 +132,10 @@ export function distanceKm(tb) {
   return kmFrom(effectiveLoc(), tb);
 }
 
-export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
+// The taste match needs a cuisine ranking. New profiles no longer ask for one, so no ranking = no (meaningless) percentage.
+export const hasRanks = () => (state.ranks || []).length > 0;
+
+export function tableCardHTML(tb, { showMatch = hasRanks(), reason = "" } = {}) {
   const cn = cuisineNames(tb);
   const match = tasteOf(tb);
   const d = distanceKm(tb);

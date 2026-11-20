@@ -354,6 +354,7 @@ function startSession(email, guest) {
         language: getLang(),
         languages_spoken: [],
         dietary_notes: "",
+        dietary_tags: [],
         budget_cents: null,
         no_show_count: 0,
         status: "active",
@@ -407,7 +408,7 @@ export const api = {
   },
   async saveProfile(patch) {
     const d = requireUser();
-    const allowed = ["display_name", "avatar_emoji", "area_id", "language", "languages_spoken", "dietary_notes", "budget_cents", "onboarded_at"];
+    const allowed = ["display_name", "avatar_emoji", "area_id", "language", "languages_spoken", "dietary_notes", "budget_cents", "dietary_tags", "onboarded_at"];
     for (const k of allowed) if (k in patch) d.profile[k] = clone(patch[k]);
     persist();
     return clone(d.profile);
@@ -462,13 +463,15 @@ export const api = {
           start_lat: see ? m.start_lat ?? null : null,
           start_lng: see ? m.start_lng ?? null : null,
           cuisine: see ? m.cuisine ?? null : null,
+          diet_tags: see ? [...(m.diet_tags || [])] : null,
+          diet_note: see ? m.diet_note ?? null : null,
         };
       });
     const mine = t.members.find((m) => m.user_id === ME);
     return clone({
       ...tableJson(t),
       members,
-      my_membership: mine ? { start_label: mine.start_label ?? null, start_lat: mine.start_lat ?? null, start_lng: mine.start_lng ?? null, intention: mine.intention ?? null, pace: mine.pace ?? null, cuisine: mine.cuisine ?? null } : null,
+      my_membership: mine ? { start_label: mine.start_label ?? null, start_lat: mine.start_lat ?? null, start_lng: mine.start_lng ?? null, intention: mine.intention ?? null, pace: mine.pace ?? null, cuisine: mine.cuisine ?? null, diet_tags: [...(mine.diet_tags || [])], diet_note: mine.diet_note ?? null } : null,
     });
   },
 
@@ -567,6 +570,16 @@ export const api = {
     const m = t.members.find((x) => x.user_id === ME && ["requested", "joined"].includes(x.status));
     if (!m) throw new ApiError("not_found");
     m.cuisine = slug || null;
+    persist();
+  },
+
+  async setMyDiet(id, tags, note) {
+    requireUser();
+    const t = need(id);
+    const m = t.members.find((x) => x.user_id === ME && ["requested", "joined"].includes(x.status));
+    if (!m) throw new ApiError("not_found");
+    m.diet_tags = [...new Set((tags || []).filter((x) => /^[a-z_]{2,24}$/.test(x)))].slice(0, 16);
+    m.diet_note = String(note || "").trim().slice(0, 200) || null;
     persist();
   },
 

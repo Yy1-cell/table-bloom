@@ -11,6 +11,7 @@ import { currencyFor, budgetRange } from "../currency.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
+import { allergyReminderHTML } from "./diet.js";
 
 export function openCreate({ onClose } = {}) {
   // The Map tab can hand over a restaurant the person already found ("Host a table here").
@@ -30,7 +31,7 @@ export function openCreate({ onClose } = {}) {
     base: pre?.base || null, // the area this table is around (search centre, and where a table without a restaurant sits)
     place: pre?.place || null,
     area_label: "",
-    budget: state.me?.budget_cents != null ? String(state.me.budget_cents / 100) : "",
+    budget: pre?.budget != null ? String(Math.round(pre.budget / 100)) : "", // chosen per meal on the Map, not stored on the profile
     tags: [],
     occasion: "",
     note: "",
@@ -122,6 +123,7 @@ export function openCreate({ onClose } = {}) {
             return `<div class="section-lite" id="c-sug-wrap"${d.place ? " hidden" : ""}>
           <h3>${esc(t("cr.sugTitle"))}</h3>
           <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
+          ${allergyReminderHTML([{ name: "", tags: state.me?.dietary_tags || [] }])}
           <ul class="suggest" id="c-sug" aria-live="polite"></ul>
           <div class="row wrap-row"><button type="button" class="btn sm ghost" data-sug-refresh>${esc(t("cr.sugRefresh"))}</button></div>
         </div>

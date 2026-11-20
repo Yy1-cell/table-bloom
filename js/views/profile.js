@@ -1,33 +1,18 @@
-// Profile & settings: identity, preferences, cuisine ranking, blocked users, install, sign-out, delete account.
+// Profile & settings: name, emoji, fixed dietary needs (set once), blocked users, install, sign-out, delete account.
+// Language lives in the header button; budget and cuisine are picked per meal (Map / host form), not stored here.
 import { esc, qs, qsa, isIOS, isStandalone } from "../util.js";
-import { t, getLang, setLang } from "../i18n.js";
+import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
 import { toast, announce, confirmDialog } from "../ui.js";
-import { AVATARS, SPOKEN } from "../data.js";
-import { mountLocPicker } from "./loc-picker.js";
-import { effectiveLoc } from "../location.js";
-import { currencyFor, budgetRange } from "../currency.js";
-import { nameOf, showError, withBusy, go, cuisineGroupsHTML } from "./common.js";
-
-// Unsaved form values survive a language switch (which re-renders the whole page).
-let stash = null;
+import { AVATARS } from "../data.js";
+import { fixedPickerHTML, wireChips, readChips } from "./diet.js";
+import { showError, withBusy, go } from "./common.js";
 
 export async function render(root) {
   const me = state.me;
   const onboarding = !me.onboarded_at;
-  const f = stash || {};
-  const draft = {
-    avatar: f.avatar ?? me.avatar_emoji,
-    spoken: new Set(f.spoken ?? me.languages_spoken ?? []),
-    // favourites, in the order they were tapped; people who ranked before keep their top three
-    favs: f.favs ?? (onboarding ? [] : state.ranks.slice(0, 3).filter((s) => state.cuisines.some((c) => c.slug === s))),
-  };
-  // everything else keeps its previous order after the favourites (used for the taste match)
-  const fullRanks = () => {
-    const all = [...state.ranks, ...state.cuisines.map((c) => c.slug)];
-    return [...new Set([...draft.favs, ...all])].filter((s) => state.cuisines.some((c) => c.slug === s));
-  };
+  const draft = { avatar: me.avatar_emoji };
   let blocks = [];
   try {
     blocks = await api.listBlocks();
@@ -36,10 +21,6 @@ export async function render(root) {
     if (state.isAdmin === undefined) state.isAdmin = (await api.adminCheck?.()) === true;
   } catch {
     state.isAdmin = false;
-  }
-
-  function favHTML() {
-    return cuisineGroupsHTML({ attr: "fav", isOn: (s) => draft.favs.includes(s) });
   }
 
   function installBlock() {
@@ -55,23 +36,15 @@ export async function render(root) {
     ${onboarding ? `<div class="setup-card"><strong>${esc(t("pf.onbTitle"))}</strong><br>${esc(t("pf.onbBody"))}</div>` : ""}
     <form id="pf" class="card stack" novalidate>
       <div class="field" style="margin:0"><label for="pf-name">${esc(t("pf.name"))}</label>
-        <input id="pf-name" type="text" maxlength="30" required value="${esc(f.name ?? ((me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name))}" placeholder="${esc(t("pf.namePh"))}">
+        <input id="pf-name" type="text" maxlength="30" required value="${esc(((me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name))}" placeholder="${esc(t("pf.namePh"))}">
         <div class="err-text" id="pf-name-err" role="alert"></div></div>
       <fieldset style="margin:0"><legend>${esc(t("pf.avatar"))}</legend><div class="avatar-pick">
         ${AVATARS.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
       </div></fieldset>
-      <div class="field" style="margin:0"><span class="lbl">${esc(t("pf.area"))}</span><details class="loc-details"${effectiveLoc() ? "" : " open"}><summary>📍 ${esc(effectiveLoc()?.label || t("loc.notSet"))}</summary><div id="pf-loc"></div></details></div>
-      <div class="field" style="margin:0"><label for="pf-lang">${esc(t("pf.language"))}</label>
-        <select id="pf-lang"><option value="en" ${getLang() === "en" ? "selected" : ""}>English</option><option value="zh" ${getLang() === "zh" ? "selected" : ""}>中文</option></select></div>
-      <fieldset style="margin:0"><legend>${esc(t("pf.spoken"))}</legend><div class="chips" id="pf-spoken">
-        ${SPOKEN.map((l) => `<button type="button" class="chip" data-l="${l}" aria-pressed="${draft.spoken.has(l)}">${esc(t("lang." + l))}</button>`).join("")}
-      </div></fieldset>
-      <div class="field" style="margin:0"><label for="pf-diet">${esc(t("pf.diet"))}</label>
-        <input id="pf-diet" type="text" maxlength="200" value="${esc(f.diet ?? (me.dietary_notes || ""))}" placeholder="${esc(t("pf.dietPh"))}"></div>
-      <div class="field" style="margin:0"><label for="pf-budget">${esc(t("pf.budget"))} (${esc(currencyFor(effectiveLoc()))})</label>
-        <input id="pf-budget" type="number" inputmode="decimal" min="${budgetRange(currencyFor(effectiveLoc())).min}" max="${budgetRange(currencyFor(effectiveLoc())).max}" step="1" value="${f.budget ?? (me.budget_cents != null ? me.budget_cents / 100 : "")}" placeholder="${budgetRange(currencyFor(effectiveLoc())).hint}">
-        <div class="err-text" id="pf-budget-err" role="alert"></div></div>
-      <fieldset style="margin:0"><legend>${esc(t("pf.rank"))}</legend><p class="hint" style="margin-top:0">${esc(t("pf.rankHint"))}</p><div class="cuisine-groups" id="rank">${favHTML()}</div></fieldset>
+      <fieldset style="margin:0"><legend>${esc(t("diet.title"))}</legend><p class="hint" style="margin-top:0">${esc(t("diet.profileHint"))}</p>
+        ${fixedPickerHTML(me.dietary_tags || [])}
+        <div class="field" style="margin:10px 0 0"><label for="pf-diet">${esc(t("diet.profileNote"))}</label>
+          <input id="pf-diet" type="text" maxlength="200" value="${esc(me.dietary_notes || "")}" placeholder="${esc(t("diet.profileNotePh"))}"></div></fieldset>
       <button type="submit" class="btn primary block">${esc(onboarding ? t("pf.saveStart") : t("common.save"))}</button>
     </form>
 
@@ -94,49 +67,12 @@ export async function render(root) {
       <div class="row wrap-row"><button type="button" class="btn" id="signout">${esc(t("pf.signOut"))}</button><button type="button" class="btn danger-ghost" id="delete">${esc(t("pf.delete"))}</button>${state.mode === "demo" ? `<button type="button" class="btn" id="demo-reset">🧪 ${esc(t("pf.demoReset"))}</button>` : ""}</div>
     </section>`
     }`;
-    stash = null;
     wire();
   }
 
   function wire() {
-    mountLocPicker(qs("#pf-loc", root), {
-      label: t("loc.search"),
-      onChange: (loc) => {
-        const d = qs(".loc-details", root);
-        d.querySelector("summary").textContent = `📍 ${loc?.label || t("map.here")}`;
-        d.open = false;
-      },
-    });
-    qs("#pf-lang", root).addEventListener("change", (e) => {
-      // Apply immediately; keep whatever has been typed so far.
-      stash = {
-        avatar: draft.avatar,
-        spoken: [...draft.spoken],
-        favs: [...draft.favs],
-        name: qs("#pf-name", root).value,
-        diet: qs("#pf-diet", root).value,
-        budget: qs("#pf-budget", root).value,
-      };
-      const lang = e.target.value;
-      setLang(lang);
-      if (!onboarding) api.saveProfile({ language: lang }).catch(() => {});
-    });
     qsa('input[name="av"]', root).forEach((r) => r.addEventListener("change", () => (draft.avatar = r.value)));
-    qs("#pf-spoken", root).addEventListener("click", (e) => {
-      const b = e.target.closest("[data-l]");
-      if (!b) return;
-      draft.spoken.has(b.dataset.l) ? draft.spoken.delete(b.dataset.l) : draft.spoken.add(b.dataset.l);
-      b.setAttribute("aria-pressed", String(draft.spoken.has(b.dataset.l)));
-    });
-    qs("#rank", root).addEventListener("click", (e) => {
-      const b = e.target.closest("[data-fav]");
-      if (!b) return;
-      const slug = b.dataset.fav;
-      const at = draft.favs.indexOf(slug);
-      if (at >= 0) draft.favs.splice(at, 1);
-      else draft.favs.push(slug);
-      b.setAttribute("aria-pressed", String(at < 0));
-    });
+    wireChips(qs("#pf-diet-chips", root));
     qs("#pf", root).addEventListener("submit", save);
     qsa("[data-unblock]", root).forEach((b) =>
       b.addEventListener("click", async () => {
@@ -184,42 +120,23 @@ export async function render(root) {
     e.preventDefault();
     const name = qs("#pf-name", root).value.trim();
     const nameErr = qs("#pf-name-err", root);
-    const budgetErr = qs("#pf-budget-err", root);
-    nameErr.textContent = budgetErr.textContent = "";
+    nameErr.textContent = "";
     if (!name) {
       nameErr.textContent = t("pf.nameNeeded");
       return qs("#pf-name", root).focus();
     }
-    const bRaw = qs("#pf-budget", root).value;
-    let budget = null;
-    if (bRaw !== "") {
-      const n = Number(bRaw);
-      const br = budgetRange(currencyFor(effectiveLoc()));
-      if (!Number.isFinite(n) || n < br.min || n > br.max) {
-        budgetErr.textContent = t("pf.budgetRange", { min: br.min, max: br.max });
-        return qs("#pf-budget", root).focus();
-      }
-      budget = Math.round(n * 100);
-    }
-    const lang = qs("#pf-lang", root).value;
     const patch = {
       display_name: name,
       avatar_emoji: draft.avatar,
-      language: lang,
-      languages_spoken: [...draft.spoken],
+      dietary_tags: readChips(qs("#pf-diet-chips", root)),
       dietary_notes: qs("#pf-diet", root).value.trim(),
-      budget_cents: budget,
     };
     if (onboarding) patch.onboarded_at = new Date().toISOString();
     try {
       await withBusy(qs('[type="submit"]', root), async () => {
         const saved = await api.saveProfile(patch);
-        const ranks = fullRanks();
-        await api.savePrefs(ranks);
         Object.assign(state.me, saved);
-        state.ranks = ranks;
       });
-      if (lang !== getLang()) setLang(lang);
       toast(t("pf.saved"));
       if (onboarding) go("#discover");
       else draw();

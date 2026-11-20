@@ -286,7 +286,11 @@ async function boot() {
   state.mode = apiMod.api.mode;
   await loadRefs();
 
-  qs("#lang-btn").addEventListener("click", () => setLang(getLang() === "zh" ? "en" : "zh"));
+  qs("#lang-btn").addEventListener("click", () => {
+    const lang = getLang() === "zh" ? "en" : "zh";
+    setLang(lang);
+    if (state.me?.onboarded_at) apiMod.api.saveProfile({ language: lang }).catch(() => {});
+  });
   qs("#skip").addEventListener("click", (e) => {
     e.preventDefault();
     view.focus();

@@ -11,6 +11,9 @@ import { mountGroupMap } from "../group-map.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { searchWord } from "../data.js";
+import { currencyFor, budgetRange } from "../currency.js";
+import { fmtMoney } from "../util.js";
+import { allergyReminderHTML } from "./diet.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
@@ -36,11 +39,15 @@ export async function render(root) {
     ${ps.html}
     <div class="row wrap-row"><button type="button" class="btn sm" id="use-me">📍 ${esc(t("map.useMe"))}</button></div>
     <p class="hint loc-status" id="loc-status" role="status" aria-live="polite"></p>
-    <div class="map-center" id="center"></div>
-    <details class="cuis-details" id="cuis-wrap" ${window.innerWidth >= 820 ? "open" : ""}>
-      <summary id="cuis-sum"></summary>
-      <div id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}"></div>
-    </details>
+    <div class="map-bar" aria-label="${esc(t("map.barLabel"))}">
+      <div class="map-center" id="center"></div>
+      <details class="cuis-details" id="cuis-wrap" ${window.innerWidth >= 820 ? "open" : ""}>
+        <summary id="cuis-sum"></summary>
+        <div id="cuis" role="group" aria-label="${esc(t("map.cuisine"))}"></div>
+      </details>
+      <div class="budget-row" id="budget-row" role="group" aria-label="${esc(t("map.budget"))}"></div>
+    </div>
+    <div id="allergy"></div>
     <section class="card" style="margin-top:16px"><h2>🗺️ ${esc(t("map.gTitle"))}</h2>
       <p class="hint">${esc(t("map.gHint"))}</p>
       <div class="gmap-frame" id="gsearch"></div>
@@ -49,9 +56,11 @@ export async function render(root) {
         <button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>
       </div>
       <p class="hint">${esc(t("map.hostNearHint"))}</p></section>
-    <section class="card" style="margin-top:16px"><h2>${esc(t("map.mapView"))}</h2><div id="gmap"></div></section>
     <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
-    <section class="card" style="margin-top:16px"><h2>${esc(t("map.restaurants"))}</h2><p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></section>`;
+    <details class="card built" id="built" style="margin-top:16px" ${window.innerWidth >= 820 ? "open" : ""}>
+      <summary><strong>${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
+      <div id="gmap" style="margin-top:10px"></div>
+      <p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></details>`;
 
   const distLine = (p) => {
     const parts = [];
@@ -65,6 +74,40 @@ export async function render(root) {
     qs("#cuis-sum", root).textContent = `🍽️ ${t("map.cuisine")}: ${items.length ? items.map((c) => `${c.emoji} ${c.name}`).join(" + ") : t("map.anyCuisine")}`;
   }
   paintCuisineSummary();
+
+  // Budget is picked per meal. Tiers are in the local currency of the place; they filter open tables and pre-fill "host a table".
+  // (Restaurants from the free map data carry no prices, so this does not filter them.)
+  const cur = () => currencyFor(center.isDefault ? null : center);
+  const tiers = () => {
+    const h = budgetRange(cur()).hint;
+    return [0.5, 1, 2].map((m) => Math.round(h * m) * 100);
+  };
+  function paintBudget() {
+    const row = qs("#budget-row", root);
+    const sel = state.mapBudget ?? null;
+    row.innerHTML = `<span class="diet-lbl">💵 ${esc(t("map.budget"))}</span>` +
+      [`<button type="button" class="chip sm" data-b="" aria-pressed="${sel == null}">${esc(t("map.anyBudget"))}</button>`,
+        ...tiers().map((c) => `<button type="button" class="chip sm" data-b="${c}" aria-pressed="${sel === c}">≤ ${esc(fmtMoney(c, cur()))}</button>`)].join("");
+  }
+  paintBudget();
+  qs("#budget-row", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-b]");
+    if (!b) return;
+    state.mapBudget = b.dataset.b === "" ? null : Number(b.dataset.b);
+    paintBudget();
+    loadTables();
+  });
+  function paintAllergy() {
+    qs("#allergy", root).innerHTML = allergyReminderHTML([{ name: "", tags: state.me?.dietary_tags || [] }]);
+  }
+  paintAllergy();
+  let mapDirty = false;
+  qs("#built", root).addEventListener("toggle", () => {
+    if (qs("#built", root).open && mapDirty) {
+      mapDirty = false;
+      paintMap();
+    }
+  });
   const isHere = () => center.label === t("map.here");
   // Directions always start from the place the person picked (typed address or "my location"), never from some other position.
   const fromHere = () => ({ origin: { lat: center.lat, lng: center.lng }, originName: center.label || "", hint: false });
@@ -116,6 +159,10 @@ export async function render(root) {
     return mapPromise;
   }
   async function paintMap() {
+    if (!qs("#built", root).open) {
+      mapDirty = true;
+      return;
+    }
     if (mapFailed) return paintGoogle();
     if (navigator.onLine === false && !groupMap) {
       qs("#gmap", root).innerHTML = `<p class="muted">${esc(t("map.offlineMap"))}</p>`;
@@ -204,6 +251,7 @@ export async function render(root) {
       .filter((x) => x.meet_lat != null && ["open", "full"].includes(x.status))
       .map((x) => ({ x, dist: haversineKm(center, { lat: Number(x.meet_lat), lng: Number(x.meet_lng) }) }))
       .filter((r) => r.dist <= 12)
+      .filter((r) => state.mapBudget == null || r.x.budget_cents == null || r.x.budget_cents <= state.mapBudget)
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 6);
     box.innerHTML = rows.length
@@ -243,6 +291,7 @@ export async function render(root) {
               ${mapActionsHTML(r, fromHere())}</div>`)
             .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
         : restaurantFallback("map.noRestaurants");
+      qs("#built-n", root).textContent = `(${list.length})`;
       paintMap();
       announce(t("map.found", { n: list.length }));
     } catch (e) {
@@ -275,9 +324,11 @@ export async function render(root) {
   function refresh() {
     if (center.isDefault) {
       // No place yet: show nothing from another city.
-      for (const id of ["#center", "#tbl", "#rest", "#gmap", "#gsearch"]) { const el = qs(id, root); if (el) el.innerHTML = ""; }
+      for (const id of ["#center", "#tbl", "#rest", "#gmap", "#gsearch", "#built-n"]) { const el = qs(id, root); if (el) el.innerHTML = ""; }
       return;
     }
+    if (state.mapBudget != null && !tiers().includes(state.mapBudget)) state.mapBudget = null;
+    paintBudget();
     paintGoogleLink();
     paintCenter();
     loadTables();
@@ -316,6 +367,7 @@ export async function render(root) {
     const at = r || center; // no restaurant chosen: just host somewhere around the picked place
     state.createPrefill = {
       place: r ? { name: r.name, address: r.address || "", lat: r.lat, lng: r.lng, poi_id: r.poi_id || null } : null,
+      budget: state.mapBudget ?? null,
       cuisines: picks.filter((k) => !isFormat(k)),
       formats: picks.filter(isFormat),
       base: center.isDefault ? null : { lat: at.lat, lng: at.lng, label: center.label || "", cc: r?.cc || center.cc },

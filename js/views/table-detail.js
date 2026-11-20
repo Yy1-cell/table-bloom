@@ -11,6 +11,7 @@ import { mountGroupMap } from "../group-map.js";
 import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys, searchWord, cuisinesOf } from "../data.js";
 import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
+import { mealPickerHTML, wireChips, readChips, dietTagsHTML, allergyReminderHTML } from "./diet.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML, cuisineNames } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
@@ -23,6 +24,8 @@ export async function openTable(id, { onClose } = {}) {
     onClose,
   });
   let tb = null;
+  let dietPick = undefined; // undefined = untouched, array = chips changed but not saved yet
+  let changingVenue = false; // true while re-choosing after a venue was already picked
   let startPick = undefined; // undefined = unchanged, null = cleared, object = chosen place
   let suggestions = null;
   let photos = [];
@@ -66,6 +69,8 @@ export async function openTable(id, { onClose } = {}) {
       return;
     }
     startPick = undefined;
+    dietPick = undefined;
+    changingVenue = false;
     draw();
   }
 
@@ -160,6 +165,9 @@ export async function openTable(id, { onClose } = {}) {
             return ps.html;
           })()}
           ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}
+          <div class="field"><span class="lbl">${esc(t("diet.title"))}</span>${mealPickerHTML(dietPick ?? (mine ? mine.diet_tags || [] : state.me?.dietary_tags || []), state.me?.dietary_tags || [])}
+            <input id="d-diet-note" type="text" maxlength="200" aria-label="${esc(t("diet.note"))}" placeholder="${esc(t("diet.notePh"))}" value="${esc(mine?.diet_note || "")}" style="margin-top:8px">
+            <p class="hint" style="margin:4px 0 0">${esc(t("diet.private"))}</p></div>
           <div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${cravingOptions(mine?.cuisine)}</select></div>
           <div class="field"><label for="d-int">${esc(t("td.intention"))}</label><select id="d-int">${selectOptions(INTENTIONS, "int.", mine?.intention)}</select></div>
           <div class="field" style="margin-bottom:0"><label for="d-pace">${esc(t("td.pace"))}</label><select id="d-pace">${selectOptions(PACES, "pace.", mine?.pace)}</select></div>
@@ -200,6 +208,7 @@ export async function openTable(id, { onClose } = {}) {
             <span class="who"><strong>${esc(personName(m.display_name))}</strong>${m.role === "host" ? ` <span class="badge ok">${esc(t("td.hostTag"))}</span>` : ""}${isMe ? ` <span class="muted">(${esc(t("td.you"))})</span>` : ""}
               ${(isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
               ${tb.is_private && m.status === "joined" && !m.start_label && !isMe ? `<small class="muted">📍 ${esc(t("td.noStartYet"))}</small>` : ""}
+              ${dietTagsHTML(m.diet_tags, m.diet_note)}
               ${m.cuisine && menuItem(m.cuisine) ? `<small>${esc(menuItem(m.cuisine).emoji)} ${esc(menuItem(m.cuisine).name)}</small>` : ""}
               ${isHost && m.no_show_count > 0 ? `<small>⚠️ ${esc(t("td.noShows", { n: m.no_show_count }))}</small>` : ""}</span>
             ${req ? `<button type="button" class="btn sm primary" data-act="accept" data-uid="${esc(m.user_id)}">${esc(t("td.accept"))}</button><button type="button" class="btn sm" data-act="decline" data-uid="${esc(m.user_id)}">${esc(t("td.decline"))}</button>` : ""}
@@ -219,11 +228,20 @@ export async function openTable(id, { onClose } = {}) {
     // ---- venue / midpoint
     if ((isHost || (tb.is_private && isMember)) && live) {
       const withStart = startingPoints();
+      const choosing = !tb.venue || changingVenue;
+      const reminder = allergyReminderHTML(visibleMembers.map((m) => ({ name: m.user_id === state.session?.userId ? t("td.you") : personName(m.display_name), tags: m.diet_tags })));
       if (tb.is_private) {
         html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame group-map" id="shared-map" role="region" aria-label="${esc(t("td.sharedMap"))}"></div>
           <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p><div id="pick-card"></div></div>`);
       }
-      html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
+      if (!choosing) {
+        html.push(`<div class="section"><h3>✅ ${esc(t("td.chosenVenue"))}</h3>
+          <p style="margin:0 0 8px"><strong>${esc(tb.venue.name)}</strong>${tb.venue.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}</p>
+          ${reminder}
+          <button type="button" class="btn sm" data-act="change-venue">${esc(t("td.changeVenue"))}</button></div>`);
+      } else {
+        html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
+        ${reminder}
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
         <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button>
           <a class="btn" target="_blank" rel="noopener" href="${esc(nearbyMapsLink())}">${esc(t("td.googleNearby"))}</a></div>
@@ -232,8 +250,9 @@ export async function openTable(id, { onClose } = {}) {
           const ps = placeSearchHTML({ label: t("td.setVenue"), placeholder: t("td.venuePlaceholder"), hint: t("td.venueHint") });
           draw._vId = ps.id;
           return ps.html;
-        })()}<button type="button" class="btn sm" data-act="set-venue" disabled id="venue-save">${esc(t("td.saveVenue"))}</button></div>
+        })()}<button type="button" class="btn sm" data-act="set-venue" disabled id="venue-save">${esc(t("td.saveVenue"))}</button>${changingVenue ? ` <button type="button" class="btn sm ghost" data-act="keep-venue">${esc(t("td.keepVenue"))}</button>` : ""}</div>
       </div>`);
+      }
     } else if (me === "joined" && mine?.start_lat != null && tb.meet_lat != null) {
       const km = haversineKm({ lat: mine.start_lat, lng: mine.start_lng }, { lat: tb.meet_lat, lng: tb.meet_lng });
       html.push(`<p class="muted">🚶 ${esc(t("td.fromYou", { km: km < 10 ? km.toFixed(1) : Math.round(km) }))}</p>`);
@@ -392,7 +411,7 @@ export async function openTable(id, { onClose } = {}) {
       people,
       middle: people.length > 1 ? midpoint(people) : null,
       venue: tb.venue && tb.venue.lat != null ? { name: tb.venue.name, lat: Number(tb.venue.lat), lng: Number(tb.venue.lng) } : null,
-      suggestions: Array.isArray(suggestions) ? suggestions : [],
+      suggestions: Array.isArray(suggestions) && (!tb.venue || changingVenue) ? suggestions : [],
       onPick: choose,
       fallbackCenter: restaurantCenter(),
       labels: { middle: t("td.mapMiddle") },
@@ -440,6 +459,7 @@ export async function openTable(id, { onClose } = {}) {
 
   // At a private table everyone sees the same list, so refresh it whenever someone's start point or craving changes.
   function autoSuggest() {
+    if (tb.venue && !changingVenue) return;
     if (!tb.is_private || !["joined", "host"].includes(tb.my_status) || !["open", "full"].includes(tb.status) || suggestions === "loading") return;
     const key = JSON.stringify([startMembers().map((p) => [p.lat, p.lng]), cravings()]);
     if (key === suggestKey) return;
@@ -500,6 +520,12 @@ export async function openTable(id, { onClose } = {}) {
     return o;
   }
 
+  async function saveDiet() {
+    const box = qs("#diet-pick", sheet.body);
+    if (!box) return;
+    await api.setMyDiet(tb.id, readChips(box), qs("#d-diet-note", sheet.body)?.value || "");
+  }
+
   async function mutate(btn, fn, okMsg) {
     try {
       await withBusy(btn, fn);
@@ -521,6 +547,10 @@ export async function openTable(id, { onClose } = {}) {
     }
   });
 
+  wireChips(sheet.body);
+  sheet.body.addEventListener("click", (e) => {
+    if (e.target.closest("[data-diet],[data-diet-all]")) dietPick = readChips(qs("#diet-pick", sheet.body));
+  });
   sheet.body.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-act]");
     if (!btn) return;
@@ -535,9 +565,19 @@ export async function openTable(id, { onClose } = {}) {
           const o = detailsPayload();
           const r = await api.requestJoin(tb.id, o);
           if (o.cuisine) await api.setCraving(tb.id, o.cuisine);
+          await saveDiet();
           toast(r.status === "joined" ? t("td.joined") : t("td.requested"));
           if (tb.is_private && !o.start_label) setTimeout(() => toast(t("td.addStartNudge")), 1200);
         });
+        break;
+      case "change-venue":
+        changingVenue = true;
+        suggestKey = "";
+        draw();
+        break;
+      case "keep-venue":
+        changingVenue = false;
+        draw();
         break;
       case "cap":
         await mutate(btn, () => api.setCapacity(tb.id, tb.capacity + Number(btn.dataset.d)), t("td.seatsDone"));
@@ -547,6 +587,7 @@ export async function openTable(id, { onClose } = {}) {
           const o = detailsPayload();
           await api.updateMembership(tb.id, o);
           await api.setCraving(tb.id, o.cuisine);
+          await saveDiet();
         }, t("td.saved"));
         break;
       case "leave": {
@@ -686,7 +727,7 @@ export async function openTable(id, { onClose } = {}) {
     // Never wipe something the person is typing or choosing; try again on the next tick.
     const el = document.activeElement;
     const typing = sheet.body.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName) && el.value;
-    if (typing || startPick || venuePick) return;
+    if (typing || startPick || venuePick || dietPick) return;
     const venueChanged = (fresh.venue?.id || null) !== (tb.venue?.id || null);
     tb = fresh;
     draw();
