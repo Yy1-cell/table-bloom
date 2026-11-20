@@ -1,5 +1,6 @@
 /* Table & Bloom — mobile-first. Tokens first, then base, layout, components. */
 :root {
+  --section-gap: clamp(20px, 2.4vw, 26px);
   --green-900: #243b30;
   --green-700: #365b3c;
   --green-500: #5f8a4b;
@@ -559,3 +560,12 @@ select:not([multiple]) {
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 4px) !important;
   }
 }
+
+/* Separate content groups while keeping their labels and controls together. */
+#view > :is(.hero, .toolbar, .loc-panel, .more-filters, .tabs, .dp, .stats, .setup-card),
+#entries > .entry { margin-bottom: var(--section-gap); }
+#view > .page-section { margin-top: var(--section-gap); }
+.grid { row-gap: var(--section-gap); }
+.sheet .section { margin-top: var(--section-gap); padding-top: 18px; }
+.map-bar { margin-block: var(--section-gap); padding: 14px; gap: 12px; }
+#pf { display: grid; gap: 18px; }

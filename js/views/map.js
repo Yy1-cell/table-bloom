@@ -48,7 +48,7 @@ export async function render(root) {
       <div class="budget-row" id="budget-row" role="group" aria-label="${esc(t("map.budget"))}"></div>
     </div>
     <div id="allergy"></div>
-    <section class="card" style="margin-top:16px"><h2>🗺️ ${esc(t("map.gTitle"))}</h2>
+    <section class="card page-section"><h2>🗺️ ${esc(t("map.gTitle"))}</h2>
       <p class="hint">${esc(t("map.gHint"))}</p>
       <div class="gmap-frame" id="gsearch"></div>
       <div class="row wrap-row" style="margin-top:8px">
@@ -56,8 +56,8 @@ export async function render(root) {
         <button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>
       </div>
       <p class="hint">${esc(t("map.hostNearHint"))}</p></section>
-    <section class="card" style="margin-top:16px"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
-    <details class="card built" id="built" style="margin-top:16px" ${window.innerWidth >= 820 ? "open" : ""}>
+    <section class="card page-section"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
+    <details class="card built page-section" id="built" ${window.innerWidth >= 820 ? "open" : ""}>
       <summary><strong>${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
       <div id="gmap" style="margin-top:10px"></div>
       <p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></details>`;

@@ -34,7 +34,7 @@ export async function render(root) {
     root.innerHTML = `
     <h1>${esc(onboarding ? t("pf.welcome") : t("pf.title"))}</h1>
     ${onboarding ? `<div class="setup-card"><strong>${esc(t("pf.onbTitle"))}</strong><br>${esc(t("pf.onbBody"))}</div>` : ""}
-    <form id="pf" class="card stack" novalidate>
+    <form id="pf" class="card" novalidate>
       <div class="field" style="margin:0"><label for="pf-name">${esc(t("pf.name"))}</label>
         <input id="pf-name" type="text" maxlength="30" required value="${esc(((me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name))}" placeholder="${esc(t("pf.namePh"))}">
         <div class="err-text" id="pf-name-err" role="alert"></div></div>
@@ -54,17 +54,17 @@ export async function render(root) {
       onboarding
         ? ""
         : `
-    <section class="card stack" style="margin-top:16px"><h2>${esc(t("pf.blocked"))}</h2>
+    <section class="card stack page-section"><h2>${esc(t("pf.blocked"))}</h2>
       ${blocks.length ? `<ul class="list-plain">${blocks.map((b) => `<li><span class="av">${esc(b.avatar_emoji)}</span><span style="flex:1">${esc(b.display_name)}</span><button type="button" class="btn sm" data-unblock="${esc(b.user_id)}">${esc(t("pf.unblock"))}</button></li>`).join("")}</ul>` : `<p class="muted">${esc(t("pf.noBlocks"))}</p>`}
     </section>
-    <section class="card stack" style="margin-top:16px"><h2>${esc(t("pf.app"))}</h2>${installBlock()}</section>
-    <section class="card stack" style="margin-top:16px"><h2>${esc(t("pf.safety"))}</h2>
+    <section class="card stack page-section"><h2>${esc(t("pf.app"))}</h2>${installBlock()}</section>
+    <section class="card stack page-section"><h2>${esc(t("pf.safety"))}</h2>
       <ul style="margin:0;padding-left:20px"><li>${esc(t("pf.tip1"))}</li><li>${esc(t("pf.tip2"))}</li><li>${esc(t("pf.tip3"))}</li></ul>
       ${window.TB_CONFIG?.SUPPORT_EMAIL ? `<p><a href="mailto:${esc(window.TB_CONFIG.SUPPORT_EMAIL)}">${esc(t("pf.contact"))}</a></p>` : ""}
     </section>
-    <section class="card stack" style="margin-top:16px"><button type="button" class="btn" id="how-pf">❓ ${esc(t("gd.open"))}</button></section>
-    ${state.isAdmin ? `<section class="card stack" style="margin-top:16px"><h2>🛠 ${esc(t("ad.title"))}</h2><p class="muted">${esc(t("ad.entry"))}</p><a class="btn" href="#admin">${esc(t("ad.open"))}</a></section>` : ""}
-    <section class="card stack" style="margin-top:16px"><h2>${esc(t("pf.account"))}</h2>
+    <section class="card stack page-section"><button type="button" class="btn" id="how-pf">❓ ${esc(t("gd.open"))}</button></section>
+    ${state.isAdmin ? `<section class="card stack page-section"><h2>🛠 ${esc(t("ad.title"))}</h2><p class="muted">${esc(t("ad.entry"))}</p><a class="btn" href="#admin">${esc(t("ad.open"))}</a></section>` : ""}
+    <section class="card stack page-section"><h2>${esc(t("pf.account"))}</h2>
       <p class="muted">${esc(me.guest ? t("pf.guestNote") : me.email || "")}</p>
       <div class="row wrap-row"><button type="button" class="btn" id="signout">${esc(t("pf.signOut"))}</button><button type="button" class="btn danger-ghost" id="delete">${esc(t("pf.delete"))}</button>${state.mode === "demo" ? `<button type="button" class="btn" id="demo-reset">🧪 ${esc(t("pf.demoReset"))}</button>` : ""}</div>
     </section>`
