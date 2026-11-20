@@ -221,6 +221,17 @@ export const EN = {
   "loc.search": "Search a city or place", "loc.searchPh": "e.g. Vancouver, London, Shibuya", "loc.searchHint": "Type at least 2 letters, then pick a result.", "loc.notSet": "Not set yet", "loc.set": "Set my location",
   "loc.radius": "Distance", "loc.within": "Within {km} km", "loc.anywhere": "Anywhere", "loc.widen": "Look further away", "loc.denied": "Location access is blocked. Allow it in your browser's site settings, or search for a city instead.", "loc.errBase": "Pick where this is: use your location or search a city.",
   "disc.emptyNear": "No tables near you yet", "disc.emptyNearBody": "Be the first to host one here, or look further away.", "cr.around": "Around", "map.defaultHint": "Tap “Use my location” or search for a city to see places near you.", "loc.needTitle": "Where are you?", "loc.needBody": "Share your location or pick a city to see the tables near you.",
+  "gd.title": "How it works", "gd.pick": "What do you want to do? Pick one — you can look at the other later.", "gd.skip": "Skip", "gd.done": "Got it", "gd.change": "Change", "gd.stepOf": "Step {n} of {total}", "gd.open": "How it works",
+  "gd.new.name": "🌱 Meet new people & try new food", "gd.new.sub": "Join or host a table with people you don't know yet",
+  "gd.friends.name": "👫 Eat with friends", "gd.friends.sub": "Find a restaurant that's fair for everyone, in the middle",
+  "gd.new.find.t": "Find a place you'd like to try", "gd.new.find.b": "Open the Map, pick what you feel like eating, and see restaurants around you.", "gd.new.find.go": "Open the Map",
+  "gd.new.host.t": "Host a table", "gd.new.host.b": "Tap “Host a table” (or “Host here” on a restaurant). Choose the food, time and seats.", "gd.new.host.go": "Host a table",
+  "gd.new.fill.t": "Wait for your table to fill", "gd.new.fill.b": "People ask to join and you say yes. When it's full, go and enjoy the meal together.",
+  "gd.new.reflect.t": "After the meal: write it down", "gd.new.reflect.b": "Review the food and the people you ate with, and note how you felt. Your journal is private and helps suggest better tables.",
+  "gd.friends.host.t": "Host a “Friends” table", "gd.friends.host.b": "Choose “Friends” and pick the food you'd both like (up to 3). Friends tables are private — only people with your link can join.", "gd.friends.host.go": "Host a table",
+  "gd.friends.invite.t": "Send the invite link", "gd.friends.invite.b": "Open your table and share its link with your friends. They tap it and join in one step.",
+  "gd.friends.middle.t": "Everyone adds where they start", "gd.friends.middle.b": "Each friend sets their starting point and what they feel like eating. It updates live on your table page, and we suggest restaurants near the middle.",
+  "gd.friends.reflect.t": "Pick together, eat, then reflect", "gd.friends.reflect.b": "Choose the restaurant, meet up, and write a short reflection after the meal.",
 };
 
 export const ZH = {
@@ -430,4 +441,15 @@ export const ZH = {
   "loc.search": "搜索城市或地点", "loc.searchPh": "例如：温哥华、London、涩谷", "loc.searchHint": "至少输入 2 个字，然后选择一个结果。", "loc.notSet": "还没设置", "loc.set": "设置我的位置",
   "loc.radius": "距离", "loc.within": "{km} 公里内", "loc.anywhere": "不限距离", "loc.widen": "看看更远的", "loc.denied": "定位权限被拒绝。请在浏览器的网站设置里允许定位，或者直接搜索一个城市。", "loc.errBase": "请选好地点：用你的位置，或搜索一个城市。",
   "disc.emptyNear": "你附近还没有饭局", "disc.emptyNearBody": "来发起第一个吧，或者看看更远的地方。", "cr.around": "地点范围", "map.defaultHint": "点“用我的位置”或搜索一个城市，就能看到你附近的地方。", "loc.needTitle": "你在哪里？", "loc.needBody": "分享你的位置或选一个城市，就能看到附近的饭局。",
+  "gd.title": "怎么用", "gd.pick": "你想怎么用？先选一个，另一个以后也能看。", "gd.skip": "跳过", "gd.done": "知道了", "gd.change": "换一个", "gd.stepOf": "第 {n} 步，共 {total} 步", "gd.open": "怎么用",
+  "gd.new.name": "🌱 认识新朋友、尝新菜", "gd.new.sub": "和还不认识的人一起开桌或拼桌",
+  "gd.friends.name": "👫 和朋友聚餐", "gd.friends.sub": "找一家对大家都公平的、在中间的餐厅",
+  "gd.new.find.t": "找一家想去的店", "gd.new.find.b": "打开地图，选你想吃的菜，看看周围有哪些餐厅。", "gd.new.find.go": "打开地图",
+  "gd.new.host.t": "发起饭局", "gd.new.host.b": "点“发起饭局”（或在餐厅上点“在这里发起”），选好菜系、时间和人数。", "gd.new.host.go": "发起饭局",
+  "gd.new.fill.t": "等拼好桌", "gd.new.fill.b": "有人申请加入，你来同意。人到齐了，就一起去吃饭。",
+  "gd.new.reflect.t": "吃完写下来", "gd.new.reflect.b": "评价菜品和一起吃饭的人，记下当时的心情。日记只有你自己能看，还能帮你找到更合适的饭局。",
+  "gd.friends.host.t": "发起一桌“朋友局”", "gd.friends.host.b": "选“朋友”，再选你们都想吃的菜（最多 3 个）。朋友局是私密的，只有拿到链接的人才能加入。", "gd.friends.host.go": "发起饭局",
+  "gd.friends.invite.t": "把链接发给朋友", "gd.friends.invite.b": "打开你的饭局，分享它的链接。朋友点开就能一步加入。",
+  "gd.friends.middle.t": "每个人填出发点", "gd.friends.middle.b": "每个朋友填自己从哪出发、想吃什么。内容会实时显示在你的饭局页面上，我们会推荐大家路程都差不多的中间餐厅。",
+  "gd.friends.reflect.t": "一起选店、吃饭、写感受", "gd.friends.reflect.b": "选定餐厅，见面吃饭，饭后写一小段感受。",
 };

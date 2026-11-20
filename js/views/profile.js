@@ -87,6 +87,7 @@ export async function render(root) {
       <ul style="margin:0;padding-left:20px"><li>${esc(t("pf.tip1"))}</li><li>${esc(t("pf.tip2"))}</li><li>${esc(t("pf.tip3"))}</li></ul>
       ${window.TB_CONFIG?.SUPPORT_EMAIL ? `<p><a href="mailto:${esc(window.TB_CONFIG.SUPPORT_EMAIL)}">${esc(t("pf.contact"))}</a></p>` : ""}
     </section>
+    <section class="card stack" style="margin-top:16px"><button type="button" class="btn" id="how-pf">❓ ${esc(t("gd.open"))}</button></section>
     ${state.isAdmin ? `<section class="card stack" style="margin-top:16px"><h2>🛠 ${esc(t("ad.title"))}</h2><p class="muted">${esc(t("ad.entry"))}</p><a class="btn" href="#admin">${esc(t("ad.open"))}</a></section>` : ""}
     <section class="card stack" style="margin-top:16px"><h2>${esc(t("pf.account"))}</h2>
       <p class="muted">${esc(me.guest ? t("pf.guestNote") : me.email || "")}</p>
@@ -148,6 +149,7 @@ export async function render(root) {
       await ev.prompt();
       draw();
     });
+    qs("#how-pf", root)?.addEventListener("click", async () => (await import("./guide.js")).openGuide());
     qs("#signout", root)?.addEventListener("click", async () => {
       if (me.guest) {
         const ok = await confirmDialog({ title: t("pf.guestOutQ"), body: t("pf.guestOutBody"), confirmLabel: t("pf.signOut"), danger: true });

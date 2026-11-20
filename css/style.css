@@ -416,3 +416,14 @@ label.check input { margin-top: 3px; }
 .loc-bar .chip { max-width: 100%; }
 .loc-panel { margin-bottom: 12px; }
 .loc-now { margin: 0 0 8px; }
+
+/* how-it-works guide */
+.hero-how { margin-left: 8px; background: transparent; color: #fff; border-color: rgba(255,255,255,.6); }
+.guide-paths { display: grid; gap: 10px; margin: 14px 0; }
+.guide-path { text-align: left; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); background: #fff; cursor: pointer; font: inherit; display: grid; gap: 4px; }
+.guide-path:hover, .guide-path:focus-visible { border-color: var(--green-500); }
+.guide-path small { color: var(--muted, #6b7a68); }
+.guide-card { text-align: center; padding: 8px 4px 16px; }
+.guide-emoji { font-size: 54px; line-height: 1.1; }
+.guide-n { margin: 6px 0 0; font-size: 13px; color: var(--muted, #6b7a68); }
+.guide-nav .spacer { flex: 1; }

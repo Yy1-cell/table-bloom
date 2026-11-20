@@ -211,6 +211,12 @@ async function doRoute() {
     closeSheet({ silent: true });
     await showBase(name);
     renderChrome();
+    // First visit after setting up the profile: a short "how it works" (can be skipped; also under ❓ on Discover and Profile).
+    if (name === "discover" && state.me?.onboarded_at && !guideShown) {
+      guideShown = true;
+      const g = await import("./views/guide.js");
+      if (!g.guideSeen() && !hasSheet()) g.openGuide();
+    }
   } else if (name === "admin") {
     // operator console: the server refuses non-admins anyway; this just keeps everyone else from seeing an empty page
     if (state.isAdmin === undefined) state.isAdmin = (await api().adminCheck?.()) === true;
@@ -236,6 +242,7 @@ async function doRoute() {
   }
 }
 
+let guideShown = false;
 const route = () => (routing = routing.then(doRoute).catch((e) => console.error(e)));
 
 // ------------------------------------------------------------------ session

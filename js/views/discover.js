@@ -62,6 +62,7 @@ export async function render(root) {
       <h1>${esc(t("disc.title"))}</h1>
       <p>${esc(t("disc.sub"))}</p>
       <a class="btn" href="#new">＋ ${esc(t("disc.host"))}</a>
+      <button type="button" class="btn ghost hero-how" id="how">❓ ${esc(t("gd.open"))}</button>
     </section>
     <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}">
       <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
@@ -86,6 +87,7 @@ export async function render(root) {
     <div class="grid" id="list" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div>`;
 
   const list = qs("#list", root);
+  qs("#how", root).addEventListener("click", async () => (await import("./guide.js")).openGuide());
 
   function paint() {
     if (!alive) return;
