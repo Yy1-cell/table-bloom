@@ -112,16 +112,21 @@ async function showBase(name, { force = false } = {}) {
   const y = current === name ? window.scrollY : 0;
   current = name;
   state.baseView = BASE.includes(name) ? name : state.baseView;
-  view.innerHTML = "";
+  view.innerHTML = `<p role="status">${esc(t("route.loading"))}</p>`;
   renderChrome();
-  const mod = await import(`./views/${name === "journal" ? "reflect" : name}.js`);
-  if (current !== name) return;
-  const res = await mod.render(view);
-  if (current !== name) {
-    if (typeof res === "function") res();
+  try {
+    const mod = await import(`./views/${name === "journal" ? "reflect" : name}.js`);
+    if (current !== name) return;
+    const res = await mod.render(view);
+    if (current !== name) {
+      if (typeof res === "function") res();
+      return;
+    }
+    cleanup = typeof res === "function" ? res : null;
+  } catch (error) {
+    if (current === name) showRouteError(error);
     return;
   }
-  cleanup = typeof res === "function" ? res : null;
   document.title = `${t("nav." + name)} · Table & Bloom`;
   window.scrollTo(0, y);
 }
@@ -243,7 +248,15 @@ async function doRoute() {
 }
 
 let guideShown = false;
-const route = () => (routing = routing.then(doRoute).catch((e) => console.error(e)));
+function showRouteError(error) {
+  console.error(error);
+  current = null;
+  view.innerHTML = `<section class="empty" role="alert"><p>${esc(t("route.failed"))}</p>
+    <button type="button" class="btn primary">${esc(t("sw.reload"))}</button></section>`;
+  qs("button", view).addEventListener("click", () => location.reload());
+}
+
+const route = () => (routing = routing.then(doRoute).catch(showRouteError));
 
 // ------------------------------------------------------------------ session
 async function onSession(session) {
@@ -327,12 +340,18 @@ function registerSW() {
   navigator.serviceWorker
     .register("./sw.js")
     .then((reg) => {
+      function offerUpdate(worker) {
+        if (!worker || !navigator.serviceWorker.controller) return;
+        toast(t("sw.update"), { actionLabel: t("sw.reload"), onAction: () => {
+          navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+          worker.postMessage("activate-update");
+        }, duration: 0 });
+      }
+      offerUpdate(reg.waiting);
       reg.addEventListener("updatefound", () => {
-        const nw = reg.installing;
-        nw?.addEventListener("statechange", () => {
-          if (nw.state === "installed" && navigator.serviceWorker.controller) {
-            toast(t("sw.update"), { actionLabel: t("sw.reload"), onAction: () => location.reload(), duration: 0 });
-          }
+        const worker = reg.installing;
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed") offerUpdate(worker);
         });
       });
     })

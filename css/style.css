@@ -552,3 +552,10 @@ select:not([multiple]) {
 .diet-tag { background: #f3efe3; border-radius: 999px; padding: 1px 8px; font-size: 12.5px; }
 .diet-tag.allergy { background: #fbe9c8; }
 .allergy-note ul { margin: 6px 0 4px; padding-left: 20px; }
+
+.profile-diet summary { cursor: pointer; padding-block: 12px; font-weight: 600; }
+@media (max-width: 819px) {
+  body:has(#bottom-nav a) #nl-badge-frame {
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 4px) !important;
+  }
+}

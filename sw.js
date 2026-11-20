@@ -3,7 +3,7 @@
  * - Never caches API calls (Supabase, map search): user data must always be live.
  * Bump CACHE_VERSION whenever you deploy changed files.
  */
-const CACHE_VERSION = "tb-v44";
+const CACHE_VERSION = "tb-v45";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,6 +12,10 @@ const SHELL = [
   "./manifest.webmanifest",
   "./css/style.css",
   "./js/main.js",
+  "./js/location.js",
+  "./js/currency.js",
+  "./js/views/loc-picker.js",
+  "./js/views/guide.js",
   "./js/invitation.js",
   "./js/i18n.js",
   "./js/strings.js",
@@ -52,7 +56,7 @@ const SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))).then(() => self.skipWaiting())
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))))
   );
 });
 
@@ -60,42 +64,26 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("tb-") && k !== CACHE_VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data === "activate-update") event.waitUntil(self.skipWaiting());
+});
+
+// Keep each controlled page on the complete shell installed for this release.
+const shellURLs = new Set(SHELL.map((path) => new URL(path, self.registration.scope).href));
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-
-  // Only handle our own files. Supabase, Photon, Overpass, fonts and CDN libraries go straight to the network.
-  if (url.origin !== self.location.origin) return;
-
-  // Page navigations: network first, fall back to the cached shell, then the offline page.
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req).catch(() =>
-        caches.match("./index.html").then((hit) => hit || caches.match("./offline.html"))
-      )
-    );
-    return;
-  }
-
-  // Static files: network first, cache only as the offline fallback.
-  // (It used to be stale-while-revalidate, which kept serving the PREVIOUS deploy's JS for one more visit:
-  // anyone who had opened the app before, including the host, ran old code and an invite link
-  // could be sent to the sign-in page instead of showing the table.)
-  event.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(req))
-  );
+  const entry = new URL("./index.html", self.registration.scope);
+  const isAppPage = req.mode === "navigate" &&
+    (url.origin + url.pathname === self.registration.scope || url.origin + url.pathname === entry.href);
+  if (!isAppPage && !shellURLs.has(url.href)) return;
+  event.respondWith(caches.open(CACHE_VERSION).then(async (cache) =>
+    (await cache.match(isAppPage ? entry.href : req)) || fetch(req)
+  ));
 });
