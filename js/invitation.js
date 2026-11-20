@@ -42,15 +42,15 @@ export function renderInvitation(root) {
     return;
   }
   const when = new Date(details.startsAt).toLocaleString(getLang() === "zh" ? "zh-CN" : "en-CA", {
-    dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto",
+    dateStyle: "long", timeStyle: "short",
   });
   const place = [details.place, details.address].filter(Boolean).join(" · ");
   const canOpen = typeof details.tableId === "string" && /^[0-9a-f-]{36}$/i.test(details.tableId);
   root.innerHTML = `<div class="card">
     <p class="muted">${esc(t("invite.title"))}</p>
     <h1>${esc(details.title)}</h1>
-    <p>🕖 ${esc(when)} (Toronto)</p>
-    ${place ? `<p>📍 ${esc(place)}</p><a class="btn sm" href="${esc(mapsUrl({ name: details.place, address: details.address || "Toronto, ON" }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>` : ""}
+    <p>🕖 ${esc(when)}</p>
+    ${place ? `<p>📍 ${esc(place)}</p><a class="btn sm" href="${esc(mapsUrl({ name: details.place, address: details.address || "" }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>` : ""}
     ${Number.isSafeInteger(details.budget) && details.budget >= 0 ? `<p>${esc(t("card.perPerson", { price: fmtMoney(details.budget) }))}</p>` : ""}
     ${canOpen
       ? `<a class="btn primary" href="#t-${esc(details.tableId)}">${esc(t("invite.open"))}</a>`

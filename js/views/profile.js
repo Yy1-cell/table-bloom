@@ -5,6 +5,7 @@ import { state } from "../state.js";
 import { api } from "../api.js";
 import { toast, announce, confirmDialog } from "../ui.js";
 import { AVATARS, SPOKEN } from "../data.js";
+import { mountLocPicker } from "./loc-picker.js";
 import { nameOf, showError, withBusy, go, cuisineGroupsHTML } from "./common.js";
 
 // Unsaved form values survive a language switch (which re-renders the whole page).
@@ -57,8 +58,7 @@ export async function render(root) {
       <fieldset style="margin:0"><legend>${esc(t("pf.avatar"))}</legend><div class="avatar-pick">
         ${AVATARS.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
       </div></fieldset>
-      <div class="field" style="margin:0"><label for="pf-area">${esc(t("pf.area"))}</label>
-        <select id="pf-area">${state.areas.map((a) => `<option value="${a.id}" ${(f.area ?? me.area_id) === a.id ? "selected" : ""}>${esc(nameOf(a))}</option>`).join("")}</select></div>
+      <div class="field" style="margin:0"><span class="lbl">${esc(t("pf.area"))}</span><div id="pf-loc"></div></div>
       <div class="field" style="margin:0"><label for="pf-lang">${esc(t("pf.language"))}</label>
         <select id="pf-lang"><option value="en" ${getLang() === "en" ? "selected" : ""}>English</option><option value="zh" ${getLang() === "zh" ? "selected" : ""}>中文</option></select></div>
       <fieldset style="margin:0"><legend>${esc(t("pf.spoken"))}</legend><div class="chips" id="pf-spoken">
@@ -96,6 +96,7 @@ export async function render(root) {
   }
 
   function wire() {
+    mountLocPicker(qs("#pf-loc", root), { label: t("loc.search") });
     qs("#pf-lang", root).addEventListener("change", (e) => {
       // Apply immediately; keep whatever has been typed so far.
       stash = {
@@ -103,7 +104,6 @@ export async function render(root) {
         spoken: [...draft.spoken],
         favs: [...draft.favs],
         name: qs("#pf-name", root).value,
-        area: qs("#pf-area", root).value,
         diet: qs("#pf-diet", root).value,
         budget: qs("#pf-budget", root).value,
       };
@@ -193,7 +193,6 @@ export async function render(root) {
     const patch = {
       display_name: name,
       avatar_emoji: draft.avatar,
-      area_id: qs("#pf-area", root).value,
       language: lang,
       languages_spoken: [...draft.spoken],
       dietary_notes: qs("#pf-diet", root).value.trim(),

@@ -1,9 +1,11 @@
 // Discover: browse open tables, filter, sort by taste match / budget / distance.
 import { esc, isToday, qs, qsa } from "../util.js";
 import { t } from "../i18n.js";
-import { state, areaOf, cuisineOf } from "../state.js";
+import { state, cuisineOf } from "../state.js";
 import { api } from "../api.js";
-import { currentPosition } from "../geo.js";
+import { effectiveLoc, locateMe, kmFrom } from "../location.js";
+import { locationPermission } from "../geo.js";
+import { mountLocPicker } from "./loc-picker.js";
 import { toast, announce } from "../ui.js";
 import { tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
 import { OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
@@ -13,8 +15,11 @@ import { groupOfSlug } from "./menu-picker.js";
 const CHIPS = ["all", "today", "new", "friend"];
 
 function visible(list) {
-  const { chip, sort, occasion, fmt, vtype } = state.filters;
+  const { chip, sort, occasion, fmt, vtype, radius } = state.filters;
   let out = list.filter((x) => x.my_status !== "declined");
+  // Only tables within the chosen distance of the place I'm looking at (tables with no known point are kept).
+  const loc = effectiveLoc();
+  if (loc && radius) out = out.filter((x) => { const d = kmFrom(loc, x); return d == null || d <= radius; });
   if (chip === "today") out = out.filter((x) => isToday(x.starts_at));
   if (chip === "new") out = out.filter((x) => x.audience !== "friends");
   if (chip === "friend") out = out.filter((x) => x.audience !== "new_people");
@@ -58,11 +63,15 @@ export async function render(root) {
       <p>${esc(t("disc.sub"))}</p>
       <a class="btn" href="#new">＋ ${esc(t("disc.host"))}</a>
     </section>
+    <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}">
+      <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
+      <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>
+      <select id="radius-sel">${[10, 25, 50, 200, 0].map((r) => `<option value="${r}" ${Number(f.radius) === r ? "selected" : ""}>${esc(r ? t("loc.within", { km: r }) : t("loc.anywhere"))}</option>`).join("")}</select>
+    </div>
+    <div class="card loc-panel" id="loc-panel" hidden></div>
     <div class="toolbar" role="group" aria-label="${esc(t("disc.filters"))}">
       <div class="chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}</div>
       <span class="spacer"></span>
-      <label class="sr-only" for="area-sel">${esc(t("disc.area"))}</label>
-      <select id="area-sel"><option value="">${esc(t("disc.allAreas"))}</option>${state.areas.map((a) => `<option value="${a.id}" ${f.areaId === a.id ? "selected" : ""}>${esc(nameOf(a))}</option>`).join("")}</select>
       <label class="sr-only" for="sort-sel">${esc(t("disc.sort"))}</label>
       <select id="sort-sel">${sortOptions()}</select>
     </div>
@@ -80,9 +89,30 @@ export async function render(root) {
 
   function paint() {
     if (!alive) return;
+    // Everyone sees their own city first: until a place is set, no other city's tables are shown.
+    if (!effectiveLoc()) {
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big" aria-hidden="true">📍</div><h2>${esc(t("loc.needTitle"))}</h2><p>${esc(t("loc.needBody"))}</p><button type="button" class="btn primary" id="need-loc">📍 ${esc(t("map.useMe"))}</button></div>`;
+      qs("#need-loc", list)?.addEventListener("click", async (e) => {
+        e.currentTarget.disabled = true;
+        try {
+          await locateMe();
+          paintLoc();
+          togglePanel(false);
+          paint();
+        } catch (err) {
+          e.currentTarget.disabled = false;
+          toast(err?.reason === "denied" ? t("loc.denied") : t("disc.noLocation"), { kind: "error" });
+        }
+      });
+      return;
+    }
     const items = visible(state.tables);
     if (!items.length) {
-      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big" aria-hidden="true">🍽️</div><h2>${esc(t("disc.emptyTitle"))}</h2><p>${esc(t("disc.emptyBody"))}</p><a class="btn primary" href="#new">${esc(t("disc.host"))}</a></div>`;
+      // Nothing close by: say so in a friendly way and offer to look further out.
+      const far = f.radius && effectiveLoc() && state.tables.length;
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big" aria-hidden="true">🍽️</div><h2>${esc(effectiveLoc() && f.radius ? t("disc.emptyNear") : t("disc.emptyTitle"))}</h2><p>${esc(effectiveLoc() && f.radius ? t("disc.emptyNearBody") : t("disc.emptyBody"))}</p>
+        ${far ? `<button type="button" class="btn" id="widen">${esc(t("loc.widen"))}</button> ` : ""}<a class="btn primary" href="#new">${esc(t("disc.host"))}</a></div>`;
+      qs("#widen", list)?.addEventListener("click", () => setRadius(0));
       return;
     }
     list.innerHTML = items.map((x) => tableCardHTML(x, { reason: reasonFor(x) })).join("");
@@ -91,7 +121,7 @@ export async function render(root) {
 
   async function load() {
     try {
-      const [tables, rows] = await Promise.all([api.listTables({ areaId: f.areaId }), state.diningProfile === undefined ? api.listMyFeelings().catch(() => []) : null]);
+      const [tables, rows] = await Promise.all([api.listTables(), state.diningProfile === undefined ? api.listMyFeelings().catch(() => []) : null]);
       state.tables = tables;
       if (rows) state.diningProfile = buildProfile(rows, groupOfSlug);
       // with some check-ins on record, "For you" becomes the default order (until the person picks another)
@@ -148,15 +178,54 @@ export async function render(root) {
     paint();
     announce(t("disc.count", { n: visible(state.tables).length }));
   });
-  qs("#area-sel", root).addEventListener("change", (e) => {
-    f.areaId = e.target.value || null;
-    load();
-  });
+  const paintLoc = () => {
+    const cur = effectiveLoc();
+    qs("#loc-btn", root).innerHTML = `📍 ${esc(cur ? cur.label || t("map.here") : t("loc.set"))} <span aria-hidden="true">▾</span>`;
+  };
+  paintLoc();
+  const setRadius = (r) => {
+    f.radius = r;
+    qs("#radius-sel", root).value = String(r);
+    paint();
+    announce(t("disc.count", { n: visible(state.tables).length }));
+  };
+  qs("#radius-sel", root).addEventListener("change", (e) => setRadius(Number(e.target.value)));
+  const panel = qs("#loc-panel", root);
+  const togglePanel = (open) => {
+    panel.hidden = !open;
+    qs("#loc-btn", root).setAttribute("aria-expanded", String(open));
+    if (open && !panel.firstChild) {
+      mountLocPicker(panel, {
+        onChange: () => {
+          paintLoc();
+          togglePanel(false);
+          paint();
+          announce(t("disc.count", { n: visible(state.tables).length }));
+        },
+      });
+    }
+  };
+  qs("#loc-btn", root).addEventListener("click", () => togglePanel(panel.hidden));
+  if (!effectiveLoc()) {
+    togglePanel(true);
+    // If the browser already allows location, just use it (no prompt is shown in that case).
+    locationPermission().then(async (perm) => {
+      if (perm !== "granted" || !alive || effectiveLoc()) return;
+      try {
+        await locateMe();
+        if (!alive) return;
+        paintLoc();
+        togglePanel(false);
+        paint();
+      } catch {}
+    });
+  }
   qs("#sort-sel", root).addEventListener("change", async (e) => {
     const v = e.target.value;
-    if (v === "closest" && !state.pos) {
+    if (v === "closest" && !effectiveLoc()) {
       try {
-        state.pos = await currentPosition();
+        await locateMe();
+        paintLoc();
       } catch {
         toast(t("disc.noLocation"), { kind: "error" });
         e.target.value = f.sort;

@@ -12,8 +12,9 @@ import { getLang } from "./i18n.js";
 
 const PHOTON = "https://photon.komoot.io/api/";
 const OVERPASS = "https://overpass.private.coffee/api/interpreter";
-// Greater Toronto Area bounding box: minLon,minLat,maxLon,maxLat
-const GTA_BBOX = "-80.2,43.4,-78.9,44.1";
+const TORONTO = { lat: 43.6532, lng: -79.3832 };
+// Toronto-only data (DineSafe names, the landmark list) is used only when the person is looking at the Toronto region.
+export const nearToronto = (p) => !p || !Number.isFinite(+p.lat) || haversineKm({ lat: +p.lat, lng: +p.lng }, TORONTO) < 90;
 
 export const LANDMARKS = [
   { name: "Robarts Library", zh: "罗巴茨图书馆 (Robarts Library)", address: "130 St George St, Toronto", lat: 43.6644, lng: -79.3995 },
@@ -49,16 +50,17 @@ function formatAddress(p) {
   return [street, p.district || p.locality, p.city, p.state].filter(Boolean).join(", ");
 }
 
-/** Search a place or address near the GTA. Throws on network errors so the UI can show landmarks instead. */
+/** Search a place or address anywhere; results are biased toward `near`. Throws on network errors so the UI can show landmarks instead. */
 export async function searchPlaces(query, { near, signal, restaurantsOnly = false } = {}) {
   const q = query.trim();
   if (q.length < 2) return [];
-  const local = await searchTorontoVenues(q, near).catch(() => []);
+  const here = nearToronto(near);
+  const local = here ? await searchTorontoVenues(q, near).catch(() => []) : [];
   signal?.throwIfAborted();
-  const landmarks = restaurantsOnly ? [] : searchLandmarks(q);
+  const landmarks = restaurantsOnly || !here ? [] : searchLandmarks(q);
   if (local.length || landmarks.length) return [...landmarks, ...local].slice(0, 7);
   // Photon only translates names into en/de/fr/it. For Chinese we ask for the local names (English in Toronto).
-  const params = new URLSearchParams({ q, limit: "7", bbox: GTA_BBOX });
+  const params = new URLSearchParams({ q, limit: "7" });
   if (getLang() !== "zh") params.set("lang", "en");
   if (restaurantsOnly) {
     for (const kind of ["restaurant", "cafe", "fast_food", "food_court"]) {
@@ -96,6 +98,23 @@ export async function searchPlaces(query, { near, signal, restaurantsOnly = fals
         seen.add(key);
         return true;
       });
+  } finally {
+    t.done();
+  }
+}
+
+/** Name of the place at a point (city/district), for labels like "near Vancouver". Resolves "" when unknown. */
+export async function reverseLabel({ lat, lng }, { signal } = {}) {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lng), limit: "1" });
+  if (getLang() !== "zh") params.set("lang", "en");
+  const t = withTimeout(7000, signal);
+  try {
+    const res = await fetch(`${PHOTON.replace(/api\/$/, "reverse")}?${params}`, { signal: t.signal });
+    if (!res.ok) return "";
+    const p = (await res.json())?.features?.[0]?.properties || {};
+    return p.city || p.district || p.locality || p.county || p.name || p.state || "";
+  } catch {
+    return "";
   } finally {
     t.done();
   }

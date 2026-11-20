@@ -259,7 +259,7 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
   function showGoogleSearch(q, center) {
     fallback.href = mapsUrl({
       name: q,
-      address: center ? `near ${center.lat},${center.lng}` : "Toronto, ON",
+      address: center ? `near ${center.lat},${center.lng}` : "",
     });
     fallback.hidden = false;
   }

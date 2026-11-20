@@ -8,8 +8,9 @@ export const state = {
   cuisines: [],
   tables: [], // Discover list
   myTables: [], // tables I host or joined/requested
+  loc: null, // where I am looking: { lat, lng, label, gps } kept in this browser (js/location.js)
   pos: null, // { lat, lng } from the browser, only after the user asks for "closest"
-  filters: { chip: "all", sort: "match", sortSet: false, areaId: null, occasion: "", fmt: "", vtype: "" },
+  filters: { chip: "all", sort: "match", sortSet: false, radius: 25, occasion: "", fmt: "", vtype: "" },
   diningProfile: undefined, // built from my post-meal check-ins; undefined = not loaded yet
   createPrefill: null, // { place, cuisine, area_id } handed to the Host-a-table sheet, e.g. from the Map tab
   baseView: "discover", // the page behind any open sheet

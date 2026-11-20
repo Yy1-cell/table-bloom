@@ -4,7 +4,8 @@ import { esc, qs, qsa, haversineKm, fmtWhen, googleEmbedUrl, mapsUrl } from "../
 import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
-import { currentPosition, locationPermission, restaurantsForKeys } from "../geo.js";
+import { currentPosition, locationPermission, restaurantsForKeys, reverseLabel } from "../geo.js";
+import { effectiveLoc, setLoc as saveLoc } from "../location.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mountGroupMap } from "../group-map.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
@@ -19,12 +20,14 @@ export async function render(root) {
   let centerRevision = 0;
   // Up to three picks (cuisines and/or formats); an older single string in state is carried over.
   let picks = Array.isArray(state.mapCuisines) ? [...state.mapCuisines] : state.mapCuisine ? [state.mapCuisine] : [];
+  // Start from the place I picked (or the old home area); with neither, show a default city until "Use my location" is tapped.
   const areaC = () => {
-    const a = state.areas.find((x) => x.id === state.me?.area_id) || state.areas[0];
+    const l = effectiveLoc();
+    if (l) return { lat: l.lat, lng: l.lng, label: l.label || t("map.here") };
     const d = window.TB_CONFIG?.DEFAULT_CENTER || { lat: 43.6532, lng: -79.3832 };
-    return a ? { lat: Number(a.center_lat), lng: Number(a.center_lng), label: nameOf(a) } : { ...d, label: "Toronto" };
+    return { ...d, label: "", isDefault: true };
   };
-  let center = state.mapCenter || (state.pos ? { lat: state.pos.lat, lng: state.pos.lng, label: t("map.here") } : areaC());
+  let center = state.mapCenter || areaC();
 
   const ps = placeSearchHTML({ label: t("map.search"), placeholder: t("map.searchPh"), hint: t("map.searchHint") });
   root.innerHTML = `
@@ -132,7 +135,7 @@ export async function render(root) {
       box.innerHTML = "";
       return;
     }
-    const q = [r.name, r.address || "Toronto"].filter(Boolean).join(", ");
+    const q = [r.name, r.address || center.label || ""].filter(Boolean).join(", ");
     box.innerHTML = `<div class="pick-card">
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, distLine({ dist: r.distKm, lat: r.lat, lng: r.lng })].filter(Boolean).join(" · "))}</small></div>
       <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
@@ -170,6 +173,9 @@ export async function render(root) {
       if (!alive) return;
       state.pos = pos;
       if (revision !== centerRevision) return;
+      const name = await reverseLabel(pos).catch(() => "");
+      if (!alive) return;
+      saveLoc({ lat: pos.lat, lng: pos.lng, label: name, gps: true });
       center = { lat: pos.lat, lng: pos.lng, label: t("map.here") };
       state.mapCenter = center;
       setLoc("map.located");
@@ -267,6 +273,11 @@ export async function render(root) {
       : `<iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(key, 14, center))}"></iframe>`;
   }
   function refresh() {
+    if (center.isDefault) {
+      // No place yet: show nothing from another city.
+      for (const id of ["#center", "#tbl", "#rest", "#gmap", "#gsearch"]) { const el = qs(id, root); if (el) el.innerHTML = ""; }
+      return;
+    }
     paintGoogleLink();
     paintCenter();
     loadTables();
@@ -303,15 +314,11 @@ export async function render(root) {
   // "Host a table here": open the Host-a-table sheet with this restaurant already chosen
   function hostHere(r) {
     const at = r || center; // no restaurant chosen: just host somewhere around the picked place
-    const areas = state.areas.filter((a) => a.center_lat != null && a.center_lng != null);
-    const nearest = areas
-      .map((a) => ({ id: a.id, d: haversineKm({ lat: at.lat, lng: at.lng }, { lat: Number(a.center_lat), lng: Number(a.center_lng) }) }))
-      .sort((x, y) => x.d - y.d)[0];
     state.createPrefill = {
       place: r ? { name: r.name, address: r.address || "", lat: r.lat, lng: r.lng, poi_id: r.poi_id || null } : null,
       cuisines: picks.filter((k) => !isFormat(k)),
       formats: picks.filter(isFormat),
-      area_id: nearest?.id || "",
+      base: center.isDefault ? null : { lat: at.lat, lng: at.lng, label: center.label || "" },
     };
     go("#new");
   }
@@ -340,11 +347,9 @@ export async function render(root) {
   refresh();
   // Automatic positioning: the first time the Map tab opens (and the person has not searched for something else),
   // ask the browser for the current position. If permission was already granted this is silent.
-  if (state.pos && !state.mapCenter) {
-    center = { lat: state.pos.lat, lng: state.pos.lng, label: t("map.here") };
-    state.mapCenter = center;
-    setLoc("map.located");
-    refresh();
+  if (center.isDefault && !state.mapCenter) setLoc("map.defaultHint", { name: center.label });
+  if (!state.mapCenter && effectiveLoc()) {
+    setLoc("");
   } else if (!state.mapCenter && !state.locTried) {
     locationPermission().then((perm) => {
       if (!alive) return;

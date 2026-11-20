@@ -40,7 +40,7 @@ export const EN = {
   "aud.friends": "Friends", "aud.friends_and_new": "Friends & new people", "aud.new_people": "New people",
   "audHint.friends": "Bring your own circle", "audHint.friends_and_new": "Bring a friend, meet a few more", "audHint.new_people": "Everyone is meeting for the first time",
   "cr.occasion": "Occasion", "oc.date": "Date", "oc.family": "Family meal", "oc.friends": "Friends hangout", "oc.classmates": "Classmates", "oc.work": "Work & business", "oc.celebrate": "Celebration",
-  "tag.mandarin_friendly": "Mandarin friendly", "tag.new_to_toronto": "New to Toronto", "tag.split_bill": "Split the bill",
+  "tag.mandarin_friendly": "Mandarin friendly", "tag.new_to_toronto": "New to the city", "tag.split_bill": "Split the bill",
   "tag.bring_a_friend": "Bring a friend", "tag.easy_conversation": "Easy conversation", "tag.try_somewhere_new": "Try somewhere new",
   "int.unwind": "Unwind after a long week", "int.catch_up": "Catch up", "int.study_tips": "Swap study / work tips", "int.new_perspectives": "Hear new perspectives",
   "pace.talking": "I like to chat", "pace.ease_in": "Ease in slowly", "pace.listening": "I'd rather listen at first",
@@ -127,7 +127,7 @@ export const EN = {
 
   // profile
   "pf.title": "Your profile", "pf.welcome": "Welcome! Set up your profile", "pf.onbTitle": "One minute to set up", "pf.onbBody": "Pick a name and a few tastes. Only your name, emoji and spoken languages are shown to others.",
-  "pf.name": "Display name", "pf.namePh": "What should people call you?", "pf.nameNeeded": "Please enter a name.", "pf.avatar": "Pick an emoji", "pf.area": "Home area", "pf.language": "App language",
+  "pf.name": "Display name", "pf.namePh": "What should people call you?", "pf.nameNeeded": "Please enter a name.", "pf.avatar": "Pick an emoji", "pf.area": "Where I am", "pf.language": "App language",
   "pf.spoken": "Languages you speak", "pf.diet": "Dietary notes", "pf.dietPh": "e.g. no pork, vegetarian", "pf.budget": "Usual budget per person (C$)", "pf.budgetRange": "Enter an amount between 5 and 500.",
   "pf.rank": "Your favourite cuisines", "pf.rankHint": "Tap the ones you love most. The ones you tap first count most for your taste match.", "cg.chinese": "Chinese", "cg.asia": "Southeast & South Asian", "cg.western": "Western", "cg.other": "Other", "pf.moveUp": "Move {name} up", "pf.moveDown": "Move {name} down", "pf.moved": "{name} is now number {n}",
   "pf.saveStart": "Save and start", "pf.saved": "Profile saved.",
@@ -218,6 +218,9 @@ export const EN = {
   "cr.formats": "How do you want to eat?", "cr.formatsMax": "up to {n}", "cr.formatsMaxHit": "You can pick up to {n}.", "cr.changePlace": "Change", "cr.cuisineMax": "pick up to {n}", "cr.cuisineMaxHit": "You can pick up to {n} cuisines — tap one again to remove it.", "cr.vtype": "Kind of place",
   "disc.moreFilters": "More filters: type & how we eat", "disc.vtype": "Type", "disc.fmt": "How we eat",
   "rec.format": "You enjoy {name}", "rec.type": "You like {name} places", "dp.styleMost": "How you like to eat",
+  "loc.search": "Search a city or place", "loc.searchPh": "e.g. Vancouver, London, Shibuya", "loc.searchHint": "Type at least 2 letters, then pick a result.", "loc.notSet": "Not set yet", "loc.set": "Set my location",
+  "loc.radius": "Distance", "loc.within": "Within {km} km", "loc.anywhere": "Anywhere", "loc.widen": "Look further away", "loc.denied": "Location access is blocked. Allow it in your browser's site settings, or search for a city instead.", "loc.errBase": "Pick where this is: use your location or search a city.",
+  "disc.emptyNear": "No tables near you yet", "disc.emptyNearBody": "Be the first to host one here, or look further away.", "cr.around": "Around", "map.defaultHint": "Tap “Use my location” or search for a city to see places near you.", "loc.needTitle": "Where are you?", "loc.needBody": "Share your location or pick a city to see the tables near you.",
 };
 
 export const ZH = {
@@ -256,7 +259,7 @@ export const ZH = {
   "aud.friends": "朋友聚餐", "aud.friends_and_new": "朋友＋新朋友", "aud.new_people": "认识新朋友",
   "audHint.friends": "带上你自己的朋友圈", "audHint.friends_and_new": "带个朋友来，再认识几位新人", "audHint.new_people": "大家都是第一次见面",
   "cr.occasion": "场合", "oc.date": "约会", "oc.family": "家庭聚餐", "oc.friends": "朋友小聚", "oc.classmates": "同学聚餐", "oc.work": "同事·商务", "oc.celebrate": "生日·庆祝",
-  "tag.mandarin_friendly": "说普通话", "tag.new_to_toronto": "刚来多伦多", "tag.split_bill": "AA 制",
+  "tag.mandarin_friendly": "说普通话", "tag.new_to_toronto": "刚到这座城市", "tag.split_bill": "AA 制",
   "tag.bring_a_friend": "可带朋友", "tag.easy_conversation": "轻松聊天", "tag.try_somewhere_new": "尝试新餐厅",
   "int.unwind": "忙了一周，放松一下", "int.catch_up": "聊聊近况", "int.study_tips": "交流学习／工作经验", "int.new_perspectives": "听听不同的想法",
   "pace.talking": "我爱聊天", "pace.ease_in": "慢慢热起来", "pace.listening": "我想先听听",
@@ -337,7 +340,7 @@ export const ZH = {
   "jr.takeQ": "你带走了什么收获？", "jr.nextQ": "下次想尝试什么？", "jr.needSomething": "请至少填一项。", "jr.saved": "已保存。",
 
   "pf.title": "我的资料", "pf.welcome": "欢迎！先设置你的资料", "pf.onbTitle": "一分钟就好", "pf.onbBody": "起个名字，选几个口味。其他人只能看到你的名字、头像表情和会说的语言。",
-  "pf.name": "昵称", "pf.namePh": "大家怎么称呼你？", "pf.nameNeeded": "请输入昵称。", "pf.avatar": "选一个表情当头像", "pf.area": "常住地区", "pf.language": "应用语言",
+  "pf.name": "昵称", "pf.namePh": "大家怎么称呼你？", "pf.nameNeeded": "请输入昵称。", "pf.avatar": "选一个表情当头像", "pf.area": "我所在的地方", "pf.language": "应用语言",
   "pf.spoken": "你会说的语言", "pf.diet": "饮食备注", "pf.dietPh": "例如：不吃猪肉、素食", "pf.budget": "通常人均预算（加元）", "pf.budgetRange": "请输入 5 到 500 之间的金额。",
   "pf.rank": "你最爱的菜系", "pf.rankHint": "点选你最喜欢的菜系，先点的更重要，用来计算口味匹配度。", "cg.chinese": "中餐", "cg.asia": "东南亚·南亚", "cg.western": "西餐", "cg.other": "其他", "pf.moveUp": "把{name}上移", "pf.moveDown": "把{name}下移", "pf.moved": "{name}现在排第 {n}",
   "pf.saveStart": "保存并开始", "pf.saved": "资料已保存。",
@@ -424,4 +427,7 @@ export const ZH = {
   "cr.formats": "想怎么吃？", "cr.formatsMax": "最多选 {n} 个", "cr.formatsMaxHit": "最多选 {n} 个。", "cr.changePlace": "换一家", "cr.cuisineMax": "最多选 {n} 个", "cr.cuisineMaxHit": "菜系最多选 {n} 个，再点一下已选的可以取消。", "cr.vtype": "想去哪种店？",
   "disc.moreFilters": "更多筛选：类型和吃法", "disc.vtype": "类型", "disc.fmt": "吃法",
   "rec.format": "你吃{name}很开心", "rec.type": "你喜欢{name}", "dp.styleMost": "常见的吃法",
+  "loc.search": "搜索城市或地点", "loc.searchPh": "例如：温哥华、London、涩谷", "loc.searchHint": "至少输入 2 个字，然后选择一个结果。", "loc.notSet": "还没设置", "loc.set": "设置我的位置",
+  "loc.radius": "距离", "loc.within": "{km} 公里内", "loc.anywhere": "不限距离", "loc.widen": "看看更远的", "loc.denied": "定位权限被拒绝。请在浏览器的网站设置里允许定位，或者直接搜索一个城市。", "loc.errBase": "请选好地点：用你的位置，或搜索一个城市。",
+  "disc.emptyNear": "你附近还没有饭局", "disc.emptyNearBody": "来发起第一个吧，或者看看更远的地方。", "cr.around": "地点范围", "map.defaultHint": "点“用我的位置”或搜索一个城市，就能看到你附近的地方。", "loc.needTitle": "你在哪里？", "loc.needBody": "分享你的位置或选一个城市，就能看到附近的饭局。",
 };

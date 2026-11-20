@@ -3,6 +3,7 @@ import { esc, personName, fmtWhen, fmtMoney, tasteMatch, haversineKm, mapsUrl, g
 import { t, getLang } from "../i18n.js";
 import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
+import { effectiveLoc, kmFrom } from "../location.js";
 import { codeOf } from "../errors.js";
 import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES, cuisinesOf } from "../data.js";
 
@@ -128,8 +129,7 @@ export function statusBadge(tb) {
 }
 
 export function distanceKm(tb) {
-  if (!state.pos || tb.meet_lat == null) return null;
-  return haversineKm(state.pos, { lat: tb.meet_lat, lng: tb.meet_lng });
+  return kmFrom(effectiveLoc(), tb);
 }
 
 export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {

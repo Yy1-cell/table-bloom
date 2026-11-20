@@ -6,6 +6,8 @@ import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
 import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
+import { effectiveLoc } from "../location.js";
+import { mountLocPicker } from "./loc-picker.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
 
@@ -24,7 +26,7 @@ export function openCreate({ onClose } = {}) {
     join_mode: "request",
     date: todayStr(),
     time: "18:30",
-    area_id: pre?.area_id || state.me?.area_id || state.areas[0]?.id || "",
+    base: pre?.base || null, // the area this table is around (search centre, and where a table without a restaurant sits)
     place: pre?.place || null,
     area_label: "",
     budget: state.me?.budget_cents != null ? String(state.me.budget_cents / 100) : "",
@@ -43,9 +45,10 @@ export function openCreate({ onClose } = {}) {
   let sugTimer = null;
   const isFriends = () => d.audience === "friends";
   const sheet = openSheet({ label: t("cr.label"), className: "sheet-create", html: "", onClose });
+  const baseLoc = () => d.base || effectiveLoc();
   const areaCenter = () => {
-    const a = state.areas.find((x) => x.id === d.area_id);
-    return a ? { lat: Number(a.center_lat), lng: Number(a.center_lng) } : undefined;
+    const a = baseLoc();
+    return a ? { lat: a.lat, lng: a.lng } : undefined;
   };
 
   function stepper() {
@@ -129,7 +132,7 @@ export function openCreate({ onClose } = {}) {
           <div class="field" style="flex:1;min-width:150px" id="f-date"><label for="c-date">${esc(t("cr.date"))}</label><input id="c-date" type="date" min="${todayStr()}" value="${esc(d.date)}"></div>
           <div class="field" style="flex:1;min-width:120px" id="f-time"><label for="c-time">${esc(t("cr.time"))}</label><input id="c-time" type="time" value="${esc(d.time)}"></div>
         </div>
-        <div class="field"><label for="c-area">${esc(t("cr.area"))}</label><select id="c-area">${state.areas.map((a) => `<option value="${a.id}" ${d.area_id === a.id ? "selected" : ""}>${esc(nameOf(a))}</option>`).join("")}</select></div>
+        <div class="field" id="c-base"><details id="c-base-d" ${baseLoc() ? "" : "open"}><summary id="c-base-sum"></summary><div id="c-loc"></div></details></div>
         ${startBlock}
         ${venueBlock}
         <div id="c-err" class="err-text" role="alert"></div>`;
@@ -162,7 +165,7 @@ export function openCreate({ onClose } = {}) {
   }
 
   function whereText() {
-    const area = nameOf(state.areas.find((a) => a.id === d.area_id));
+    const area = baseLoc()?.label || "";
     return isFriends() && !d.place ? area : d.place?.name || d.area_label || area;
   }
   function summary() {
@@ -183,7 +186,6 @@ export function openCreate({ onClose } = {}) {
     } else if (step === 2) {
       d.date = qs("#c-date", sheet.body).value;
       d.time = qs("#c-time", sheet.body).value;
-      d.area_id = qs("#c-area", sheet.body).value;
       d.area_label = qs("#c-label", sheet.body)?.value.trim() ?? d.area_label;
     } else {
       d.budget = qs("#c-budget", sheet.body).value;
@@ -194,7 +196,6 @@ export function openCreate({ onClose } = {}) {
   }
 
   // ---- restaurant suggestions (step 2)
-  const AREA_FALLBACK = { lat: 43.6532, lng: -79.3832 };
   const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
   // Directions in the map links start from the start point picked here (typed address or "my location"), never silently from the device position.
@@ -230,7 +231,8 @@ export function openCreate({ onClose } = {}) {
 
   function suggestOrigin() {
     if (d.startMe) return { center: { lat: d.startMe.lat, lng: d.startMe.lng }, mode: "me" };
-    return { center: areaCenter() || AREA_FALLBACK, mode: "area" };
+    const c = areaCenter();
+    return c ? { center: c, mode: "area" } : null;
   }
 
   function scheduleSuggest() {
@@ -269,7 +271,7 @@ export function openCreate({ onClose } = {}) {
     const hint = qs("#c-sug-hint", sheet.body);
     if (!list || !hint) return;
     const origin = suggestOrigin();
-    const areaName = nameOf(state.areas.find((a) => a.id === d.area_id)) || "";
+    const areaName = baseLoc()?.label || "";
     if (sug === "need-starts") {
       hint.textContent = t("cr.needStarts");
       list.innerHTML = "";
@@ -314,6 +316,7 @@ export function openCreate({ onClose } = {}) {
     if (!d.time) return bad("#f-time", t("cr.errTime"));
     if (new Date(toISO(d.date, d.time)).getTime() < Date.now() + 5 * 60000) return bad("#f-date", t("err.start_in_past"));
     if (!isFriends() && !d.place && !d.area_label) return bad("#f-label", t("cr.errPlace"));
+    if (!d.place && !baseLoc()) return bad("#c-base", t("loc.errBase"));
     return true;
   }
 
@@ -390,9 +393,15 @@ export function openCreate({ onClose } = {}) {
         d.place = null;
         draw();
       });
-      qs("#c-area", b).addEventListener("change", (e) => {
-        d.area_id = e.target.value;
-        scheduleSuggest();
+      const paintBase = () => (qs("#c-base-sum", b).textContent = `📍 ${t("cr.around")}: ${baseLoc()?.label || t("loc.notSet")}`);
+      paintBase();
+      mountLocPicker(qs("#c-loc", b), {
+        onChange: (loc) => {
+          d.base = loc;
+          paintBase();
+          qs("#c-base-d", b).open = false;
+          scheduleSuggest();
+        },
       });
       qs("[data-locate]", b)?.addEventListener("click", async (e) => {
         const btn = e.currentTarget;
@@ -462,7 +471,7 @@ export function openCreate({ onClose } = {}) {
     // Friends tables normally start without a venue (the group picks it together once people have joined),
     // unless the host already chose one, e.g. from the Map tab.
     const place = d.place;
-    const areaName = nameOf(state.areas.find((a) => a.id === d.area_id)) || "Toronto";
+    const areaName = baseLoc()?.label || "";
     const budget = d.budget !== "" && Number.isFinite(Number(d.budget)) ? Math.round(Number(d.budget) * 100) : null;
     const payload = {
       title: d.title || null,
@@ -474,7 +483,7 @@ export function openCreate({ onClose } = {}) {
       capacity: d.capacity,
       join_mode: isFriends() ? "instant" : d.join_mode,
       starts_at: toISO(d.date, d.time),
-      area_id: d.area_id || null,
+      area_id: null,
       area_label: place ? place.name : isFriends() ? areaName : d.area_label,
       meet_lat: place ? place.lat : center?.lat ?? null,
       meet_lng: place ? place.lng : center?.lng ?? null,

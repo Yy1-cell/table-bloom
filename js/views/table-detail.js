@@ -1,6 +1,7 @@
 // Table detail sheet: facts, members, join / leave / cancel, host tools, midpoint suggestions, share, calendar, report.
 import { esc, personName, qs, resizeImage, fmtDateLong, fmtMoney, isPast, midpoint, haversineKm, mapsUrl, googleEmbedUrl, appleMapsUrl, isIOS, buildICS, downloadText } from "../util.js";
 import { t } from "../i18n.js";
+import { effectiveLoc } from "../location.js";
 import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
@@ -42,9 +43,10 @@ export async function openTable(id, { onClose } = {}) {
     const points = startingPoints();
     if (points.length) return midpoint(points);
     const area = state.areas.find((a) => a.id === tb.area_id);
+    const here = effectiveLoc();
     return {
-      lat: Number(tb.meet_lat ?? area?.center_lat ?? 43.6532),
-      lng: Number(tb.meet_lng ?? area?.center_lng ?? -79.3832),
+      lat: Number(tb.meet_lat ?? tb.venue?.lat ?? area?.center_lat ?? here?.lat ?? 43.6532),
+      lng: Number(tb.meet_lng ?? tb.venue?.lng ?? area?.center_lng ?? here?.lng ?? -79.3832),
     };
   }
 
@@ -367,7 +369,7 @@ export async function openTable(id, { onClose } = {}) {
       box.innerHTML = list.length ? `<p class="hint" style="margin:6px 0 0">${esc(t("td.pickHint"))}</p>` : "";
       return;
     }
-    const q = [r.name, r.address || "Toronto"].filter(Boolean).join(", ");
+    const q = [r.name, r.address].filter(Boolean).join(", ");
     const dist = r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : "";
     box.innerHTML = `<div class="pick-card">
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, dist].filter(Boolean).join(" · "))}</small></div>
@@ -403,7 +405,7 @@ export async function openTable(id, { onClose } = {}) {
     if (seq !== mapSeq || sheet.closed) return ctl?.destroy();
     if (!ctl) {
       // map library could not load (offline?): fall back to the plain Google view
-      const q = tb.venue ? [tb.venue.name, tb.venue.address || "Toronto"].filter(Boolean).join(" ") : `restaurants near ${restaurantCenter().lat.toFixed(5)},${restaurantCenter().lng.toFixed(5)}`;
+      const q = tb.venue ? [tb.venue.name, tb.venue.address].filter(Boolean).join(" ") : `restaurants near ${restaurantCenter().lat.toFixed(5)},${restaurantCenter().lng.toFixed(5)}`;
       box.innerHTML = `<iframe title="${esc(t("map.googleView"))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q))}"></iframe>`;
       return;
     }

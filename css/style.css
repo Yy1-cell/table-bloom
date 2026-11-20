@@ -410,3 +410,9 @@ label.check input { margin-top: 3px; }
 .have-code { margin-top: 12px; }
 .have-code > summary { cursor: pointer; color: var(--green-700); font-size: 14px; padding: 6px 0; }
 .have-code[open] > summary { margin-bottom: 8px; }
+
+/* where am I looking: location bar on Discover + the shared picker */
+.loc-bar { margin-bottom: 8px; }
+.loc-bar .chip { max-width: 100%; }
+.loc-panel { margin-bottom: 12px; }
+.loc-now { margin: 0 0 8px; }

@@ -8,6 +8,7 @@ import { toast, closeSheet, hasSheet } from "./ui.js";
 import { AREAS, CUISINES } from "./data.js";
 import { renderInvitation } from "./invitation.js";
 import { DEMO_CODE } from "./api-demo.js";
+import { loadLoc } from "./location.js";
 
 const BASE = ["discover", "map", "mine", "journal", "profile"];
 const ICONS = { discover: "🍽️", map: "🗺️", mine: "📅", journal: "📖", profile: "👤" };
@@ -64,6 +65,7 @@ function renderChrome() {
 
 // ------------------------------------------------------------------ data
 async function loadRefs() {
+  loadLoc();
   try {
     const [a, c] = await Promise.all([api().listAreas(), api().listCuisines()]);
     state.areas = a?.length ? a : AREAS;
@@ -148,7 +150,7 @@ async function syncBase() {
       await refreshBadges();
       if (sameData(before, state.myTables)) return;
     } else if (current === "discover") {
-      const fresh = await api().listTables({ areaId: state.filters.areaId });
+      const fresh = await api().listTables();
       await refreshBadges();
       if (sameData(fresh, state.tables)) return;
     } else {
