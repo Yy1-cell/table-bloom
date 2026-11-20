@@ -1,6 +1,6 @@
 // Google Maps JavaScript API map, same interface as group-map.js (update / select / destroy).
 // It is only used when ALL of these hold, otherwise callers fall back to the free built-in map or the keyless Google embed:
-//   1. TB_CONFIG.GOOGLE_MAPS_KEY is set          2. the person is signed in (not a guest)
+//   1. TB_CONFIG.GOOGLE_MAPS_KEY is set          2. the person is signed in (guests too)
 //   3. the server-side gate claim_google_map() says there is free allowance left (8,000/month, 300/day, 40/person/day)
 //   4. the script loads and map tiles really appear (an auth, quota or network problem makes us fall back)
 // Only the Maps JavaScript API is used; no Places / Directions calls, so nothing here is billed beyond Google's free map loads.
@@ -27,7 +27,7 @@ const markFailed = () => {
 
 /** Asks the gate for one map load. false = use the free map instead. Never throws. */
 export async function googleAllowed() {
-  if (!key() || failedBefore() || state.me?.guest || navigator.onLine === false) return false;
+  if (!key() || failedBefore() || navigator.onLine === false) return false;
   try {
     return (await api.claimGoogleMap?.()) === true;
   } catch {
