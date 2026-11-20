@@ -14,7 +14,7 @@ window.TB_CONFIG = {
   DEFAULT_CENTER: { lat: 43.6532, lng: -79.3832 }, // Toronto
   // Optional Google Maps JavaScript API key (browser key, restricted to this site's domain in Google Cloud). Empty = no Google JS map:
   // the app then uses the keyless Google embed plus the free built-in map. See README "Google Maps key".
-  GOOGLE_MAPS_KEY: "",
+  GOOGLE_MAPS_KEY: "AIzaSyAi4P6Kcq4vHqLzYtIPOdVmrRuJ8SWfnwU",
   // Shown in the app footer / report flow. Replace with a real address.
   SUPPORT_EMAIL: ""
 };
