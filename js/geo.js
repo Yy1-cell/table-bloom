@@ -89,6 +89,7 @@ export async function searchPlaces(query, { near, signal, restaurantsOnly = fals
           lat,
           lng,
           poi_id: p.osm_id ? `${p.osm_type || "N"}${p.osm_id}` : null,
+          cc: String(p.countrycode || "").toUpperCase() || undefined,
         };
       })
       .filter((r) => r.name && Number.isFinite(r.lat) && Number.isFinite(r.lng))
@@ -103,22 +104,23 @@ export async function searchPlaces(query, { near, signal, restaurantsOnly = fals
   }
 }
 
-/** Name of the place at a point (city/district), for labels like "near Vancouver". Resolves "" when unknown. */
-export async function reverseLabel({ lat, lng }, { signal } = {}) {
+/** Name of the place at a point (city/district) and its country code, for "near Vancouver" and the local currency. */
+export async function reverseGeocode({ lat, lng }, { signal } = {}) {
   const params = new URLSearchParams({ lat: String(lat), lon: String(lng), limit: "1" });
   if (getLang() !== "zh") params.set("lang", "en");
   const t = withTimeout(7000, signal);
   try {
     const res = await fetch(`${PHOTON.replace(/api\/$/, "reverse")}?${params}`, { signal: t.signal });
-    if (!res.ok) return "";
+    if (!res.ok) return { label: "", cc: "" };
     const p = (await res.json())?.features?.[0]?.properties || {};
-    return p.city || p.district || p.locality || p.county || p.name || p.state || "";
+    return { label: p.city || p.district || p.locality || p.county || p.name || p.state || "", cc: String(p.countrycode || "").toUpperCase() };
   } catch {
-    return "";
+    return { label: "", cc: "" };
   } finally {
     t.done();
   }
 }
+export const reverseLabel = async (pt, opts) => (await reverseGeocode(pt, opts)).label;
 
 /** Offline-friendly fallback: filter the built-in landmark list. */
 export function searchLandmarks(query) {

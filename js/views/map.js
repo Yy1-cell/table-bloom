@@ -4,7 +4,7 @@ import { esc, qs, qsa, haversineKm, fmtWhen, googleEmbedUrl, mapsUrl } from "../
 import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
-import { currentPosition, locationPermission, restaurantsForKeys, reverseLabel } from "../geo.js";
+import { currentPosition, locationPermission, restaurantsForKeys, reverseGeocode } from "../geo.js";
 import { effectiveLoc, setLoc as saveLoc } from "../location.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mountGroupMap } from "../group-map.js";
@@ -173,10 +173,10 @@ export async function render(root) {
       if (!alive) return;
       state.pos = pos;
       if (revision !== centerRevision) return;
-      const name = await reverseLabel(pos).catch(() => "");
+      const geo = await reverseGeocode(pos);
       if (!alive) return;
-      saveLoc({ lat: pos.lat, lng: pos.lng, label: name, gps: true });
-      center = { lat: pos.lat, lng: pos.lng, label: t("map.here") };
+      saveLoc({ lat: pos.lat, lng: pos.lng, label: geo.label, gps: true, cc: geo.cc });
+      center = { lat: pos.lat, lng: pos.lng, label: t("map.here"), cc: geo.cc };
       state.mapCenter = center;
       setLoc("map.located");
       refresh();
@@ -290,7 +290,7 @@ export async function render(root) {
     googleSearch: true,
     onSelect: (p) => {
       centerRevision++;
-      center = { lat: p.lat, lng: p.lng, label: p.name };
+      center = { lat: p.lat, lng: p.lng, label: p.name, cc: p.cc };
       state.mapCenter = center;
       refresh();
     },
@@ -318,7 +318,7 @@ export async function render(root) {
       place: r ? { name: r.name, address: r.address || "", lat: r.lat, lng: r.lng, poi_id: r.poi_id || null } : null,
       cuisines: picks.filter((k) => !isFormat(k)),
       formats: picks.filter(isFormat),
-      base: center.isDefault ? null : { lat: at.lat, lng: at.lng, label: center.label || "" },
+      base: center.isDefault ? null : { lat: at.lat, lng: at.lng, label: center.label || "", cc: r?.cc || center.cc },
     };
     go("#new");
   }

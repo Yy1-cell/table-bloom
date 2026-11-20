@@ -6,6 +6,8 @@ import { api } from "../api.js";
 import { toast, announce, confirmDialog } from "../ui.js";
 import { AVATARS, SPOKEN } from "../data.js";
 import { mountLocPicker } from "./loc-picker.js";
+import { effectiveLoc } from "../location.js";
+import { currencyFor, budgetRange } from "../currency.js";
 import { nameOf, showError, withBusy, go, cuisineGroupsHTML } from "./common.js";
 
 // Unsaved form values survive a language switch (which re-renders the whole page).
@@ -66,8 +68,8 @@ export async function render(root) {
       </div></fieldset>
       <div class="field" style="margin:0"><label for="pf-diet">${esc(t("pf.diet"))}</label>
         <input id="pf-diet" type="text" maxlength="200" value="${esc(f.diet ?? (me.dietary_notes || ""))}" placeholder="${esc(t("pf.dietPh"))}"></div>
-      <div class="field" style="margin:0"><label for="pf-budget">${esc(t("pf.budget"))}</label>
-        <input id="pf-budget" type="number" inputmode="decimal" min="5" max="500" step="1" value="${f.budget ?? (me.budget_cents != null ? me.budget_cents / 100 : "")}" placeholder="30">
+      <div class="field" style="margin:0"><label for="pf-budget">${esc(t("pf.budget"))} (${esc(currencyFor(effectiveLoc()))})</label>
+        <input id="pf-budget" type="number" inputmode="decimal" min="${budgetRange(currencyFor(effectiveLoc())).min}" max="${budgetRange(currencyFor(effectiveLoc())).max}" step="1" value="${f.budget ?? (me.budget_cents != null ? me.budget_cents / 100 : "")}" placeholder="${budgetRange(currencyFor(effectiveLoc())).hint}">
         <div class="err-text" id="pf-budget-err" role="alert"></div></div>
       <fieldset style="margin:0"><legend>${esc(t("pf.rank"))}</legend><p class="hint" style="margin-top:0">${esc(t("pf.rankHint"))}</p><div class="cuisine-groups" id="rank">${favHTML()}</div></fieldset>
       <button type="submit" class="btn primary block">${esc(onboarding ? t("pf.saveStart") : t("common.save"))}</button>
@@ -183,8 +185,9 @@ export async function render(root) {
     let budget = null;
     if (bRaw !== "") {
       const n = Number(bRaw);
-      if (!Number.isFinite(n) || n < 5 || n > 500) {
-        budgetErr.textContent = t("pf.budgetRange");
+      const br = budgetRange(currencyFor(effectiveLoc()));
+      if (!Number.isFinite(n) || n < br.min || n > br.max) {
+        budgetErr.textContent = t("pf.budgetRange", { min: br.min, max: br.max });
         return qs("#pf-budget", root).focus();
       }
       budget = Math.round(n * 100);

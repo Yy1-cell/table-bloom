@@ -37,7 +37,7 @@ export function mountLocPicker(el, { onChange, label } = {}) {
     id: ps.id,
     near: effectiveLoc() || undefined,
     onSelect: (p) => {
-      done(setLoc({ lat: p.lat, lng: p.lng, label: p.name, gps: false }));
+      done(setLoc({ lat: p.lat, lng: p.lng, label: p.name, gps: false, cc: p.cc }));
     },
     onClear: () => {},
   });

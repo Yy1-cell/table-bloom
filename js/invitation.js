@@ -13,6 +13,7 @@ export function invitationUrl(table, title, { demo, href = location.href }) {
     address: table.venue?.address,
     startsAt: new Date(table.starts_at).toISOString(),
     budget: table.budget_cents,
+    currency: table.currency || "CAD",
     tableId: demo || table.is_sample ? null : table.id,
   };
   for (const [key, max] of Object.entries(fields)) {
@@ -51,7 +52,7 @@ export function renderInvitation(root) {
     <h1>${esc(details.title)}</h1>
     <p>🕖 ${esc(when)}</p>
     ${place ? `<p>📍 ${esc(place)}</p><a class="btn sm" href="${esc(mapsUrl({ name: details.place, address: details.address || "" }))}" target="_blank" rel="noopener">${esc(t("map.openGoogle"))}</a>` : ""}
-    ${Number.isSafeInteger(details.budget) && details.budget >= 0 ? `<p>${esc(t("card.perPerson", { price: fmtMoney(details.budget) }))}</p>` : ""}
+    ${Number.isSafeInteger(details.budget) && details.budget >= 0 ? `<p>${esc(t("card.perPerson", { price: fmtMoney(details.budget, /^[A-Z]{3}$/.test(details.currency || "") ? details.currency : "CAD") }))}</p>` : ""}
     ${canOpen
       ? `<a class="btn primary" href="#t-${esc(details.tableId)}">${esc(t("invite.open"))}</a>`
       : `<p class="notice">${esc(t("invite.reply"))}</p><a class="btn" href="#discover">${esc(t("nav.discover"))}</a>`}

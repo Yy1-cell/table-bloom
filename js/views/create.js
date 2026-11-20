@@ -7,6 +7,7 @@ import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "
 import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
 import { effectiveLoc } from "../location.js";
+import { currencyFor, budgetRange } from "../currency.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
@@ -46,6 +47,8 @@ export function openCreate({ onClose } = {}) {
   const isFriends = () => d.audience === "friends";
   const sheet = openSheet({ label: t("cr.label"), className: "sheet-create", html: "", onClose });
   const baseLoc = () => d.base || effectiveLoc();
+  // Priced in the currency of the place (the chosen restaurant if it knows its country, otherwise the area).
+  const tableCurrency = () => currencyFor(d.place?.cc ? d.place : baseLoc());
   const areaCenter = () => {
     const a = baseLoc();
     return a ? { lat: a.lat, lng: a.lng } : undefined;
@@ -139,8 +142,8 @@ export function openCreate({ onClose } = {}) {
     } else {
       body = `
         <h2>${esc(t("cr.s3"))}</h2>
-        <div class="field"><label for="c-budget">${esc(t("cr.budget"))} <span class="muted">(${esc(t("common.optional"))})</span></label>
-          <input id="c-budget" type="number" inputmode="decimal" min="0" max="500" step="1" value="${esc(d.budget)}" placeholder="30"></div>
+        <div class="field"><label for="c-budget">${esc(t("cr.budget"))} (${esc(tableCurrency())}) <span class="muted">(${esc(t("common.optional"))})</span></label>
+          <input id="c-budget" type="number" inputmode="decimal" min="0" max="${budgetRange(tableCurrency()).max}" step="1" value="${esc(d.budget)}" placeholder="${budgetRange(tableCurrency()).hint}"></div>
         <fieldset><legend>${esc(t("cr.occasion"))} <span class="muted">(${esc(t("common.optional"))})</span></legend><div class="chips" id="c-occ">
           ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
         </div></fieldset>
@@ -489,6 +492,7 @@ export function openCreate({ onClose } = {}) {
       meet_lng: place ? place.lng : center?.lng ?? null,
       venue: place ? { name: place.name, address: place.address, lat: place.lat, lng: place.lng, poi_id: place.poi_id } : null,
       budget_cents: budget,
+      currency: tableCurrency(),
       tags: d.tags,
       occasion: d.occasion || null,
       note: d.note || null,

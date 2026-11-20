@@ -151,7 +151,7 @@ export function tableCardHTML(tb, { showMatch = true, reason = "" } = {}) {
       <li><span aria-hidden="true">🕖</span>${esc(fmtWhen(tb.starts_at, t))}</li>
       <li><span aria-hidden="true">📍</span>${esc(placeText(tb))}${d != null ? ` · ${d < 10 ? d.toFixed(1) : Math.round(d)} km` : ""}</li>
       ${cn ? `<li><span aria-hidden="true">${esc(cuisineOf(cuisinesOf(tb)[0])?.emoji || "🍽️")}</span>${esc(cuisineNames(tb, { emoji: false }))}</li>` : ""}
-      ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents) }))}</li>` : ""}
+      ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</li>` : ""}
     </ul>
     ${tb.tags?.length || tb.occasion || tb.formats?.length || tb.venue_type ? `<div class="tags">${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
     ${reason ? `<div class="reason">✨ ${esc(reason)}</div>` : ""}

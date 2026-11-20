@@ -99,10 +99,17 @@ export function toISO(dateStr, timeStr) {
   return new Date(y, m - 1, d, hh, mm, 0).toISOString();
 }
 
-export function fmtMoney(cents) {
+export function fmtMoney(cents, currency = "CAD") {
   if (cents == null) return "";
   const v = cents / 100;
-  return "C$" + (Number.isInteger(v) ? v : v.toFixed(2));
+  try {
+    return new Intl.NumberFormat(getLang() === "zh" ? "zh-CN" : "en", {
+      style: "currency", currency: currency || "CAD",
+      minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: Number.isInteger(v) ? 0 : 2,
+    }).format(v).replace(/^CA\$/, "C$");
+  } catch {
+    return `${currency} ${Number.isInteger(v) ? v : v.toFixed(2)}`;
+  }
 }
 
 // ---- geography

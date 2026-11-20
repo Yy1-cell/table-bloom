@@ -1,7 +1,7 @@
 // "Where am I looking?" One saved place (kept only in this browser) that Discover, Host and the Map start from.
 // The device position is read only when the person taps "Use my location"; a typed city/place works too.
 import { state, bus, areaOf } from "./state.js";
-import { currentPosition, reverseLabel } from "./geo.js";
+import { currentPosition, reverseGeocode } from "./geo.js";
 import { haversineKm } from "./util.js";
 import { getLang } from "./i18n.js";
 
@@ -11,7 +11,8 @@ function clean(v) {
   const lat = Number(v?.lat);
   const lng = Number(v?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  return { lat, lng, label: String(v.label || "").slice(0, 80), gps: !!v.gps };
+  const cc = /^[A-Za-z]{2}$/.test(v.cc || "") ? String(v.cc).toUpperCase() : undefined;
+  return { lat, lng, label: String(v.label || "").slice(0, 80), gps: !!v.gps, cc };
 }
 
 export function loadLoc() {
@@ -39,15 +40,15 @@ export function setLoc(loc) {
 export async function locateMe() {
   const pos = await currentPosition();
   state.pos = { lat: pos.lat, lng: pos.lng };
-  const label = await reverseLabel(pos).catch(() => "");
-  return setLoc({ lat: pos.lat, lng: pos.lng, label, gps: true });
+  const { label, cc } = await reverseGeocode(pos);
+  return setLoc({ lat: pos.lat, lng: pos.lng, label, gps: true, cc });
 }
 
 /** The place to start from: the saved one, else the centre of an older "home area" on the profile, else nothing. */
 export function effectiveLoc() {
   if (state.loc) return state.loc;
   const a = areaOf(state.me?.area_id);
-  if (a && a.center_lat != null && a.center_lng != null) return { lat: Number(a.center_lat), lng: Number(a.center_lng), label: (getLang() === "zh" ? a.name_zh : a.name_en) || a.name_en || "", gps: false, fromArea: true };
+  if (a && a.center_lat != null && a.center_lng != null) return { lat: Number(a.center_lat), lng: Number(a.center_lng), label: (getLang() === "zh" ? a.name_zh : a.name_en) || a.name_en || "", gps: false, fromArea: true, cc: "CA" };
   return null;
 }
 
