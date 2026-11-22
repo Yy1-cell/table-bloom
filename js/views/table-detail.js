@@ -40,6 +40,20 @@ export async function openTable(id, { onClose } = {}) {
     .map((m) => ({ name: personName(m.display_name), lat: Number(m.start_lat), lng: Number(m.start_lng) }))
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
   const cravings = () => [...new Set((tb.members || []).filter((m) => m.status === "joined" && m.cuisine).map((m) => m.cuisine))];
+  // How many people want each thing, most wanted first: { japanese: 2, korean: 1 }.
+  const cravingVotes = () => {
+    const v = {};
+    for (const m of tb.members || []) if (m.status === "joined" && m.cuisine) v[m.cuisine] = (v[m.cuisine] || 0) + 1;
+    return v;
+  };
+  const cravingSummary = () => {
+    const v = cravingVotes();
+    const items = Object.entries(v).sort((a, b) => b[1] - a[1]).map(([k, n]) => {
+      const it = menuItem(k);
+      return it ? `${it.emoji} ${it.name}${n > 1 ? ` ×${n}` : ""}` : "";
+    }).filter(Boolean);
+    return items.length ? t("td.wants", { list: items.join(" · ") }) : t("td.wantsNone");
+  };
   let suggestNames = [];
   let suggestKey = "";
   function restaurantCenter() {
@@ -249,6 +263,7 @@ export async function openTable(id, { onClose } = {}) {
         html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         ${reminder}
         <p class="muted">${esc(withStart.length ? t("td.midpointHint", { n: withStart.length }) : t("td.noStarts"))}</p>
+        ${tb.is_private ? `<p class="notice" style="margin:6px 0" id="wants-line">🍽️ ${esc(cravingSummary())}</p>` : ""}
         <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button>
           <a class="btn" target="_blank" rel="noopener" href="${esc(nearbyMapsLink())}">${esc(t("td.googleNearby"))}</a></div>
         <ul class="suggest" id="suggest-list" aria-live="polite">${suggestions ? suggestHTML(suggestions) : ""}</ul>
@@ -449,10 +464,12 @@ export async function openTable(id, { onClose } = {}) {
       if (tb.is_private) {
         const pts = startMembers();
         suggestNames = pts.map((p) => p.name);
-        const wanted = cravings();
+        const votes = cravingVotes();
+        const wanted = Object.keys(votes).sort((a, b) => votes[b] - votes[a]);
         suggestions = await groupSuggestions({
           points: pts.length ? pts : [restaurantCenter()],
           cuisines: wanted.length ? wanted : searchKeys(tb),
+          votes: wanted.length > 1 ? votes : null,
         });
       } else {
         suggestions = (await restaurantsForKeys(restaurantCenter(), searchKeys(tb), { limit: 10 })).list;
@@ -482,7 +499,7 @@ export async function openTable(id, { onClose } = {}) {
     const more = list.length > shown.length ? `<li class="muted">${esc(t("td.moreOnMap", { n: list.length - shown.length }))}</li>` : "";
     return shown
       .map(
-        (r, i) => `<li${i === picked ? ' class="chosen"' : ""}><span class="who" data-act="pick" data-i="${i}" tabindex="0" role="button" style="cursor:pointer"><strong>${i + 1}. ${esc(r.name)}</strong><small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
+        (r, i) => `<li${i === picked ? ' class="chosen"' : ""}><span class="who" data-act="pick" data-i="${i}" tabindex="0" role="button" style="cursor:pointer"><strong>${i + 1}. ${esc(r.name)}</strong>${r.fitsAll ? ` <span class="tag">${esc(t("td.fitsAll"))}</span>` : r.fits?.length > 1 ? ` <span class="tag">${esc(t("td.fitsSome", { n: r.fitVotes }))}</span>` : ""}<small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
           <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
           <button type="button" class="btn sm" data-act="use-venue" data-i="${i}">${esc(t("td.useVenue"))}</button></li>`
       )

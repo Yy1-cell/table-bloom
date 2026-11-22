@@ -121,7 +121,8 @@ export function openCreate({ onClose } = {}) {
         <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
           ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
         </div></fieldset>
-        <fieldset><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
+        <fieldset id="f-cuis" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
+        <p class="notice" id="f-cuis-friends" ${isFriends() ? "" : "hidden"}>🍽️ ${esc(t("cr.friendsCuisine"))}</p>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
@@ -139,7 +140,7 @@ export function openCreate({ onClose } = {}) {
         ids[key] = ps.id;
         return ps.html;
       };
-      if (d.craving === undefined) d.craving = d.cuisines[0] || d.formats[0] || "";
+      if (d.craving === undefined) d.craving = "";
       const startBlock = isFriends()
         ? `<div class="section-lite">
             <h3>${esc(t("cr.pairTitle"))}</h3>
@@ -217,6 +218,7 @@ export function openCreate({ onClose } = {}) {
   }
   // The title people see if the host doesn't name the table: the restaurant, otherwise the cuisine(s).
   function autoTitle() {
+    if (isFriends() && !d.place) return t("card.untitled");
     const c = menuItem(d.cuisines[0] || d.formats[0] || "");
     if (d.place) return `${c ? c.emoji + " " : ""}${d.place.name}`;
     const names = d.cuisines.map((k) => menuItem(k)?.name).filter(Boolean);
@@ -392,6 +394,9 @@ export function openCreate({ onClose } = {}) {
           d.audience = r.value;
           qs("#f-priv", b).hidden = !isFriends();
           qs("#f-jm", b).hidden = isFriends();
+          // Among friends, everyone says what they feel like eating; the host doesn't pick for the whole table.
+          qs("#f-cuis", b).hidden = isFriends();
+          qs("#f-cuis-friends", b).hidden = !isFriends();
           // Date / family meal / classmates only describe a table among friends.
           const occs = qs("#c-occs", b);
           occs.hidden = !isFriends();
@@ -560,12 +565,14 @@ export function openCreate({ onClose } = {}) {
     const place = d.place;
     const areaName = baseLoc()?.label || "";
     const budget = d.budget !== "" && Number.isFinite(Number(d.budget)) ? Math.round(Number(d.budget) * 100) : null;
+    // A friends table without a restaurant has no cuisine of its own yet: it comes from what everyone feels like.
+    const ownMenu = !isFriends() || !!place;
     const payload = {
       title: d.title || null,
       audience: d.audience,
-      cuisine: d.cuisines[0] || null,
-      cuisines: d.cuisines,
-      formats: d.formats,
+      cuisine: ownMenu ? d.cuisines[0] || null : null,
+      cuisines: ownMenu ? d.cuisines : [],
+      formats: ownMenu ? d.formats : [],
       venue_type: d.vtype || null,
       capacity: d.capacity,
       join_mode: isFriends() ? "instant" : d.join_mode,

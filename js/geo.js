@@ -7,7 +7,7 @@
 //   - Photon (photon.komoot.io): search a place by name or address.
 //   - Overpass (overpass-api.de): restaurants near a point, by cuisine tag.
 import { haversineKm, midpoint } from "./util.js";
-import { searchTorontoVenues, torontoVenuesNear } from "./toronto-venues.js";
+import { searchTorontoVenues, torontoVenuesNear, nameMatchesKey } from "./toronto-venues.js";
 import { getLang } from "./i18n.js";
 
 const PHOTON = "https://photon.komoot.io/api/";
@@ -364,7 +364,7 @@ export function currentPosition({ timeout = 10000 } = {}) {
  * (a long trip and an uneven trip both cost points). Returns venues with `dists` (km from each point, same order as `points`).
  * With several cravings, results are interleaved so everybody's craving shows up.
  */
-export async function groupSuggestions({ points, cuisines = [], signal, limit = 24 }) {
+export async function groupSuggestions({ points, cuisines = [], votes = null, signal, limit = 24 }) {
   const pts = points.filter((p) => p && Number.isFinite(+p.lat) && Number.isFinite(+p.lng)).map((p) => ({ lat: +p.lat, lng: +p.lng }));
   if (!pts.length) return [];
   const center = midpoint(pts);
@@ -402,6 +402,25 @@ export async function groupSuggestions({ points, cuisines = [], signal, limit = 
         return { ...v, forCuisine: wanted[i], dists, score: hi + (hi - lo) };
       })
       .sort((a, b) => a.score - b.score));
+  // Several people's cravings: a place that fits more of them comes first (a ramen bar suits "Japanese" and
+  // "noodles" alike), then the fairest trip for everyone. Without votes, take turns between the cravings.
+  if (votes && Object.keys(votes).length) {
+    const total = Object.values(votes).reduce((n, x) => n + x, 0);
+    const byKey = new Map();
+    ranked.forEach((l, i) => l.forEach((v) => {
+      const key = v.poi_id || `${v.name}|${v.lat}|${v.lng}`;
+      const cur = byKey.get(key) || { ...v, fits: new Set() };
+      cur.fits.add(wanted[i]);
+      byKey.set(key, cur);
+    }));
+    const all = [...byKey.values()].map((v) => {
+      for (const k of wanted) if (nameMatchesKey(v.name, k)) v.fits.add(k);
+      const fit = [...v.fits].reduce((n, k) => n + (votes[k] || 0), 0);
+      return { ...v, fits: [...v.fits], fitVotes: fit, fitsAll: fit >= total };
+    });
+    all.sort((a, b) => b.fitVotes - a.fitVotes || a.score - b.score);
+    return all.slice(0, limit);
+  }
   const out = [];
   const seen = new Set();
   for (let i = 0; out.length < limit && ranked.some((l) => i < l.length); i++) {

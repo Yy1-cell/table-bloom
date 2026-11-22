@@ -55,7 +55,7 @@ export async function render(root) {
     </div>
     <div id="allergy"></div>
     <section class="card page-section"><h2>🗺️ ${esc(t("map.gTitle"))}</h2>
-      <p class="hint">${esc(t("map.gHint"))}</p>
+      <p class="hint" id="g-hint">${esc(t("map.gHint"))}</p>
       <div class="gmap-frame" id="gsearch"></div>
       <div class="row wrap-row" style="margin-top:8px">
         <a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a>
@@ -390,11 +390,14 @@ export async function render(root) {
     }
     g = c;
     root.classList.add("g-mode");
+    // This map shows OUR list's places (numbered), not Google's search results; say so.
+    qs("#g-hint", root).textContent = t("map.gHintPins");
     qs("#built-title", root).textContent = t("map.listOnly");
     c.onSwap(() => {
       g = null;
       gFailed = true;
       root.classList.remove("g-mode");
+      qs("#g-hint", root).textContent = t("map.gHint");
       qs("#built-title", root).textContent = t("map.builtIn");
       drawEmbed();
       paintMap();
