@@ -12,6 +12,7 @@ export const state = {
   pos: null, // { lat, lng } from the browser, only after the user asks for "closest"
   filters: { chip: "all", sort: "match", sortSet: false, radius: 25, occasion: "", fmt: "", vtype: "" },
   diningProfile: undefined, // built from my post-meal check-ins; undefined = not loaded yet
+  createDraft: null, // a half-filled Host-a-table form, kept while its host picks a restaurant on the Map tab
   createPrefill: null, // { place, cuisine, area_id } handed to the Host-a-table sheet, e.g. from the Map tab
   baseView: "discover", // the page behind any open sheet
   installEvent: null, // beforeinstallprompt

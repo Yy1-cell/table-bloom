@@ -18,6 +18,9 @@ export function openCreate({ onClose } = {}) {
   // The Map tab can hand over a restaurant the person already found ("Host a table here").
   const pre = state.createPrefill;
   state.createPrefill = null;
+  // Coming back from "Pick on the map" (or opening Host again after leaving for the Map): pick up the form where it was.
+  const draft = pre?.draft || state.createDraft;
+  state.createDraft = null;
   const d = {
     title: "",
     audience: "friends_and_new",
@@ -39,6 +42,19 @@ export function openCreate({ onClose } = {}) {
     // Only used to suggest restaurants. Never sent to the server.
     startMe: null,
   };
+  // "Pick on the map": keep the form, show the Map with this table's cuisine and area, and come back with the place.
+  function pickOnMap() {
+    readStep();
+    stopSuggest();
+    state.createDraft = { d: { ...d }, step };
+    state.mapCuisines = [...d.cuisines, ...d.formats].slice(0, 3);
+    const from = d.startMe || baseLoc();
+    if (from) state.mapCenter = { lat: from.lat, lng: from.lng, label: from.label || from.name || "", cc: from.cc };
+    sheet.onClose = null;
+    closeSheet({ silent: true });
+    go("#map");
+  }
+
   // One restaurant has one cuisine: once a place is chosen, the cuisine (and how-we-eat) follow the place.
   // `hint` is the key the place was suggested for, if any.
   function fitToPlace(place, hint) {
@@ -52,9 +68,15 @@ export function openCreate({ onClose } = {}) {
     const ok = formatsForMany(d.cuisines);
     d.formats = FORMATS.map((f) => f.slug).filter((f) => ok.includes(f) && fits(f)).slice(0, MAX_FORMATS);
   }
+  let step = 1;
+  if (draft) {
+    Object.assign(d, draft.d);
+    if (pre?.place) d.place = pre.place;
+    if (pre?.base && !d.base) d.base = pre.base;
+    step = draft.step || 2;
+  }
   if (pre?.place) fitToPlace(pre.place);
 
-  let step = 1;
   const STEPS = 2;
   // Folded "More options" boxes start open only if something in them is already filled (e.g. handed over from the Map).
   const more = { 1: false, 2: false };
@@ -140,6 +162,10 @@ export function openCreate({ onClose } = {}) {
             const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
             ids.venue = ps.id;
             return `<div class="section-lite" id="c-sug-wrap"${d.place ? " hidden" : ""}>
+          <div class="pick-map">
+            <button type="button" class="btn sm" data-pick-map>🗺️ ${esc(t("cr.pickOnMap"))}</button>
+            <p class="hint" style="margin:4px 0 0">${esc(t("cr.pickOnMapHint"))}</p>
+          </div>
           <h3>${esc(t("cr.sugTitle"))}</h3>
           <details class="cuis-details" id="c-narrow" ${d.formats.length || d.vtype ? "open" : ""}><summary>${esc(t("cr.narrow"))}</summary>
             <p class="lbl" style="margin:4px 0">${esc(t("cr.formats"))}</p>
@@ -495,6 +521,7 @@ export function openCreate({ onClose } = {}) {
       const craving = qs("#c-craving", b);
       if (craving) mountMenuPicker(craving, { value: d.craving, formats: true, onChange: (v) => (d.craving = v) });
       qs("[data-sug-refresh]", b)?.addEventListener("click", () => loadSuggest());
+      qs("[data-pick-map]", b)?.addEventListener("click", pickOnMap);
       qs("#c-sug", b)?.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-use]");
         if (!btn || !sug?.list) return;

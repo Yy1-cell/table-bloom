@@ -17,6 +17,10 @@ import { allergyReminderHTML } from "./diet.js";
 
 const km = (n) => (n < 10 ? n.toFixed(1) : String(Math.round(n)));
 
+// While a Host-a-table form is waiting for a restaurant, the Map's host buttons hand the place back to that form.
+const picking = () => !!state.createDraft;
+const hostLabel = () => t(picking() ? "map.useForTable" : "map.hostHere");
+
 export async function render(root) {
   let alive = true;
   let ctl = null;
@@ -34,6 +38,8 @@ export async function render(root) {
 
   const ps = placeSearchHTML({ label: t("map.search"), placeholder: t("map.searchPh"), hint: t("map.searchHint") });
   root.innerHTML = `
+    ${picking() ? `<div class="notice pick-banner" id="pick-banner">🍽️ ${esc(t("map.pickBanner"))}
+      <div class="row wrap-row" style="margin-top:8px"><button type="button" class="btn sm" id="back-to-table">← ${esc(t("map.backToTable"))}</button></div></div>` : ""}
     <h1>${esc(t("map.title"))}</h1>
     <p class="muted">${esc(t("map.sub"))}</p>
     ${ps.html}
@@ -53,12 +59,12 @@ export async function render(root) {
       <div class="gmap-frame" id="gsearch"></div>
       <div class="row wrap-row" style="margin-top:8px">
         <a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a>
-        <button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>
+        ${picking() ? "" : `<button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>`}
       </div>
-      <p class="hint">${esc(t("map.hostNearHint"))}</p>
+      <p class="hint">${esc(t(picking() ? "map.pickGoogleHint" : "map.hostNearHint"))}</p>
       <div id="spot-card"></div><div id="pick-card"></div></section>
     <section class="card page-section"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
-    <details class="card built page-section" id="built" ${window.innerWidth >= 820 ? "open" : ""}>
+    <details class="card built page-section" id="built" ${window.innerWidth >= 820 || picking() ? "open" : ""}>
       <summary><strong id="built-title">${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
       <div id="gmap" style="margin-top:10px"></div>
       <p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></details>`;
@@ -197,7 +203,7 @@ export async function render(root) {
     box.innerHTML = `<div class="pick-card">
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, distLine({ dist: r.distKm, lat: r.lat, lng: r.lng })].filter(Boolean).join(" · "))}</small></div>
       ${g ? "" : `<div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>`}
-      <div class="row wrap-row" style="margin-bottom:6px"><button type="button" class="btn sm primary" data-host="${picked}">🍽️ ${esc(t("map.hostHere"))}</button></div>
+      <div class="row wrap-row" style="margin-bottom:6px"><button type="button" class="btn sm primary" data-host="${picked}">🍽️ ${esc(hostLabel())}</button></div>
       ${mapActionsHTML(r, { ...fromHere(), hint: true })}</div>`;
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
@@ -298,7 +304,7 @@ export async function render(root) {
         ? list
             .map((r, i) => `<div class="place-row" data-ri="${i}" tabindex="0" role="button" style="cursor:pointer"><h3>${i < 10 ? `${i + 1}. ` : ""}${esc(r.name)}</h3>
               <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
-              <div class="row wrap-row" style="margin:8px 0 4px"><button type="button" class="btn sm primary" data-host="${i}">🍽️ ${esc(t("map.hostHere"))}</button></div>
+              <div class="row wrap-row" style="margin:8px 0 4px"><button type="button" class="btn sm primary" data-host="${i}">🍽️ ${esc(hostLabel())}</button></div>
               ${mapActionsHTML(r, fromHere())}</div>`)
             .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
         : restaurantFallback("map.noRestaurants");
@@ -337,7 +343,7 @@ export async function render(root) {
       <div class="field" style="margin:8px 0"><label for="spot-name">${esc(t("map.spotName"))}</label>
         <input id="spot-name" type="text" maxlength="80" value="${esc(spotPlace.name)}" placeholder="${esc(t("map.spotNamePh"))}"></div>
       <p class="hint" style="margin:0 0 8px">${esc(t("map.spotHint"))}</p>
-      <div class="row wrap-row"><button type="button" class="btn sm primary" id="spot-host">🍽️ ${esc(t("map.hostHere"))}</button>
+      <div class="row wrap-row"><button type="button" class="btn sm primary" id="spot-host">🍽️ ${esc(hostLabel())}</button>
         <button type="button" class="btn sm ghost" id="spot-clear">${esc(t("common.cancel"))}</button>
         ${mapActionsHTML({ name: spotPlace.name || "", address: spotPlace.address, lat: sp.lat, lng: sp.lng }, { ...fromHere(), hint: false })}</div></div>`;
     qs("#spot-host", box).addEventListener("click", () => {
@@ -456,6 +462,7 @@ export async function render(root) {
       formats: picks.filter(isFormat),
       base: center.isDefault ? null : { lat: at.lat, lng: at.lng, label: center.label || "", cc: r?.cc || center.cc },
     };
+    if (state.createDraft) state.createPrefill.draft = state.createDraft;
     go("#new");
   }
   for (const box of [qs("#rest", root), qs("#gmap", root), qs("#pick-card", root)]) {
@@ -464,7 +471,12 @@ export async function render(root) {
       if (b) hostHere(restList[Number(b.dataset.host)]);
     });
   }
-  qs("#host-near", root).addEventListener("click", () => hostHere(null));
+  qs("#host-near", root)?.addEventListener("click", () => hostHere(null));
+  // Back to the half-filled form without choosing anything here.
+  qs("#back-to-table", root)?.addEventListener("click", () => {
+    state.createPrefill = { draft: state.createDraft };
+    go("#new");
+  });
   // tap a restaurant row (not its buttons) to see it on the map
   qs("#rest", root).addEventListener("click", (e) => {
     if (e.target.closest("a, button")) return;
