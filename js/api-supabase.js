@@ -96,6 +96,16 @@ export async function createApi(cfg) {
         throw new ApiError("guest_unavailable", e?.message || "");
       }
     },
+    /** Sign in with a Google account (turn on the Google provider in the Supabase dashboard). Redirects away and comes back signed in. */
+    async signInWithGoogle() {
+      const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+      if (error) throw new ApiError("google_unavailable", error.message);
+    },
+    /** A guest keeps everything and attaches a Google account to it (needs "Allow manual linking" in the Supabase dashboard). */
+    async linkGoogle() {
+      const { error } = await sb.auth.linkIdentity({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+      if (error) throw new ApiError("link_unavailable", error.message);
+    },
     async verifyCode(email, code) {
       try {
         const { data, error } = await sb.auth.verifyOtp({ email, token: String(code).trim(), type: "email" });

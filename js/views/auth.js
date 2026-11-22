@@ -27,6 +27,7 @@ export async function render(root) {
               <div class="err-text" id="a-err" role="alert"></div>
               <button class="btn primary block" type="submit">${esc(t(demo ? "auth.send" : "auth.sendLink"))}</button>
               <div class="auth-or" aria-hidden="true"><span>${esc(t("auth.or"))}</span></div>
+              ${demo ? "" : `<button class="btn block" type="button" id="a-google" style="margin-bottom:10px">${esc(t("auth.google"))}</button>`}
               <button class="btn block" type="button" id="a-guest">${esc(t("auth.guest"))}</button>
               <p class="hint">${esc(t("auth.guestHint"))}</p>
             </form>`
@@ -92,6 +93,15 @@ export async function render(root) {
       if (!/^\S+@\S+\.\S+$/.test(email)) return setErr(t("err.bad_email"));
       if (!qs("#a-age", root).checked) return setErr(t("auth.ageNeeded"));
       send(qs('[type="submit"]', root));
+    });
+    qs("#a-google", root)?.addEventListener("click", async (e) => {
+      if (!qs("#a-age", root).checked) return setErr(t("auth.ageNeeded"));
+      try {
+        await withBusy(e.currentTarget, () => api.signInWithGoogle());
+        // the browser is sent to Google and comes back signed in
+      } catch (err) {
+        setErr(t("err.google_unavailable"));
+      }
     });
     qs("#a-guest", root)?.addEventListener("click", async (e) => {
       if (!qs("#a-age", root).checked) return setErr(t("auth.ageNeeded"));

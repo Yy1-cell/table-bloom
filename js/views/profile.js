@@ -66,6 +66,7 @@ export async function render(root) {
     ${state.isAdmin ? `<section class="card stack page-section"><h2>🛠 ${esc(t("ad.title"))}</h2><p class="muted">${esc(t("ad.entry"))}</p><a class="btn" href="#admin">${esc(t("ad.open"))}</a></section>` : ""}
     <section class="card stack page-section"><h2>${esc(t("pf.account"))}</h2>
       <p class="muted">${esc(me.guest ? t("pf.guestNote") : me.email || "")}</p>
+      ${me.guest && state.mode !== "demo" ? `<div class="notice">🔐 ${esc(t("pf.keepAcct"))}</div><div class="row wrap-row"><button type="button" class="btn primary" id="link-google">${esc(t("pf.linkGoogle"))}</button></div>` : ""}
       <div class="row wrap-row"><button type="button" class="btn" id="signout">${esc(t("pf.signOut"))}</button><button type="button" class="btn danger-ghost" id="delete">${esc(t("pf.delete"))}</button>${state.mode === "demo" ? `<button type="button" class="btn" id="demo-reset">🧪 ${esc(t("pf.demoReset"))}</button>` : ""}</div>
     </section>`
     }`;
@@ -95,6 +96,13 @@ export async function render(root) {
       draw();
     });
     qs("#how-pf", root)?.addEventListener("click", async () => (await import("./guide.js")).openGuide());
+    qs("#link-google", root)?.addEventListener("click", async (e) => {
+      try {
+        await withBusy(e.currentTarget, () => api.linkGoogle());
+      } catch (err) {
+        showError(err);
+      }
+    });
     qs("#signout", root)?.addEventListener("click", async () => {
       if (me.guest) {
         const ok = await confirmDialog({ title: t("pf.guestOutQ"), body: t("pf.guestOutBody"), confirmLabel: t("pf.signOut"), danger: true });
