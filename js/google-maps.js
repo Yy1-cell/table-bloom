@@ -227,3 +227,47 @@ export async function mountGoogleMap(container, data) {
     },
   };
 }
+
+// ---- Google's own restaurant search (Places "Text Search", 5,000 free calls a month), so the Map's list and pins are the
+// same places people see in the Google Maps app. Only cheap fields are asked for (name, address, position: the "Pro" tier).
+// Every search asks the server gate first; results are cached in this browser for an hour, so repeating a search is free.
+// Returns null whenever Google can't or shouldn't be used, and the caller shows the free list instead. Never throws.
+const PFAIL = "tb.gpFail";
+const placesFailed = () => { try { return sessionStorage.getItem(PFAIL) === "1"; } catch { return false; } };
+export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
+  if (!key() || placesFailed() || navigator.onLine === false) return null;
+  const ck = `tb.gp:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+  try {
+    const hit = JSON.parse(sessionStorage.getItem(ck) || "null");
+    if (hit && Date.now() - hit.at < 3600e3) return hit.list;
+  } catch {}
+  try {
+    if ((await api.claimGooglePlaces?.()) !== true) return null;
+    await loadGoogle();
+    const { Place } = await google.maps.importLibrary("places");
+    const { places } = await Place.searchByText({
+      textQuery: query,
+      fields: ["id", "displayName", "location", "formattedAddress"],
+      locationBias: { center: { lat: center.lat, lng: center.lng }, radius: Math.min(50000, radiusKm * 1000) },
+      maxResultCount: 20,
+      language: getLang() === "zh" ? "zh-CN" : "en",
+    });
+    const list = (places || [])
+      .filter((p) => p.location)
+      .map((p) => ({
+        name: p.displayName || "",
+        address: (p.formattedAddress || "").replace(/, (Canada|United States|USA)$/, ""),
+        lat: p.location.lat(),
+        lng: p.location.lng(),
+        poi_id: `g:${p.id}`,
+        google_id: p.id,
+        source: "google",
+      }));
+    try { sessionStorage.setItem(ck, JSON.stringify({ at: Date.now(), list })); } catch {}
+    return list;
+  } catch {
+    // Places not enabled for this key, quota reached, or offline: stop trying for this visit.
+    try { sessionStorage.setItem(PFAIL, "1"); } catch {}
+    return null;
+  }
+}

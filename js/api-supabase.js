@@ -187,6 +187,9 @@ export async function createApi(cfg) {
     async claimGoogleMap() {
       return (await rpc("claim_google_map")) === true;
     },
+    async claimGooglePlaces() {
+      return (await rpc("claim_google_places")) === true;
+    },
     async setMyDiet(id, tags, note) {
       await changed(id, rpc("set_my_diet", { p_table: id, p_tags: tags || [], p_note: note || null }));
     },

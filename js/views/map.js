@@ -8,6 +8,7 @@ import { currentPosition, locationPermission, restaurantsForKeys, reverseGeocode
 import { effectiveLoc, setLoc as saveLoc } from "../location.js";
 import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
 import { mountMap } from "../maps.js";
+import { googlePlacesSearch } from "../google-maps.js";
 import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { searchWord } from "../data.js";
@@ -296,9 +297,19 @@ export async function render(root) {
     if (pc) pc.innerHTML = "";
     paintMap();
     try {
-      const { list: found } = await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 });
+      // Google's own results first (the same places as in the Google Maps app); the free list if Google can't be used.
+      const word = picks.map(searchWord).filter(Boolean).join(" ");
+      let found = await googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants`, center });
+      if (found) found = found.map((r) => ({ ...r, distKm: haversineKm(center, r) }));
       if (!alive || request.signal.aborted) return;
+      if (!found?.length) found = (await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 })).list;
+      if (!alive || request.signal.aborted) return;
+      const fromGoogle = found[0]?.source === "google";
       const list = [...found].sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
+      const bt = qs("#built-title", root);
+      if (bt) bt.textContent = t(fromGoogle ? "map.googleList" : g ? "map.listOnly" : "map.builtIn");
+      const gh = qs("#g-hint", root);
+      if (gh && g) gh.textContent = t(fromGoogle ? "map.gHintGoogle" : "map.gHintPins");
       restList = list;
       box.innerHTML = list.length
         ? list
@@ -306,7 +317,7 @@ export async function render(root) {
               <div class="sub">${esc(r.address || "")}${r.address ? " · " : ""}${esc(distLine({ dist: r.distKm, lat: r.lat, lng: r.lng }))}</div>
               <div class="row wrap-row" style="margin:8px 0 4px"><button type="button" class="btn sm primary" data-host="${i}">🍽️ ${esc(hostLabel())}</button></div>
               ${mapActionsHTML(r, fromHere())}</div>`)
-            .join("") + `<p class="hint">${list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
+            .join("") + `<p class="hint">${fromGoogle ? esc(t("map.googleNote")) : list[0].source === "toronto" ? venueAttributionHTML() : esc(t("map.restNote"))}</p>`
         : restaurantFallback("map.noRestaurants");
       qs("#built-n", root).textContent = `(${list.length})`;
       paintMap();
