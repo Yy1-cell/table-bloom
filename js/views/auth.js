@@ -34,12 +34,10 @@ export async function render(root) {
           : `<form id="f-code" novalidate>
               <p>${esc(t(demo ? "auth.sent" : "auth.sentLink", { email }))}</p>
               ${demo ? "" : `<div class="notice">📬 ${esc(t("auth.linkSteps"))}</div>`}
-              ${demo ? "" : `<details class="have-code"><summary>${esc(t("auth.haveCode"))}</summary>`}
               <div class="field"><label for="a-code">${esc(t("auth.code"))}</label>
-                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" ${demo ? "required" : ""} placeholder="••••••"></div>
+                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" required placeholder="••••••"></div>
               <div class="err-text" id="a-err" role="alert"></div>
-              <button class="btn ${demo ? "primary " : ""}block" type="submit">${esc(t("auth.verify"))}</button>
-              ${demo ? "" : "</details>"}
+              <button class="btn primary block" type="submit">${esc(t("auth.verify"))}</button>
               <div class="row" style="justify-content:space-between;margin-top:10px">
                 <button type="button" class="btn sm ghost" id="a-back">${esc(t("auth.other"))}</button>
                 <button type="button" class="btn sm ghost" id="a-resend" ${cooldown ? "disabled" : ""}>${esc(cooldown ? t("auth.resendIn", { s: cooldown }) : t(demo ? "auth.resend" : "auth.resendLink"))}</button>
@@ -48,7 +46,7 @@ export async function render(root) {
       }
     </section>`;
     wire();
-    (qs("#a-email", root) || (state.mode === "demo" ? qs("#a-code", root) : null))?.focus();
+    (qs("#a-email", root) || qs("#a-code", root))?.focus();
   }
 
   const setErr = (m) => {
