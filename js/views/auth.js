@@ -35,7 +35,7 @@ export async function render(root) {
               ${demo ? "" : `<div class="notice">📬 ${esc(t("auth.linkSteps"))}</div>`}
               ${demo ? "" : `<details class="have-code"><summary>${esc(t("auth.haveCode"))}</summary>`}
               <div class="field"><label for="a-code">${esc(t("auth.code"))}</label>
-                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" ${demo ? "required" : ""} placeholder="••••••"></div>
+                <input id="a-code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" ${demo ? "required" : ""} placeholder="••••••"></div>
               <div class="err-text" id="a-err" role="alert"></div>
               <button class="btn ${demo ? "primary " : ""}block" type="submit">${esc(t("auth.verify"))}</button>
               ${demo ? "" : "</details>"}
@@ -105,7 +105,7 @@ export async function render(root) {
     qs("#f-code", root)?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const code = qs("#a-code", root).value.replace(/\D/g, "");
-      if (code.length < 6) return setErr(t("err.bad_code"));
+      if (code.length < 6 || code.length > 10) return setErr(t("err.bad_code"));
       try {
         await withBusy(qs('[type="submit"]', root), () => api.verifyCode(email, code));
         // main.js reacts to the auth change and navigates on
