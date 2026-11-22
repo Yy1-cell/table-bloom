@@ -1,10 +1,10 @@
-// "Host a table" — 3-step wizard in a sheet.
+// "Host a table" — 2-step wizard in a sheet. Only the essentials are shown; everything optional sits in a folded "More options".
 import { esc, qs, qsa, todayStr, toISO, pad, midpoint, haversineKm, mapsUrl } from "../util.js";
 import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, OCCASIONS, INTENTIONS, PACES, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
+import { AUDIENCES, TAGS, OCCASIONS, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
 import { effectiveLoc } from "../location.js";
 import { currencyFor, budgetRange } from "../currency.js";
@@ -35,12 +35,13 @@ export function openCreate({ onClose } = {}) {
     tags: [],
     occasion: "",
     note: "",
-    intention: "",
-    pace: "",
     // Only used to suggest restaurants. Never sent to the server.
     startMe: null,
   };
   let step = 1;
+  const STEPS = 2;
+  // Folded "More options" boxes start open only if something in them is already filled (e.g. handed over from the Map).
+  const more = { 1: false, 2: false };
   let sug = null; // null | "loading" | "error" | "need-starts" | { list, mode }
   let sugSeq = 0;
   let sugCtl = null;
@@ -56,7 +57,7 @@ export function openCreate({ onClose } = {}) {
   };
 
   function stepper() {
-    return `<div class="steps" role="img" aria-label="${esc(t("cr.stepOf", { n: step, total: 3 }))}">${[1, 2, 3].map((i) => `<i class="${i <= step ? "on" : ""}"></i>`).join("")}</div>`;
+    return `<div class="steps" role="img" aria-label="${esc(t("cr.stepOf", { n: step, total: STEPS }))}">${[1, 2].map((i) => `<i class="${i <= step ? "on" : ""}"></i>`).join("")}</div>`;
   }
 
   // Only the formats that fit the chosen cuisine are offered (no dim sum with Japanese); anything that no longer fits is dropped.
@@ -71,26 +72,35 @@ export function openCreate({ onClose } = {}) {
   function draw() {
     let body = "";
     if (step === 1) {
+      const moreOpen = more[1] || !!(d.title || d.formats.length || d.vtype || d.occasion || d.tags.length);
       body = `
         <h2>${esc(t("cr.s1"))}</h2>
         ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
-        <div class="field"><label for="c-title">${esc(t("cr.title"))} <span class="muted">(${esc(t("common.optional"))})</span></label>
-          <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(t("cr.titlePh"))}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
           ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
         </div></fieldset>
         <fieldset><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
-        <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("common.optional"))} · ${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
-          <div class="chips" id="c-formats">${formatChipsHTML()}</div></fieldset>
-        <fieldset><legend>${esc(t("cr.vtype"))} <span class="muted">(${esc(t("common.optional"))})</span></legend>
-          <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}<small class="chip-sub">${esc(t("vtHint." + v.slug))}</small></button>`).join("")}</div></fieldset>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
         <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
-        <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
-          ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
-        </div></fieldset>`;
+        <details class="more" id="c-more" ${moreOpen ? "open" : ""}><summary>${esc(t("cr.moreOpts"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
+          <div class="field"><label for="c-title">${esc(t("cr.title"))}</label>
+            <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(t("cr.titlePh"))}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
+          <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
+            ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
+          </div></fieldset>
+          <fieldset><legend>${esc(t("cr.occasion"))}</legend><div class="chips" id="c-occ">
+            ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
+          </div></fieldset>
+          <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
+            <div class="chips" id="c-formats">${formatChipsHTML()}</div></fieldset>
+          <fieldset><legend>${esc(t("cr.vtype"))}</legend>
+            <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}<small class="chip-sub">${esc(t("vtHint." + v.slug))}</small></button>`).join("")}</div></fieldset>
+          <fieldset><legend>${esc(t("cr.tags"))}</legend><div class="chips" id="c-tags">
+            ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
+          </div></fieldset>
+        </details>`;
     } else if (step === 2) {
       const ids = (draw._ids = {});
       const mk = (key, label, placeholder, hint) => {
@@ -140,30 +150,19 @@ export function openCreate({ onClose } = {}) {
         <div class="field" id="c-base"><details id="c-base-d" ${baseLoc() ? "" : "open"}><summary id="c-base-sum"></summary><div id="c-loc"></div></details></div>
         ${startBlock}
         ${venueBlock}
+        <details class="more" id="c-more" ${more[2] || d.budget || d.note ? "open" : ""}><summary>${esc(t("cr.moreOpts"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
+          <div class="field"><label for="c-budget">${esc(t("cr.budget"))} (<span id="c-cur">${esc(tableCurrency())}</span>)</label>
+            <input id="c-budget" type="number" inputmode="decimal" min="0" max="${budgetRange(tableCurrency()).max}" step="1" value="${esc(d.budget)}" placeholder="${budgetRange(tableCurrency()).hint}"></div>
+          <div class="field"><label for="c-note">${esc(t("cr.note"))}</label>
+            <textarea id="c-note" maxlength="280" placeholder="${esc(t("cr.notePh"))}">${esc(d.note)}</textarea><div class="counter"><span id="c-note-n">${d.note.length}</span>/280</div></div>
+        </details>
+        <div class="notice" id="c-summary">${summary()}</div>
         <div id="c-err" class="err-text" role="alert"></div>`;
-    } else {
-      body = `
-        <h2>${esc(t("cr.s3"))}</h2>
-        <div class="field"><label for="c-budget">${esc(t("cr.budget"))} (${esc(tableCurrency())}) <span class="muted">(${esc(t("common.optional"))})</span></label>
-          <input id="c-budget" type="number" inputmode="decimal" min="0" max="${budgetRange(tableCurrency()).max}" step="1" value="${esc(d.budget)}" placeholder="${budgetRange(tableCurrency()).hint}"></div>
-        <fieldset><legend>${esc(t("cr.occasion"))} <span class="muted">(${esc(t("common.optional"))})</span></legend><div class="chips" id="c-occ">
-          ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
-        </div></fieldset>
-        <fieldset><legend>${esc(t("cr.tags"))}</legend><div class="chips" id="c-tags">
-          ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
-        </div></fieldset>
-        <div class="field"><label for="c-note">${esc(t("cr.note"))} <span class="muted">(${esc(t("common.optional"))})</span></label>
-          <textarea id="c-note" maxlength="280" placeholder="${esc(t("cr.notePh"))}">${esc(d.note)}</textarea><div class="counter"><span id="c-note-n">${d.note.length}</span>/280</div></div>
-        <div class="row wrap-row">
-          <div class="field" style="flex:1;min-width:150px"><label for="c-int">${esc(t("td.intention"))}</label><select id="c-int"><option value="">${esc(t("td.noPref"))}</option>${INTENTIONS.map((v) => `<option value="${v}" ${d.intention === v ? "selected" : ""}>${esc(t("int." + v))}</option>`).join("")}</select></div>
-          <div class="field" style="flex:1;min-width:150px"><label for="c-pace">${esc(t("td.pace"))}</label><select id="c-pace"><option value="">${esc(t("td.noPref"))}</option>${PACES.map((v) => `<option value="${v}" ${d.pace === v ? "selected" : ""}>${esc(t("pace." + v))}</option>`).join("")}</select></div>
-        </div>
-        <div class="notice">${summary()}</div>`;
     }
     sheet.setHTML(`${stepper()}${body}
       <div class="sheet-actions">
         ${step > 1 ? `<button type="button" class="btn" data-back>${esc(t("common.back"))}</button>` : ""}
-        <button type="button" class="btn primary" data-next>${esc(step === 3 ? t("cr.publish") : t("common.next"))}</button>
+        <button type="button" class="btn primary" data-next>${esc(step === STEPS ? t("cr.publish") : t("common.next"))}</button>
       </div>`);
     wire();
     sheet.focusFirst();
@@ -179,6 +178,15 @@ export function openCreate({ onClose } = {}) {
     return `<strong>${esc(d.title || (c ? `${c.emoji} ${names || c.name}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
   }
 
+  // Step 2 keeps a live summary; the budget currency follows the chosen restaurant.
+  function refreshSummary() {
+    if (step !== 2) return;
+    const box = qs("#c-summary", sheet.body);
+    if (box) box.innerHTML = summary();
+    const cur = qs("#c-cur", sheet.body);
+    if (cur) cur.textContent = tableCurrency();
+  }
+
   function stopSuggest() {
     clearTimeout(sugTimer);
     sugCtl?.abort();
@@ -188,16 +196,14 @@ export function openCreate({ onClose } = {}) {
   function readStep() {
     if (step === 1) {
       d.title = qs("#c-title", sheet.body).value.trim();
-    } else if (step === 2) {
+    } else {
       d.date = qs("#c-date", sheet.body).value;
       d.time = qs("#c-time", sheet.body).value;
       d.area_label = qs("#c-label", sheet.body)?.value.trim() ?? d.area_label;
-    } else {
       d.budget = qs("#c-budget", sheet.body).value;
       d.note = qs("#c-note", sheet.body).value.trim();
-      d.intention = qs("#c-int", sheet.body).value;
-      d.pace = qs("#c-pace", sheet.body).value;
     }
+    more[step] = !!qs("#c-more", sheet.body)?.open;
   }
 
   // ---- restaurant suggestions (step 2)
@@ -216,6 +222,7 @@ export function openCreate({ onClose } = {}) {
   function syncSuggestions() {
     const wrap = qs("#c-sug-wrap", sheet.body);
     if (wrap) wrap.hidden = !!d.place;
+    refreshSummary();
     if (!d.place) scheduleSuggest();
   }
 
@@ -232,6 +239,7 @@ export function openCreate({ onClose } = {}) {
   function refreshMapLink() {
     const box = qs("#c-maplink", sheet.body);
     if (box) box.innerHTML = mapLinkHTML(d.place);
+    refreshSummary();
   }
 
   function suggestOrigin() {
@@ -362,13 +370,27 @@ export function openCreate({ onClose } = {}) {
         d.vtype = d.vtype === c.dataset.vtype ? "" : c.dataset.vtype;
         qsa("[data-vtype]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.vtype === d.vtype)));
       });
+      qs("#c-occ", b).addEventListener("click", (e) => {
+        const o = e.target.closest("[data-occ]");
+        if (!o) return;
+        d.occasion = d.occasion === o.dataset.occ ? "" : o.dataset.occ;
+        qsa("[data-occ]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.occ === d.occasion)));
+      });
+      qs("#c-tags", b).addEventListener("click", (e) => {
+        const g = e.target.closest("[data-tag]");
+        if (!g) return;
+        d.tags = d.tags.includes(g.dataset.tag) ? d.tags.filter((x) => x !== g.dataset.tag) : [...d.tags, g.dataset.tag];
+        g.setAttribute("aria-pressed", String(d.tags.includes(g.dataset.tag)));
+      });
       qsa("[data-cap]", b).forEach((x) =>
         x.addEventListener("click", () => {
           d.capacity = Math.min(12, Math.max(2, d.capacity + Number(x.dataset.cap)));
           qs("#cap-v", b).textContent = d.capacity;
         })
       );
-    } else if (step === 2) {
+    } else {
+      qs("#c-note", b).addEventListener("input", (e) => (qs("#c-note-n", b).textContent = e.target.value.length));
+      ["#c-date", "#c-time", "#c-label"].forEach((id) => qs(id, b)?.addEventListener("input", () => { readStep(); refreshSummary(); }));
       const ids = draw._ids;
       const near = areaCenter();
       bindPlaceSearch(b, {
@@ -404,6 +426,7 @@ export function openCreate({ onClose } = {}) {
         onChange: (loc) => {
           d.base = loc;
           paintBase();
+          refreshSummary();
           qs("#c-base-d", b).open = false;
           scheduleSuggest();
         },
@@ -438,20 +461,6 @@ export function openCreate({ onClose } = {}) {
         syncSuggestions();
       });
       loadSuggest();
-    } else {
-      qs("#c-note", b).addEventListener("input", (e) => (qs("#c-note-n", b).textContent = e.target.value.length));
-      qs("#c-occ", b).addEventListener("click", (e) => {
-        const o = e.target.closest("[data-occ]");
-        if (!o) return;
-        d.occasion = d.occasion === o.dataset.occ ? "" : o.dataset.occ;
-        qsa("[data-occ]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.occ === d.occasion)));
-      });
-      qs("#c-tags", b).addEventListener("click", (e) => {
-        const g = e.target.closest("[data-tag]");
-        if (!g) return;
-        d.tags = d.tags.includes(g.dataset.tag) ? d.tags.filter((x) => x !== g.dataset.tag) : [...d.tags, g.dataset.tag];
-        g.setAttribute("aria-pressed", String(d.tags.includes(g.dataset.tag)));
-      });
     }
     qs("[data-back]", b)?.addEventListener("click", () => {
       readStep();
@@ -462,7 +471,7 @@ export function openCreate({ onClose } = {}) {
     qs("[data-next]", b).addEventListener("click", async (e) => {
       readStep();
       if (!validate()) return;
-      if (step < 3) {
+      if (step < STEPS) {
         stopSuggest();
         step++;
         return draw();
@@ -498,8 +507,6 @@ export function openCreate({ onClose } = {}) {
       tags: d.tags,
       occasion: d.occasion || null,
       note: d.note || null,
-      intention: d.intention || null,
-      pace: d.pace || null,
     };
     try {
       const r = await withBusy(btn, async () => {
@@ -510,7 +517,6 @@ export function openCreate({ onClose } = {}) {
             if (d.startMe) {
               await api.updateMembership(made.id, {
                 start_label: d.startMe.name, start_lat: d.startMe.lat, start_lng: d.startMe.lng,
-                intention: d.intention || null, pace: d.pace || null,
               });
             }
             if (d.craving) await api.setCraving(made.id, d.craving);
