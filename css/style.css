@@ -265,6 +265,7 @@ details.more[open] summary { margin-bottom: 12px; }
 .suggest { list-style: none; padding: 0; margin: 10px 0 0; }
 .suggest li { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
 .suggest .who { flex: 1; min-width: 0; }
+@media (max-width: 560px) { .suggest li { flex-wrap: wrap; } .suggest .who { flex-basis: 100%; } }
 .suggest small { color: var(--muted); display: block; }
 
 /* ---------- photos */

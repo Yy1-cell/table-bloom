@@ -110,14 +110,8 @@ export function searchKeys({ cuisine, cuisines, formats = [], venue_type } = {})
   return [...new Set(keys)];
 }
 
-export const TAGS = [
-  "mandarin_friendly",
-  "new_to_toronto",
-  "split_bill",
-  "bring_a_friend",
-  "easy_conversation",
-  "try_somewhere_new",
-];
+// Vibe tags a host can add (older tables may still carry mandarin_friendly, bring_a_friend, easy_conversation; their labels stay in strings).
+export const TAGS = ["split_bill", "new_to_toronto", "try_somewhere_new"];
 
 // What the table is for. Optional, chosen by the host when creating the table.
 export const OCCASIONS = [

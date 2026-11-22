@@ -61,6 +61,10 @@ Object.assign(cuisines, {
   asia: unite("southeast asia|malay|indonesia|singapor|filipino|philippine|\\bpad thai\\b|laksa|nasi|satay|roti|dosa|\\bnaan\\b|masala|bombay|delhi|mumbai|lanka|nepal|himalay", "thai", "vietnamese", "indian"),
   western: unite("steak|grill|chophouse|gastropub|european|german|spanish|tapas|portuguese|british|irish|pub food|bbq ribs|bistro", "american", "italian", "french"),
 });
+/** Whether a restaurant's name suggests a cuisine or format key (e.g. "Kokoro Japanese Sushi House" → japanese). */
+export function nameMatchesKey(name, key) {
+  return !!cuisines[key]?.test(name || "");
+}
 const publicDining = /restaurant|kitchen|eatery|diner|bistro|grill|tavern|trattoria|cantina|steakhouse|\bfood court\b/i;
 
 export async function searchTorontoVenues(query, center) {

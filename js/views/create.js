@@ -11,6 +11,7 @@ import { currencyFor, budgetRange } from "../currency.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
+import { nameMatchesKey } from "../toronto-venues.js";
 import { allergyReminderHTML } from "./diet.js";
 
 export function openCreate({ onClose } = {}) {
@@ -38,6 +39,21 @@ export function openCreate({ onClose } = {}) {
     // Only used to suggest restaurants. Never sent to the server.
     startMe: null,
   };
+  // One restaurant has one cuisine: once a place is chosen, the cuisine (and how-we-eat) follow the place.
+  // `hint` is the key the place was suggested for, if any.
+  function fitToPlace(place, hint) {
+    if (!place) return;
+    const name = place.name || "";
+    const fits = (k) => k === hint || nameMatchesKey(name, k);
+    const kept = d.cuisines.filter(fits);
+    if (kept.length) d.cuisines = [kept[kept.length - 1]];
+    else if (hint && !isFormat(hint) && !["cafe", "bar"].includes(hint)) d.cuisines = [hint];
+    else d.cuisines = d.cuisines.slice(0, 1);
+    const ok = formatsForMany(d.cuisines);
+    d.formats = FORMATS.map((f) => f.slug).filter((f) => ok.includes(f) && fits(f)).slice(0, MAX_FORMATS);
+  }
+  if (pre?.place) fitToPlace(pre.place);
+
   let step = 1;
   const STEPS = 2;
   // Folded "More options" boxes start open only if something in them is already filled (e.g. handed over from the Map).
@@ -72,34 +88,27 @@ export function openCreate({ onClose } = {}) {
   function draw() {
     let body = "";
     if (step === 1) {
-      const moreOpen = more[1] || !!(d.title || d.formats.length || d.vtype || d.occasion || d.tags.length);
+      const kindOpen = more[1] || !!(d.occasion || d.tags.length);
       body = `
         <h2>${esc(t("cr.s1"))}</h2>
         ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
         <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
           ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
         </div></fieldset>
+        <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
+        <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
+          ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
+        </div></fieldset>
         <fieldset><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
-        <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
-        <details class="more" id="c-more" ${moreOpen ? "open" : ""}><summary>${esc(t("cr.moreOpts"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
-          <div class="field"><label for="c-title">${esc(t("cr.title"))}</label>
-            <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(t("cr.titlePh"))}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
-          <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
-            ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
-          </div></fieldset>
-          <fieldset><legend>${esc(t("cr.occasion"))}</legend><div class="chips" id="c-occ">
+        <details class="more" id="c-more" ${kindOpen ? "open" : ""}><summary>${esc(t("cr.kind"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
+          <div class="chips" id="c-kind">
             ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
-          </div></fieldset>
-          <fieldset><legend>${esc(t("cr.formats"))} <span class="muted">(${esc(t("cr.formatsMax", { n: MAX_FORMATS }))})</span></legend>
-            <div class="chips" id="c-formats">${formatChipsHTML()}</div></fieldset>
-          <fieldset><legend>${esc(t("cr.vtype"))}</legend>
-            <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}<small class="chip-sub">${esc(t("vtHint." + v.slug))}</small></button>`).join("")}</div></fieldset>
-          <fieldset><legend>${esc(t("cr.tags"))}</legend><div class="chips" id="c-tags">
             ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
-          </div></fieldset>
+          </div>
+          <p class="hint" style="margin:8px 0 0">${esc(t("cr.kindHint"))}</p>
         </details>`;
     } else if (step === 2) {
       const ids = (draw._ids = {});
@@ -132,6 +141,12 @@ export function openCreate({ onClose } = {}) {
             ids.venue = ps.id;
             return `<div class="section-lite" id="c-sug-wrap"${d.place ? " hidden" : ""}>
           <h3>${esc(t("cr.sugTitle"))}</h3>
+          <details class="cuis-details" id="c-narrow" ${d.formats.length || d.vtype ? "open" : ""}><summary>${esc(t("cr.narrow"))}</summary>
+            <p class="lbl" style="margin:4px 0">${esc(t("cr.formats"))}</p>
+            <div class="chips" id="c-formats">${formatChipsHTML()}</div>
+            <p class="lbl" style="margin:10px 0 4px">${esc(t("cr.vtype"))}</p>
+            <div class="chips" id="c-vtype">${VENUE_TYPES.map((v) => `<button type="button" class="chip" data-vtype="${v.slug}" aria-pressed="${d.vtype === v.slug}"><span aria-hidden="true">${v.emoji}</span> ${esc(t("vt." + v.slug))}</button>`).join("")}</div>
+          </details>
           <p class="hint" id="c-sug-hint" role="status" aria-live="polite"></p>
           ${allergyReminderHTML([{ name: "", tags: state.me?.dietary_tags || [] }])}
           <ul class="suggest" id="c-sug" aria-live="polite"></ul>
@@ -157,6 +172,8 @@ export function openCreate({ onClose } = {}) {
             <textarea id="c-note" maxlength="280" placeholder="${esc(t("cr.notePh"))}">${esc(d.note)}</textarea><div class="counter"><span id="c-note-n">${d.note.length}</span>/280</div></div>
         </details>
         <div class="notice" id="c-summary">${summary()}</div>
+        <div class="field" id="f-title" ${d.title || more.title ? "" : "hidden"}><label for="c-title">${esc(t("cr.title"))}</label>
+          <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(autoTitle())}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
         <div id="c-err" class="err-text" role="alert"></div>`;
     }
     sheet.setHTML(`${stepper()}${body}
@@ -172,10 +189,16 @@ export function openCreate({ onClose } = {}) {
     const area = baseLoc()?.label || "";
     return isFriends() && !d.place ? area : d.place?.name || d.area_label || area;
   }
-  function summary() {
+  // The title people see if the host doesn't name the table: the restaurant, otherwise the cuisine(s).
+  function autoTitle() {
     const c = menuItem(d.cuisines[0] || d.formats[0] || "");
+    if (d.place) return `${c ? c.emoji + " " : ""}${d.place.name}`;
     const names = d.cuisines.map((k) => menuItem(k)?.name).filter(Boolean).join(" · ");
-    return `<strong>${esc(d.title || (c ? `${c.emoji} ${names || c.name}` : t("card.untitled")))}</strong><br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
+    return c ? `${c.emoji} ${names || c.name}` : t("card.untitled");
+  }
+  function summary() {
+    const renaming = more.title || !!d.title;
+    return `<strong>${esc(d.title || autoTitle())}</strong>${renaming ? "" : ` <button type="button" class="btn sm ghost" data-rename>✏️ ${esc(t("cr.rename"))}</button>`}<br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
   }
 
   // Step 2 keeps a live summary; the budget currency follows the chosen restaurant.
@@ -183,6 +206,8 @@ export function openCreate({ onClose } = {}) {
     if (step !== 2) return;
     const box = qs("#c-summary", sheet.body);
     if (box) box.innerHTML = summary();
+    const ti = qs("#c-title", sheet.body);
+    if (ti) ti.placeholder = autoTitle();
     const cur = qs("#c-cur", sheet.body);
     if (cur) cur.textContent = tableCurrency();
   }
@@ -194,14 +219,13 @@ export function openCreate({ onClose } = {}) {
   }
 
   function readStep() {
-    if (step === 1) {
-      d.title = qs("#c-title", sheet.body).value.trim();
-    } else {
+    if (step === 2) {
       d.date = qs("#c-date", sheet.body).value;
       d.time = qs("#c-time", sheet.body).value;
       d.area_label = qs("#c-label", sheet.body)?.value.trim() ?? d.area_label;
       d.budget = qs("#c-budget", sheet.body).value;
       d.note = qs("#c-note", sheet.body).value.trim();
+      d.title = qs("#c-title", sheet.body).value.trim();
     }
     more[step] = !!qs("#c-more", sheet.body)?.open;
   }
@@ -336,7 +360,6 @@ export function openCreate({ onClose } = {}) {
   function wire() {
     const b = sheet.body;
     if (step === 1) {
-      qs("#c-title", b).addEventListener("input", (e) => (qs("#c-title-n", b).textContent = e.target.value.length));
       qsa('input[name="aud"]', b).forEach((r) =>
         r.addEventListener("change", () => {
           d.audience = r.value;
@@ -352,31 +375,16 @@ export function openCreate({ onClose } = {}) {
         onLimit: () => toast(t("cr.cuisineMaxHit", { n: 3 })),
         onChange: (v) => {
           d.cuisines = v;
-          qs("#c-formats", b).innerHTML = formatChipsHTML();
+          formatChipsHTML(); // drops formats that no longer fit
         },
       });
-      qs("#c-formats", b).addEventListener("click", (e) => {
-        const c = e.target.closest("[data-fmt]");
-        if (!c) return;
-        const s = c.dataset.fmt;
-        if (d.formats.includes(s)) d.formats = d.formats.filter((x) => x !== s);
-        else if (d.formats.length < MAX_FORMATS) d.formats = [...d.formats, s];
-        else return toast(t("cr.formatsMaxHit", { n: MAX_FORMATS }));
-        qsa("[data-fmt]", b).forEach((x) => x.setAttribute("aria-pressed", String(d.formats.includes(x.dataset.fmt))));
-      });
-      qs("#c-vtype", b).addEventListener("click", (e) => {
-        const c = e.target.closest("[data-vtype]");
-        if (!c) return;
-        d.vtype = d.vtype === c.dataset.vtype ? "" : c.dataset.vtype;
-        qsa("[data-vtype]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.vtype === d.vtype)));
-      });
-      qs("#c-occ", b).addEventListener("click", (e) => {
+      qs("#c-kind", b).addEventListener("click", (e) => {
         const o = e.target.closest("[data-occ]");
         if (!o) return;
         d.occasion = d.occasion === o.dataset.occ ? "" : o.dataset.occ;
         qsa("[data-occ]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.occ === d.occasion)));
       });
-      qs("#c-tags", b).addEventListener("click", (e) => {
+      qs("#c-kind", b).addEventListener("click", (e) => {
         const g = e.target.closest("[data-tag]");
         if (!g) return;
         d.tags = d.tags.includes(g.dataset.tag) ? d.tags.filter((x) => x !== g.dataset.tag) : [...d.tags, g.dataset.tag];
@@ -390,6 +398,37 @@ export function openCreate({ onClose } = {}) {
       );
     } else {
       qs("#c-note", b).addEventListener("input", (e) => (qs("#c-note-n", b).textContent = e.target.value.length));
+      qs("#c-title", b).addEventListener("input", (e) => {
+        qs("#c-title-n", b).textContent = e.target.value.length;
+        d.title = e.target.value.trim();
+        const strong = qs("#c-summary strong", b);
+        if (strong) strong.textContent = d.title || autoTitle();
+      });
+      qs("#c-summary", b).addEventListener("click", (e) => {
+        if (!e.target.closest("[data-rename]")) return;
+        more.title = true;
+        qs("#f-title", b).hidden = false;
+        refreshSummary();
+        qs("#c-title", b).focus();
+      });
+      qs("#c-formats", b)?.addEventListener("click", (e) => {
+        const c = e.target.closest("[data-fmt]");
+        if (!c) return;
+        const s = c.dataset.fmt;
+        if (d.formats.includes(s)) d.formats = d.formats.filter((x) => x !== s);
+        else if (d.formats.length < MAX_FORMATS) d.formats = [...d.formats, s];
+        else return toast(t("cr.formatsMaxHit", { n: MAX_FORMATS }));
+        qsa("[data-fmt]", b).forEach((x) => x.setAttribute("aria-pressed", String(d.formats.includes(x.dataset.fmt))));
+        scheduleSuggest();
+      });
+      qs("#c-vtype", b)?.addEventListener("click", (e) => {
+        const c = e.target.closest("[data-vtype]");
+        if (!c) return;
+        d.vtype = d.vtype === c.dataset.vtype ? "" : c.dataset.vtype;
+        qsa("[data-vtype]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.vtype === d.vtype)));
+        scheduleSuggest();
+      });
+
       ["#c-date", "#c-time", "#c-label"].forEach((id) => qs(id, b)?.addEventListener("input", () => { readStep(); refreshSummary(); }));
       const ids = draw._ids;
       const near = areaCenter();
@@ -402,6 +441,7 @@ export function openCreate({ onClose } = {}) {
         id: ids.venue, near,
         onSelect: (p) => {
           d.place = p;
+          fitToPlace(p);
           qs("#c-maplink", b).innerHTML = mapLinkHTML(p);
           sugCtl?.abort();
           syncSuggestions();
@@ -456,6 +496,7 @@ export function openCreate({ onClose } = {}) {
         const r = sug.list[Number(btn.dataset.use)];
         if (!r) return;
         d.place = { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id || null };
+        fitToPlace(d.place, r.forCuisine);
         qs("#c-maplink", b).innerHTML = mapLinkHTML(d.place);
         qs("#c-err", b).textContent = "";
         syncSuggestions();

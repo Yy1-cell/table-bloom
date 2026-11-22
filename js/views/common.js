@@ -103,6 +103,8 @@ export function tableTitle(tb) {
   if (tb.title) return tb.title;
   const names = cuisineNames(tb, { emoji: false });
   const c = cuisineOf(cuisinesOf(tb)[0]);
+  // No title of its own: name it after its restaurant once there is one (follows the venue if it changes).
+  if (tb.venue?.name) return `${c ? c.emoji + " " : ""}${tb.venue.name}`;
   if (c) return `${c.emoji} ${names}`;
   const f = FORMATS.find((x) => x.slug === tb.formats?.[0]);
   if (f) return `${f.emoji} ${t("fm." + f.slug)}`;
