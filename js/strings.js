@@ -122,7 +122,7 @@ export const EN = {
   "rep.harassment": "Harassment or rude behaviour", "rep.no_show": "Didn't show up", "rep.unsafe": "Felt unsafe", "rep.spam": "Spam or fake", "rep.other": "Something else",
 
   // create
-  "cr.moreOpts": "More options", "cr.kind": "What kind of table?", "cr.kindHint": "Pick any that fit. Shown on your table.", "cr.narrow": "Narrow the suggestions", "cr.rename": "Rename", "cr.label": "Host a table", "cr.stepOf": "Step {n} of {total}", "cr.s1": "Who and what", "cr.s2": "When and where", "cr.s3": "Final touches",
+  "cr.moreOpts": "More options", "cr.orJoin": "{a} or {b}", "cr.listSep": ", ", "cr.noPlaceYet": "Restaurant not chosen yet — you can pick it on the table page later.", "td.chatPrefs": "Conversation preferences", "cr.kind": "What kind of table?", "cr.kindHint": "Pick any that fit. Shown on your table.", "cr.narrow": "Narrow the suggestions", "cr.rename": "Rename", "cr.label": "Host a table", "cr.stepOf": "Step {n} of {total}", "cr.s1": "Who and what", "cr.s2": "When and where", "cr.s3": "Final touches",
   "cr.title": "Title", "cr.titlePh": "e.g. Hot pot night", "cr.audience": "Who is it for?", "cr.cuisine": "Which cuisine?",
   "cr.capacity": "How many people (including you)?", "cr.capacityHint": "2–12. Smaller groups make easier conversation.", "cr.fewer": "Fewer seats", "cr.more": "More seats",
   "cr.joinMode": "How do people join?", "jm.request": "Ask first", "jm.instant": "Instant join", "jmHint.request": "You approve each person", "jmHint.instant": "Seats fill first come, first served",
@@ -372,7 +372,7 @@ export const ZH = {
   "rep.done": "谢谢，我们会尽快查看。", "rep.doneBlocked": "已举报并屏蔽。",
   "rep.harassment": "骚扰或言行不当", "rep.no_show": "没有出现", "rep.unsafe": "让我感到不安全", "rep.spam": "垃圾信息或虚假账号", "rep.other": "其他",
 
-  "cr.moreOpts": "更多设置", "cr.kind": "这是个什么局？", "cr.kindHint": "符合的都可以选，会显示在饭局上。", "cr.narrow": "缩小推荐范围", "cr.rename": "改名", "cr.label": "发起饭局", "cr.stepOf": "第 {n} 步，共 {total} 步", "cr.s1": "和谁、吃什么", "cr.s2": "时间和地点", "cr.s3": "最后几项",
+  "cr.moreOpts": "更多设置", "cr.orJoin": "{a}或{b}", "cr.listSep": "、", "cr.noPlaceYet": "还没选餐厅 —— 之后可以在饭局页面再选。", "td.chatPrefs": "聊天偏好", "cr.kind": "这是个什么局？", "cr.kindHint": "符合的都可以选，会显示在饭局上。", "cr.narrow": "缩小推荐范围", "cr.rename": "改名", "cr.label": "发起饭局", "cr.stepOf": "第 {n} 步，共 {total} 步", "cr.s1": "和谁、吃什么", "cr.s2": "时间和地点", "cr.s3": "最后几项",
   "cr.title": "标题", "cr.titlePh": "例如：火锅之夜", "cr.audience": "欢迎哪些人？", "cr.cuisine": "想吃哪种菜系？",
   "cr.capacity": "一共几个人（包括你）？", "cr.capacityHint": "2–12 人。人少一点，聊天更轻松。", "cr.fewer": "减少座位", "cr.more": "增加座位",
   "cr.joinMode": "大家怎么加入？", "jm.request": "需要我同意", "jm.instant": "直接加入", "jmHint.request": "由你逐个审核", "jmHint.instant": "先到先得",

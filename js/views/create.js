@@ -5,7 +5,7 @@ import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
 import { AUDIENCES, TAGS, OCCASIONS, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
-import { go, nameOf, showError, withBusy, mapActionsHTML } from "./common.js";
+import { go, nameOf, showError, withBusy, mapActionsHTML, orList } from "./common.js";
 import { effectiveLoc } from "../location.js";
 import { currencyFor, budgetRange } from "../currency.js";
 import { mountLocPicker } from "./loc-picker.js";
@@ -88,7 +88,7 @@ export function openCreate({ onClose } = {}) {
   function draw() {
     let body = "";
     if (step === 1) {
-      const kindOpen = more[1] || !!(d.occasion || d.tags.length);
+      const kindOpen = more[1] || !!((isFriends() && d.occasion) || d.tags.length);
       body = `
         <h2>${esc(t("cr.s1"))}</h2>
         ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
@@ -105,7 +105,7 @@ export function openCreate({ onClose } = {}) {
           <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
         <details class="more" id="c-more" ${kindOpen ? "open" : ""}><summary>${esc(t("cr.kind"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
           <div class="chips" id="c-kind">
-            ${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}
+            <span id="c-occs" style="display:${isFriends() ? "contents" : "none"}">${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}</span>
             ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
           </div>
           <p class="hint" style="margin:8px 0 0">${esc(t("cr.kindHint"))}</p>
@@ -193,12 +193,13 @@ export function openCreate({ onClose } = {}) {
   function autoTitle() {
     const c = menuItem(d.cuisines[0] || d.formats[0] || "");
     if (d.place) return `${c ? c.emoji + " " : ""}${d.place.name}`;
-    const names = d.cuisines.map((k) => menuItem(k)?.name).filter(Boolean).join(" · ");
-    return c ? `${c.emoji} ${names || c.name}` : t("card.untitled");
+    const names = d.cuisines.map((k) => menuItem(k)?.name).filter(Boolean);
+    if (names.length > 1) return `🍽️ ${orList(names)}`;
+    return c ? `${c.emoji} ${names[0] || c.name}` : t("card.untitled");
   }
   function summary() {
     const renaming = more.title || !!d.title;
-    return `<strong>${esc(d.title || autoTitle())}</strong>${renaming ? "" : ` <button type="button" class="btn sm ghost" data-rename>✏️ ${esc(t("cr.rename"))}</button>`}<br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}`;
+    return `<strong>${esc(d.title || autoTitle())}</strong>${renaming ? "" : ` <button type="button" class="btn sm ghost" data-rename>✏️ ${esc(t("cr.rename"))}</button>`}<br>${esc(d.date)} ${esc(d.time)} · ${esc(whereText())}<br>${esc(t("cr.sumSeats", { n: d.capacity }))} · ${esc(t("jm." + (isFriends() ? "instant" : d.join_mode)))}${!d.place && !isFriends() ? `<br><span class="muted">🍽️ ${esc(t("cr.noPlaceYet"))}</span>` : ""}`;
   }
 
   // Step 2 keeps a live summary; the budget currency follows the chosen restaurant.
@@ -365,6 +366,10 @@ export function openCreate({ onClose } = {}) {
           d.audience = r.value;
           qs("#f-priv", b).hidden = !isFriends();
           qs("#f-jm", b).hidden = isFriends();
+          // Date / family meal / classmates only describe a table among friends.
+          const occs = qs("#c-occs", b);
+          occs.hidden = !isFriends();
+          occs.style.display = isFriends() ? "contents" : "none";
         })
       );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
@@ -546,7 +551,7 @@ export function openCreate({ onClose } = {}) {
       budget_cents: budget,
       currency: tableCurrency(),
       tags: d.tags,
-      occasion: d.occasion || null,
+      occasion: isFriends() ? d.occasion || null : null,
       note: d.note || null,
     };
     try {

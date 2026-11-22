@@ -155,22 +155,28 @@ export async function openTable(id, { onClose } = {}) {
     const showDetails = !ended && (canJoin || me === "requested" || me === "joined" || (isHost && live));
     if (showDetails) {
       const label = canJoin ? t("td.shareMore") : t("td.myDetails");
+      // Once the restaurant is chosen, where you start from and what you feel like eating no longer matter.
+      const placeOpen = !tb.venue;
+      const withNew = tb.audience !== "friends";
       act.push(`
-        <details class="more" ${canJoin && !tb.is_private ? "" : "open"}>
-          <summary>${esc(label)}</summary>
-          <p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
+        <details class="more" ${(canJoin && !tb.is_private) || isHost ? "" : "open"}>
+          <summary>${esc(label)}${canJoin ? "" : ` <span class="muted">(${esc(t("common.optional"))})</span>`}</summary>
+          ${placeOpen ? `<p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
           ${(() => {
             const ps = placeSearchHTML({ label: t("td.startPoint"), placeholder: t("td.startPlaceholder"), hint: t("td.startHint") });
             draw._psId = ps.id;
             return ps.html;
           })()}
-          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}
+          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}` : ""}
           <div class="field"><span class="lbl">${esc(t("diet.title"))}</span>${mealPickerHTML(dietPick ?? (mine ? mine.diet_tags || [] : state.me?.dietary_tags || []), state.me?.dietary_tags || [])}
-            <input id="d-diet-note" type="text" maxlength="200" aria-label="${esc(t("diet.note"))}" placeholder="${esc(t("diet.notePh"))}" value="${esc(mine?.diet_note || "")}" style="margin-top:8px">
-            <p class="hint" style="margin:4px 0 0">${esc(t("diet.private"))}</p></div>
-          <div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${cravingOptions(mine?.cuisine)}</select></div>
-          <div class="field"><label for="d-int">${esc(t("td.intention"))}</label><select id="d-int">${selectOptions(INTENTIONS, "int.", mine?.intention)}</select></div>
-          <div class="field" style="margin-bottom:0"><label for="d-pace">${esc(t("td.pace"))}</label><select id="d-pace">${selectOptions(PACES, "pace.", mine?.pace)}</select></div>
+            <details class="diet-more" ${mine?.diet_note ? "open" : ""}><summary>＋ ${esc(t("diet.note"))}</summary>
+              <input id="d-diet-note" type="text" maxlength="200" aria-label="${esc(t("diet.note"))}" placeholder="${esc(t("diet.notePh"))}" value="${esc(mine?.diet_note || "")}" style="margin-top:8px"></details>
+            <p class="hint" style="margin:4px 0 0">🔒 ${esc(t("diet.private"))}</p></div>
+          ${placeOpen ? `<div class="field"><label for="d-craving">${esc(t("td.craving"))}</label><select id="d-craving"><option value="">${esc(t("td.noPref"))}</option>${cravingOptions(mine?.cuisine)}</select></div>` : ""}
+          ${withNew ? `<details class="diet-more" ${mine?.intention || mine?.pace ? "open" : ""}><summary>💬 ${esc(t("td.chatPrefs"))}</summary>
+            <div class="field" style="margin-top:8px"><label for="d-int">${esc(t("td.intention"))}</label><select id="d-int">${selectOptions(INTENTIONS, "int.", mine?.intention)}</select></div>
+            <div class="field" style="margin-bottom:0"><label for="d-pace">${esc(t("td.pace"))}</label><select id="d-pace">${selectOptions(PACES, "pace.", mine?.pace)}</select></div>
+          </details>` : ""}
         </details>`);
     }
     if (canJoin) {
@@ -510,10 +516,12 @@ export async function openTable(id, { onClose } = {}) {
   }
 
   function detailsPayload() {
+    const mm = tb.my_membership || {};
+    const val = (id, old) => { const el = qs(id, sheet.body); return el ? el.value || null : old ?? null; };
     const o = {
-      intention: qs("#d-int", sheet.body)?.value || null,
-      pace: qs("#d-pace", sheet.body)?.value || null,
-      cuisine: qs("#d-craving", sheet.body)?.value || null,
+      intention: val("#d-int", mm.intention),
+      pace: val("#d-pace", mm.pace),
+      cuisine: val("#d-craving", mm.cuisine),
     };
     if (startPick) Object.assign(o, { start_label: startPick.name, start_lat: startPick.lat, start_lng: startPick.lng });
     else if (startPick === undefined && tb.my_membership) Object.assign(o, { start_label: tb.my_membership.start_label, start_lat: tb.my_membership.start_lat, start_lng: tb.my_membership.start_lng });

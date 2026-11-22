@@ -4,6 +4,11 @@ import { haversineKm } from "./util.js";
 
 let directory;
 
+// The directory's names were title-cased letter by letter after apostrophes ("Mother'S", "Tahini'S") and acronyms ("Bbq").
+const fixCase = (name) => String(name)
+  .replace(/(['’])([A-Z])(?![\p{L}])/gu, (m, q, c) => q + c.toLowerCase())
+  .replace(/\b(Bbq|Ayce|Kfc|Hk)\b/g, (w) => w.toUpperCase());
+
 function venues() {
   if (!directory) {
     directory = fetch(new URL("../data/toronto-venues.json", import.meta.url))
@@ -11,7 +16,7 @@ function venues() {
         if (!response.ok) throw new Error("venue_directory_unavailable");
         return response.json();
       })
-      .then(({ venues }) => venues.map(([name, address, lat, lng]) => ({ name, address, lat, lng })))
+      .then(({ venues }) => venues.map(([name, address, lat, lng]) => ({ name: fixCase(name), address, lat, lng })))
       .catch((error) => {
         directory = null;
         throw error;

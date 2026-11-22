@@ -15,7 +15,7 @@ import { groupOfSlug } from "./menu-picker.js";
 const CHIPS = ["all", "today", "new", "friend"];
 
 function visible(list) {
-  const { chip, sort, occasion, fmt, vtype, radius } = state.filters;
+  const { chip, sort, fmt, vtype, radius } = state.filters;
   let out = list.filter((x) => x.my_status !== "declined");
   // Only tables within the chosen distance of the place I'm looking at (tables with no known point are kept).
   const loc = effectiveLoc();
@@ -23,7 +23,6 @@ function visible(list) {
   if (chip === "today") out = out.filter((x) => isToday(x.starts_at));
   if (chip === "new") out = out.filter((x) => x.audience !== "friends");
   if (chip === "friend") out = out.filter((x) => x.audience !== "new_people");
-  if (occasion) out = out.filter((x) => x.occasion === occasion);
   if (fmt) out = out.filter((x) => (x.formats || []).includes(fmt));
   if (vtype) out = out.filter((x) => x.venue_type === vtype);
   const byTime = (a, b) => new Date(a.starts_at) - new Date(b.starts_at);
@@ -76,9 +75,6 @@ export async function render(root) {
     <div class="toolbar" role="group" aria-label="${esc(t("disc.filters"))}">
       <div class="chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}</div>
       <span class="spacer"></span>
-    </div>
-    <div class="toolbar" role="group" aria-label="${esc(t("disc.occasion"))}">
-      <div class="chips" id="occ-chips">${[{ slug: "", emoji: "" }, ...OCCASIONS].map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${(f.occasion || "") === o.slug}">${o.slug ? `<span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}` : esc(t("disc.anyOccasion"))}</button>`).join("")}</div>
     </div>
     <details class="more-filters" id="more-filters" ${f.fmt || f.vtype ? "open" : ""}>
       <summary>🍽️ ${esc(t("disc.moreFilters"))}<span class="mf-on" id="mf-on"></span></summary>
@@ -149,14 +145,6 @@ export async function render(root) {
     f.chip = b.dataset.chip;
     qsa("[data-chip]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.chip === f.chip)));
     paint();
-  });
-  qs("#occ-chips", root).addEventListener("click", (e) => {
-    const b = e.target.closest("[data-occ]");
-    if (!b) return;
-    f.occasion = b.dataset.occ;
-    qsa("[data-occ]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.occ === f.occasion)));
-    paint();
-    announce(t("disc.count", { n: visible(state.tables).length }));
   });
   const paintMf = () => {
     const n = (f.fmt ? 1 : 0) + (f.vtype ? 1 : 0);

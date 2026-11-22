@@ -38,6 +38,12 @@ export function tasteOf(tb) {
 }
 
 /** "🌶️ Sichuan · 🌶️ Hunan" — every cuisine of a table, or "" when it has none. */
+/** "Chinese, Japanese or Korean": the cuisines of a table whose restaurant isn't chosen yet. */
+export function orList(names) {
+  if (names.length < 2) return names[0] || "";
+  return t("cr.orJoin", { a: names.slice(0, -1).join(t("cr.listSep")), b: names[names.length - 1] });
+}
+
 export function cuisineNames(tb, { emoji = true } = {}) {
   return cuisinesOf(tb).map(cuisineOf).filter(Boolean).map((c) => (emoji ? `${c.emoji} ` : "") + nameOf(c)).join(" · ");
 }
@@ -105,6 +111,9 @@ export function tableTitle(tb) {
   const c = cuisineOf(cuisinesOf(tb)[0]);
   // No title of its own: name it after its restaurant once there is one (follows the venue if it changes).
   if (tb.venue?.name) return `${c ? c.emoji + " " : ""}${tb.venue.name}`;
+  // Several cuisines and no restaurant yet: it's one of them, not all of them.
+  const all = cuisinesOf(tb).map(cuisineOf).filter(Boolean);
+  if (all.length > 1) return `🍽️ ${orList(all.map(nameOf))}`;
   if (c) return `${c.emoji} ${names}`;
   const f = FORMATS.find((x) => x.slug === tb.formats?.[0]);
   if (f) return `${f.emoji} ${t("fm." + f.slug)}`;
