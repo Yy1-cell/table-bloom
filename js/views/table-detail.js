@@ -30,6 +30,7 @@ export async function openTable(id, { onClose } = {}) {
   let startPick = undefined; // undefined = unchanged, null = cleared, object = chosen place
   let editingTime = false; // host is changing the date / time / note
   let schedChange = null; // { prev_starts_at, changed_at } after the host moved the time
+  let removedList = []; // host only: people removed from this table (they can come back if the host lets them)
   let suggestions = null;
   let photos = [];
   let feelings = null; // post-meal check-ins (mine + what others at the table shared)
@@ -90,6 +91,7 @@ export async function openTable(id, { onClose } = {}) {
     changingVenue = false;
     editingTime = false;
     schedChange = await api.scheduleChange?.(id).catch(() => null) ?? null;
+    removedList = tb.my_status === "host" ? (await api.listRemoved?.(id).catch(() => [])) || [] : [];
     draw();
   }
 
@@ -161,6 +163,10 @@ export async function openTable(id, { onClose } = {}) {
       act.push(`<div class="notice warn">⏳ ${esc(t("td.requestSent"))}</div>`);
     } else if (me === "declined") {
       act.push(`<div class="notice bad">${esc(t("td.declined"))}</div>`);
+    } else if (me === "removed") {
+      act.push(`<div class="notice bad">${esc(t("td.removedYou"))}</div>`);
+    } else if (me === "left" && live && !started) {
+      act.push(`<div class="notice">👋 ${esc(t("td.youLeft"))}</div>`);
     } else if (tb.status === "cancelled") {
       act.push(`<div class="notice bad">${esc(t("td.cancelled"))}</div>`);
     } else if (tb.status === "full") {
@@ -169,7 +175,8 @@ export async function openTable(id, { onClose } = {}) {
       act.push(`<div class="notice">${esc(t("td.started"))}</div>`);
     }
 
-    const canJoin = !tb.is_sample && !me && tb.status === "open" && !started;
+    // You can come back after leaving (not after being removed: the host has to let you back).
+    const canJoin = !tb.is_sample && (!me || me === "left") && tb.status === "open" && !started;
     const showDetails = !ended && (canJoin || me === "requested" || me === "joined" || (isHost && live));
     if (showDetails) {
       const label = canJoin ? t("td.shareMore") : t("td.myDetails");
@@ -198,7 +205,7 @@ export async function openTable(id, { onClose } = {}) {
         </details>`);
     }
     if (canJoin) {
-      act.push(`<button type="button" class="btn primary block" data-act="join">${esc(tb.join_mode === "instant" ? t("td.joinNow") : t("td.requestJoin"))}</button>
+      act.push(`<button type="button" class="btn primary block" data-act="join">${esc(me === "left" ? t("td.rejoin") : tb.join_mode === "instant" ? t("td.joinNow") : t("td.requestJoin"))}</button>
         <p class="hint center">${esc(tb.join_mode === "instant" ? t("td.instantHint") : t("td.requestHint"))}</p>`);
     }
     if (showDetails && (me === "requested" || me === "joined" || (isHost && live))) {
@@ -244,6 +251,13 @@ export async function openTable(id, { onClose } = {}) {
             ${!isMe && m.role !== "host" && !tb.is_sample ? `<button type="button" class="btn sm ghost" data-act="report-user" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}" aria-label="${esc(t("td.reportUser", { name: m.display_name }))}">⚑</button>` : ""}
           </li>`;
         })
+        .join("")}</ul></div>`);
+    }
+
+    if (isHost && live && !ended && removedList.length) {
+      html.push(`<div class="section"><h3>${esc(t("td.removedTitle"))}</h3><p class="hint" style="margin-top:0">${esc(t("td.removedHint"))}</p><ul class="members">${removedList
+        .map((m) => `<li><span class="av" aria-hidden="true">${esc(m.avatar_emoji || "🍽️")}</span><span class="who"><strong>${esc(personName(m.display_name))}</strong></span>
+          <button type="button" class="btn sm" data-act="allow-back" data-uid="${esc(m.user_id)}" data-name="${esc(personName(m.display_name))}">${esc(t("td.allowBack"))}</button></li>`)
         .join("")}</ul></div>`);
     }
 
@@ -658,6 +672,9 @@ export async function openTable(id, { onClose } = {}) {
     switch (act) {
       case "close":
         sheet.close("button");
+        break;
+      case "allow-back":
+        await mutate(btn, () => api.allowBack(tb.id, uidOf), t("td.allowedBack", { name: btn.dataset.name }));
         break;
       case "edit-time":
         editingTime = true;

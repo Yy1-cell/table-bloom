@@ -199,6 +199,12 @@ export async function createApi(cfg) {
     async respondJoin(id, userId, accept) {
       await changed(id, rpc("respond_join", { p_table: id, p_user: userId, p_accept: !!accept }));
     },
+    listRemoved(id) {
+      return rpc("list_removed", { p_table: id });
+    },
+    async allowBack(id, userId) {
+      await changed(id, rpc("allow_back", { p_table: id, p_user: userId }));
+    },
     async removeMember(id, userId) {
       await changed(id, rpc("remove_member", { p_table: id, p_user: userId }));
     },

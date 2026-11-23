@@ -1,6 +1,6 @@
 // Post-meal 30-second check-in: how the meal felt. The overall feeling and positive tags are shared with the
 // table (only after you have shared yours); mood, private tags, note and "eat with again" picks stay private.
-import { esc, qs, qsa, personName } from "../util.js";
+import { resizeImage, esc, qs, qsa, personName } from "../util.js";
 import { t } from "../i18n.js";
 import { state } from "../state.js";
 import { api } from "../api.js";
@@ -75,8 +75,13 @@ export async function openFeelingForm({ table_id, title = "", onSaved } = {}) {
                   <span class="chips" role="group" aria-label="${esc(personName(m.display_name))}">${PEER_SIGNALS.map((s) => `<button type="button" class="chip sm" data-peer="${esc(m.user_id)}" data-sig="${s.slug}" aria-pressed="${peerPick[m.user_id] === s.slug}"><span aria-hidden="true">${s.emoji}</span> ${esc(t("peer." + s.slug))}</button>`).join("")}</span></li>`
               )
               .join("")}</ul></fieldset>`
-          : ""
+          : `<p class="hint">💚 ${esc(t("fb.peersAlone"))}</p>`
       }
+      <fieldset><legend>📷 ${esc(t("fb.photosQ"))} <small class="muted">· ${esc(t("fb.optional"))}</small></legend>
+        <p class="hint" style="margin:0 0 6px">${esc(t("fb.photosHint"))}</p>
+        <input type="file" id="ff-photos" accept="image/*" multiple hidden>
+        <button type="button" class="btn sm" id="ff-add-photos">＋ ${esc(t("td.addPhotos"))}</button> <span class="muted" id="ff-ph-n" aria-live="polite"></span>
+      </fieldset>
       <div class="field"><label for="ff-note">${esc(t("fb.noteQ"))} <small class="muted">· ${esc(t("fb.optional"))}</small></label><textarea id="ff-note" maxlength="300" style="min-height:56px">${esc(mine.note || "")}</textarea></div>
       <label class="check"><input type="checkbox" id="ff-shared" ${mine.shared === false ? "" : "checked"}> <span>${esc(t("fb.shared"))}</span></label>
       <button type="submit" class="btn primary block" style="margin-top:12px">${esc(t("common.save"))}</button>
@@ -93,6 +98,29 @@ export async function openFeelingForm({ table_id, title = "", onSaved } = {}) {
     b.setAttribute("aria-pressed", String(vibeSet.has(v)));
   };
   qs("#ff-vibes", body).addEventListener("click", toggleVibe);
+  // Photos from the meal go to the table's shared album (only the people at the table see them).
+  let photoCount = 0;
+  qs("#ff-add-photos", body).addEventListener("click", () => qs("#ff-photos", body).click());
+  qs("#ff-photos", body).addEventListener("change", async (e) => {
+    const files = [...e.target.files].slice(0, 12);
+    e.target.value = "";
+    const btn = qs("#ff-add-photos", body);
+    btn.disabled = true;
+    for (const [i, f] of files.entries()) {
+      btn.textContent = t("td.uploading", { i: i + 1, n: files.length });
+      try {
+        const blob = await resizeImage(f, { max: api.mode === "demo" ? 1000 : 1280, quality: api.mode === "demo" ? 0.7 : 0.78 });
+        await api.addPhoto(table_id, blob);
+        photoCount++;
+      } catch (err) {
+        showError(err);
+        if (["storage_full", "too_many_photos"].includes(err.code)) break;
+      }
+    }
+    btn.disabled = false;
+    btn.textContent = `＋ ${t("td.addPhotos")}`;
+    qs("#ff-ph-n", body).textContent = photoCount ? t("fb.photosAdded", { n: photoCount }) : "";
+  });
   qs("#ff-vibes-priv", body).addEventListener("click", toggleVibe);
   qsa("[data-peer]", body).forEach((b) =>
     b.addEventListener("click", () => {

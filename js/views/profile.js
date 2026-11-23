@@ -33,7 +33,7 @@ export async function render(root) {
   function draw() {
     root.innerHTML = `
     <h1>${esc(onboarding ? t("pf.welcome") : t("pf.title"))}</h1>
-    ${onboarding ? `<div class="setup-card"><strong>${esc(t("pf.onbTitle"))}</strong><br>${esc(t("pf.onbBody"))}</div>` : ""}
+    ${onboarding ? `<p class="muted" style="margin:-6px 0 14px">${esc(t("pf.onbBody"))}</p>` : ""}
     <form id="pf" class="card" novalidate>
       <div class="field" style="margin:0"><label for="pf-name">${esc(t("pf.name"))}</label>
         <input id="pf-name" type="text" maxlength="30" required value="${esc(((me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name))}" placeholder="${esc(t("pf.namePh"))}">

@@ -632,6 +632,19 @@ export const api = {
     persist();
   },
 
+  async listRemoved(id) {
+    const t = need(id);
+    if (t.host_id !== ME) return [];
+    return t.members.filter((m) => m.status === "removed").map((m) => ({ user_id: m.user_id, display_name: m.display_name || m.user_id, avatar_emoji: m.avatar_emoji || "🍽️" }));
+  },
+  async allowBack(id, userId) {
+    requireUser();
+    const t = need(id);
+    if (t.host_id !== ME) throw new ApiError("not_allowed");
+    t.members = t.members.filter((m) => !(m.user_id === userId && ["removed", "declined"].includes(m.status)));
+    persist();
+  },
+
   async cancelTable(id) {
     requireUser();
     const t = need(id);
