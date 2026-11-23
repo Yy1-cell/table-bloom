@@ -234,18 +234,15 @@ export async function mountGoogleMap(container, data) {
 // Returns null whenever Google can't or shouldn't be used, and the caller shows the free list instead. Never throws.
 const PFAIL = "tb.gpFail";
 const placesFailed = () => { try { return sessionStorage.getItem(PFAIL) === "1"; } catch { return false; } };
-const gpLog = (...a) => { try { (window.__tbPlaces ||= []).push(a.join(" ")); } catch {} };
 export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
-  if (!key() || placesFailed() || navigator.onLine === false) { gpLog("skip", !!key(), placesFailed()); return null; }
+  if (!key() || placesFailed() || navigator.onLine === false) return null;
   const ck = `tb.gp:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
   try {
     const hit = JSON.parse(sessionStorage.getItem(ck) || "null");
-    if (hit && Date.now() - hit.at < 3600e3) { gpLog("cache", query, hit.list.length); return hit.list; }
+    if (hit && Date.now() - hit.at < 3600e3) return hit.list;
   } catch {}
   try {
-    const ok = await api.claimGooglePlaces?.();
-    gpLog("claim", query, ok);
-    if (ok !== true) return null;
+    if ((await api.claimGooglePlaces?.()) !== true) return null;
     await loadGoogle();
     const { Place } = await google.maps.importLibrary("places");
     const { places } = await Place.searchByText({
@@ -259,7 +256,7 @@ export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
       .filter((p) => p.location)
       .map((p) => ({
         name: p.displayName || "",
-        address: (p.formattedAddress || "").replace(/, (Canada|United States|USA)$/, ""),
+        address: (p.formattedAddress || "").replace(/,?\s*(Canada|United States|USA|加拿大|美国)$/, ""),
         lat: p.location.lat(),
         lng: p.location.lng(),
         poi_id: `g:${p.id}`,
@@ -268,8 +265,7 @@ export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
       }));
     try { sessionStorage.setItem(ck, JSON.stringify({ at: Date.now(), list })); } catch {}
     return list;
-  } catch (e) {
-    gpLog("error", query, e?.message || e);
+  } catch {
     // Places not enabled for this key, quota reached, or offline: stop trying for this visit.
     try { sessionStorage.setItem(PFAIL, "1"); } catch {}
     return null;

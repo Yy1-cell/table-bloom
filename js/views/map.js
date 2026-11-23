@@ -305,7 +305,6 @@ export async function render(root) {
       if (!found?.length) found = (await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 })).list;
       if (!alive || request.signal.aborted) return;
       const fromGoogle = (listFromGoogle = found[0]?.source === "google");
-      (window.__tbPlaces ||= []).push(`list ${fromGoogle ? "google" : "free"} ${found.length} ${picks.join(",")}`);
       const list = [...found].sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
       const bt = qs("#built-title", root);
       if (bt) bt.textContent = t(fromGoogle ? "map.googleList" : g ? "map.listOnly" : "map.builtIn");
