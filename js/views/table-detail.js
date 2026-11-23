@@ -28,6 +28,8 @@ export async function openTable(id, { onClose } = {}) {
   let dietPick = undefined; // undefined = untouched, array = chips changed but not saved yet
   let changingVenue = false; // true while re-choosing after a venue was already picked
   let startPick = undefined; // undefined = unchanged, null = cleared, object = chosen place
+  let editingTime = false; // host is changing the date / time / note
+  let schedChange = null; // { prev_starts_at, changed_at } after the host moved the time
   let suggestions = null;
   let photos = [];
   let feelings = null; // post-meal check-ins (mine + what others at the table shared)
@@ -86,6 +88,8 @@ export async function openTable(id, { onClose } = {}) {
     startPick = undefined;
     dietPick = undefined;
     changingVenue = false;
+    editingTime = false;
+    schedChange = await api.scheduleChange?.(id).catch(() => null) ?? null;
     draw();
   }
 
@@ -128,7 +132,9 @@ export async function openTable(id, { onClose } = {}) {
         <div><strong>${esc(t("card.hostedBy", { name: personName(tb.host?.display_name) }))}</strong>
         ${tb.host?.languages_spoken?.length ? `<div class="muted" style="font-size:14px">${esc(tb.host.languages_spoken.map((l) => t("lang." + l)).join(" · "))}</div>` : ""}</div></div>
       <ul class="facts">
-        <li><span class="k" aria-hidden="true">🕖</span><span>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}</span></li>
+        <li><span class="k" aria-hidden="true">🕖</span><span>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}${isHost && live && !started && !editingTime ? ` <button type="button" class="btn sm ghost" data-act="edit-time">✏️ ${esc(t("td.editTime"))}</button>` : ""}
+          ${changedLine()}</span></li>
+        ${editingTime ? `<li class="edit-time"><span class="k" aria-hidden="true">✏️</span><span class="stack" style="flex:1">${editTimeHTML()}</span></li>` : ""}
         ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : tb.is_private && cravingVotesAny() ? `<li><span class="k" aria-hidden="true">🍽️</span><span>${esc(cravingSummary())}</span></li>` : ""}
         ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</span></li>` : ""}
@@ -406,6 +412,28 @@ export async function openTable(id, { onClose } = {}) {
     paintPick();
     qs("#pick-card", sheet.body)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
+  // "⏰ Time changed: Mon 23 Nov 19:30 → now 20:00" for a couple of weeks after the host moves it.
+  function changedLine() {
+    const c = schedChange;
+    if (!c?.prev_starts_at || !c.changed_at || Date.now() - new Date(c.changed_at) > 14 * 864e5) return "";
+    const f = (iso) => `${fmtDateLong(iso)} · ${new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+    return `<br><span class="time-changed">⏰ ${esc(t("td.timeChanged", { from: f(c.prev_starts_at) }))}</span>`;
+  }
+  function editTimeHTML() {
+    const d = new Date(tb.starts_at);
+    const pad = (n) => String(n).padStart(2, "0");
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const today = new Date();
+    const min = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    return `<div class="row wrap-row" style="align-items:flex-end">
+        <div class="field" style="flex:1;min-width:140px;margin:0"><label for="et-date">${esc(t("cr.date"))}</label><input id="et-date" type="date" min="${min}" value="${date}"></div>
+        <div class="field" style="flex:1;min-width:110px;margin:0"><label for="et-time">${esc(t("cr.time"))}</label><input id="et-time" type="time" value="${time}"></div></div>
+      <div class="field" style="margin:0"><label for="et-note">${esc(t("cr.note"))}</label><textarea id="et-note" maxlength="280" placeholder="${esc(t("cr.notePh"))}">${esc(tb.note || "")}</textarea></div>
+      <p class="hint" style="margin:0">${esc(t("td.editTimeHint"))}</p>
+      <div class="row wrap-row"><button type="button" class="btn sm primary" data-act="save-time">${esc(t("td.saveTime"))}</button><button type="button" class="btn sm ghost" data-act="cancel-time">${esc(t("common.cancel"))}</button></div>`;
+  }
+
   // The place, all in one block: name, address, then ratings & how to get there (from my starting point if I gave one).
   function placeBlockHTML({ canChange, reminder }) {
     const mine = tb.my_membership;
@@ -631,6 +659,26 @@ export async function openTable(id, { onClose } = {}) {
       case "close":
         sheet.close("button");
         break;
+      case "edit-time":
+        editingTime = true;
+        draw();
+        setTimeout(() => qs("#et-date", sheet.body)?.focus(), 50);
+        break;
+      case "cancel-time":
+        editingTime = false;
+        draw();
+        break;
+      case "save-time": {
+        const date = qs("#et-date", sheet.body).value;
+        const time = qs("#et-time", sheet.body).value;
+        const when = date && time ? new Date(`${date}T${time}`) : null;
+        if (!when || Number.isNaN(+when) || when <= new Date()) {
+          toast(t("err.start_in_past"), { kind: "error" });
+          break;
+        }
+        await mutate(btn, () => api.setSchedule(tb.id, when.toISOString(), qs("#et-note", sheet.body).value), t("td.timeSaved"));
+        break;
+      }
       case "add-start": {
         const d = qs("#my-details", sheet.body);
         if (!d) break;

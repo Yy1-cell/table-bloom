@@ -649,6 +649,23 @@ export const api = {
     refresh(t);
     persist();
   },
+  async setSchedule(id, startsAt, note) {
+    requireUser();
+    const t = need(id);
+    if (t.host_id !== ME || ["cancelled", "completed"].includes(t.status) || new Date(t.starts_at) <= new Date()) throw new ApiError("not_allowed");
+    if (!startsAt || new Date(startsAt) <= new Date()) throw new ApiError("bad_time");
+    if (new Date(startsAt).getTime() !== new Date(t.starts_at).getTime()) {
+      t.prev_starts_at = t.starts_at;
+      t.schedule_changed_at = new Date().toISOString();
+    }
+    t.starts_at = new Date(startsAt).toISOString();
+    t.note = (note || "").trim() || null;
+    persist();
+  },
+  async scheduleChange(id) {
+    const t = need(id);
+    return t.schedule_changed_at ? { prev_starts_at: t.prev_starts_at, changed_at: t.schedule_changed_at } : null;
+  },
   async setVenue(id, venue) {
     requireUser();
     const t = need(id);

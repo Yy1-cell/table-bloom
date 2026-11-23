@@ -208,6 +208,12 @@ export async function createApi(cfg) {
     async setCapacity(id, capacity) {
       await changed(id, rpc("set_capacity", { p_table: id, p_capacity: capacity }));
     },
+    async setSchedule(id, startsAt, note) {
+      await changed(id, rpc("set_schedule", { p_table: id, p_starts_at: new Date(startsAt).toISOString(), p_note: note || null }));
+    },
+    async scheduleChange(id) {
+      return rpc("schedule_change", { p_table: id });
+    },
     async setVenue(id, venue) {
       await changed(id, rpc("set_venue", { p_table: id, p_venue: venue }));
     },
