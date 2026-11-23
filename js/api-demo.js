@@ -577,6 +577,10 @@ export const api = {
     return false; // demo mode never spends Google search calls
   },
 
+  async claimGoogleAutocomplete() {
+    return false;
+  },
+
   async claimGoogleMap() {
     // Demo mode mirrors the server gate in a simple way: only with a key configured, at most 40 loads a day.
     if (!window.TB_CONFIG?.GOOGLE_MAPS_KEY) return false;

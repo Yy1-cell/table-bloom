@@ -479,7 +479,7 @@ export function openCreate({ onClose } = {}) {
         onClear: () => { d.startMe = null; refreshMapLink(); scheduleSuggest(); },
       });
       if (ids.venue) bindPlaceSearch(b, {
-        id: ids.venue, near,
+        id: ids.venue, near, googleSearch: true,
         onSelect: (p) => {
           d.place = p;
           fitToPlace(p);

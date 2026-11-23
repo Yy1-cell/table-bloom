@@ -287,3 +287,90 @@ export async function googlePlacesSearch({ query, center, radiusKm = 6, bounds =
     return null;
   }
 }
+
+// ---------------------------------------------------------------- search box: Google Autocomplete (New)
+// Lets people find ANY place Google knows by name (Text Search only returns ~20 "popular" places per area).
+// Cost guard: every Autocomplete request and every Place Details call first asks claim_google_autocomplete()
+// (server: 9,000 a month, 300 a day for everybody, 60 a day per person; Google's free caps are 10,000 Autocomplete
+// requests and 10,000 Place Details Essentials a month). The details call asks only for Essentials fields
+// (location + address), the name comes from the suggestion itself. Results are cached for this visit.
+const ACFAIL = "tb.gaFail";
+const acFailed = () => { try { return sessionStorage.getItem(ACFAIL) === "1"; } catch { return false; } };
+const acCache = new Map();
+const FOOD_TYPES = ["restaurant", "cafe", "bar", "bakery", "meal_takeaway"];
+
+export function googleSearchAvailable() {
+  return !!key() && !acFailed() && navigator.onLine !== false;
+}
+
+/** New session object: pass the same one to googleSuggest() calls and the final googleResolve(). */
+export function googleSession() {
+  return { token: null };
+}
+
+/** Suggestions for what the person typed. Returns [{name,address,google_id,pending:true}] or null (use free search). */
+export async function googleSuggest(input, { center, foodOnly = false, session }) {
+  if (!googleSearchAvailable()) return null;
+  const ck = `${getLang()}|${foodOnly ? 1 : 0}|${center ? `${center.lat.toFixed(2)},${center.lng.toFixed(2)}` : ""}|${input.toLowerCase()}`;
+  if (acCache.has(ck)) return acCache.get(ck);
+  try {
+    if ((await api.claimGoogleAutocomplete?.()) !== true) return null;
+    await loadGoogle();
+    const { AutocompleteSessionToken, AutocompleteSuggestion } = await google.maps.importLibrary("places");
+    session.token ||= new AutocompleteSessionToken();
+    const req = {
+      input,
+      sessionToken: session.token,
+      language: getLang() === "zh" ? "zh-CN" : "en",
+    };
+    if (center) {
+      req.locationBias = { center: { lat: center.lat, lng: center.lng }, radius: 30000 };
+      req.origin = { lat: center.lat, lng: center.lng };
+    }
+    if (foodOnly) req.includedPrimaryTypes = FOOD_TYPES;
+    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
+    const list = (suggestions || [])
+      .map((s) => s.placePrediction)
+      .filter(Boolean)
+      .slice(0, 7)
+      .map((p) => ({
+        name: p.mainText?.text || p.text?.text || "",
+        address: (p.secondaryText?.text || "").replace(/,?\s*(Canada|United States|USA|加拿大|美国)$/, ""),
+        google_id: p.placeId,
+        poi_id: `g:${p.placeId}`,
+        source: "google",
+        pending: true,
+        _pred: p,
+      }))
+      .filter((r) => r.name);
+    acCache.set(ck, list);
+    return list;
+  } catch {
+    try { sessionStorage.setItem(ACFAIL, "1"); } catch {}
+    return null;
+  }
+}
+
+/** Turn a picked suggestion into a full place (lat/lng). Ends the session. Returns null if it could not. */
+export async function googleResolve(item, session) {
+  try {
+    if ((await api.claimGoogleAutocomplete?.()) !== true) return null;
+    const { Place } = await google.maps.importLibrary("places");
+    const place = item._pred?.toPlace ? item._pred.toPlace() : new Place({ id: item.google_id });
+    // toPlace() carries the session token, so this call ends the session (Essentials fields only).
+    await place.fetchFields({ fields: ["location", "formattedAddress"] });
+    if (session) session.token = null;
+    if (!place.location) return null;
+    return {
+      name: item.name,
+      address: (place.formattedAddress || item.address || "").replace(/,?\s*(Canada|United States|USA|加拿大|美国)$/, ""),
+      lat: place.location.lat(),
+      lng: place.location.lng(),
+      poi_id: item.poi_id,
+      google_id: item.google_id,
+      source: "google",
+    };
+  } catch {
+    return null;
+  }
+}

@@ -190,6 +190,10 @@ export async function createApi(cfg) {
     async claimGooglePlaces() {
       return (await rpc("claim_google_places")) === true;
     },
+    async claimGoogleAutocomplete() {
+      // Before the SQL is run the function doesn't exist: rpc throws and the search box quietly uses the free search.
+      return (await rpc("claim_google_autocomplete")) === true;
+    },
     async setMyDiet(id, tags, note) {
       await changed(id, rpc("set_my_diet", { p_table: id, p_tags: tags || [], p_note: note || null }));
     },

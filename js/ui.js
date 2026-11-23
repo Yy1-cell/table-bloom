@@ -3,6 +3,7 @@ import { esc, qs, qsa, debounce, mapsUrl } from "./util.js";
 import { t } from "./i18n.js";
 import { searchPlaces, searchLandmarks, nearToronto } from "./geo.js";
 import { effectiveLoc } from "./location.js";
+import { googleSearchAvailable, googleSession, googleSuggest, googleResolve } from "./google-maps.js";
 
 // ---------------------------------------------------------------- announce (screen readers)
 export function announce(message) {
@@ -203,6 +204,9 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
   let seq = 0;
   let ctl = null;
   let selected = null;
+  // Google Autocomplete for restaurant/map searches (falls back to the free search when not allowed).
+  const useGoogle = (googleSearch || restaurantsOnly) && googleSearchAvailable();
+  let gSession = googleSession();
 
   const setStatus = (msg) => (status.textContent = msg);
   const hide = () => {
@@ -245,7 +249,20 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
     ctl = null;
   }
 
-  function choose(place) {
+  async function choose(place) {
+    if (place?.pending) {
+      const mine = ++seq;
+      setStatus(t("ps.searching"));
+      const full = await googleResolve(place, gSession);
+      gSession = googleSession();
+      if (mine !== seq || !input.isConnected) return;
+      if (!full) {
+        setStatus(t("ps.searchFailed"));
+        showGoogleSearch(place.name, centerForSearch());
+        return;
+      }
+      place = full;
+    }
     run.cancel();
     resetRequest();
     selected = place;
@@ -280,17 +297,21 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
     const center = centerForSearch();
     ctl = new AbortController();
     try {
-      const found = await searchPlaces(q, { near: center, signal: ctl.signal, restaurantsOnly });
+      let found = null;
+      if (useGoogle && q.length >= 3) found = await googleSuggest(q, { center, foodOnly: restaurantsOnly, session: gSession });
+      if (mine !== seq || !input.isConnected) return;
+      const fromGoogle = !!found?.length;
+      if (!fromGoogle) found = await searchPlaces(q, { near: center, signal: ctl.signal, restaurantsOnly });
       if (mine !== seq || !input.isConnected) return;
       if (!found.length) return noResults(q, center, false);
       setStatus(t("ps.pick", { n: found.length }));
-      renderList(found);
+      renderList(found, fromGoogle ? t("ps.fromGoogle") : "");
       if (document.activeElement !== input) hide();
     } catch {
       if (mine !== seq || !input.isConnected) return;
       noResults(q, center, true);
     }
-  }, 320);
+  }, useGoogle ? 400 : 320);
 
   input.addEventListener("input", () => {
     run.cancel();
@@ -357,6 +378,7 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
       run.cancel();
       resetRequest();
       selected = null;
+      gSession = googleSession();
       input.value = "";
       chosen.hidden = true;
       hide();
