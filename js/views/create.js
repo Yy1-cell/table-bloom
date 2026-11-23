@@ -141,15 +141,17 @@ export function openCreate({ onClose } = {}) {
         return ps.html;
       };
       if (d.craving === undefined) d.craving = "";
+      // Once the restaurant is chosen, where you start from and what you feel like eating no longer matter
+      // (they only help pick a place), so this whole block hides; it comes back if the place is cleared.
       const startBlock = isFriends()
-        ? `<div class="section-lite">
+        ? `<div class="section-lite" id="c-start"${d.place ? " hidden" : ""}>
             <h3>${esc(t("cr.pairTitle"))}</h3>
             <p class="hint">${esc(t("cr.pairHint"))}</p>
             ${mk("me", t("cr.startMe"), t("cr.startPh"), t("cr.startHint"))}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
             <fieldset><legend>${esc(t("cr.myCraving"))}</legend><div id="c-craving"></div></fieldset>
           </div>`
-        : `<div class="section-lite">
+        : `<div class="section-lite" id="c-start"${d.place ? " hidden" : ""}>
             ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
           </div>`;
@@ -233,6 +235,8 @@ export function openCreate({ onClose } = {}) {
   // Step 2 keeps a live summary; the budget currency follows the chosen restaurant.
   function refreshSummary() {
     if (step !== 2) return;
+    const st = qs("#c-start", sheet.body);
+    if (st) st.hidden = !!d.place;
     const box = qs("#c-summary", sheet.body);
     if (box) box.innerHTML = summary();
     const ti = qs("#c-title", sheet.body);
