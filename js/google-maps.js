@@ -156,15 +156,20 @@ export async function mountGoogleMap(container, data) {
       add(pos);
     }
     (d.suggestions || []).forEach((s, i) => {
-      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) return;
-      const numbered = i < 10;
-      const pin = node(numbered ? "gm-pin gm-sug" : "gm-pin gm-sug gm-dot", numbered ? String(i + 1) : "");
-      const size = numbered ? 28 : 16;
-      pin.style.width = pin.style.height = size + "px";
-      const m = place({ lat: s.lat, lng: s.lng }, pin, s.name, 3);
-      m.addListener("click", () => d.onPick?.(i));
-      sug[i] = m;
-      add({ lat: s.lat, lng: s.lng });
+      const lat = Number(s.lat), lng = Number(s.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      try {
+        const numbered = i < 10;
+        const pin = node(numbered ? "gm-pin gm-sug" : "gm-pin gm-sug gm-dot", numbered ? String(i + 1) : "");
+        const size = numbered ? 28 : 16;
+        pin.style.width = pin.style.height = size + "px";
+        const m = place({ lat, lng }, pin, String(s.name || ""), 3);
+        m.addListener("click", () => d.onPick?.(i));
+        sug[i] = m;
+        add({ lat, lng });
+      } catch (e) {
+        console.warn("[map] pin", i, e);
+      }
     });
     applySelection();
     if (d.venue && Number.isFinite(d.venue.lat) && Number.isFinite(d.venue.lng)) {
@@ -179,7 +184,9 @@ export async function mountGoogleMap(container, data) {
       pin.style.width = pin.style.height = "30px";
       place(spot, pin, "", 9);
     }
-    if (n > 1) map.fitBounds(bounds, 48);
+    if (d.keepView) {
+      // "Search this area": like Google Maps, the map stays where the person put it.
+    } else if (n > 1) map.fitBounds(bounds, 48);
     else if (n === 1) {
       map.setCenter(bounds.getCenter());
       map.setZoom(14);

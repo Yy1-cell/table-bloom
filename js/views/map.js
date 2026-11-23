@@ -130,6 +130,7 @@ export async function render(root) {
 
   // ---- map: "me" at the picked place + numbered restaurants (closest first)
   let restList = [];
+  let keepView = false; // true while showing a "Search this area" result: don't move the map
   let picked = -1;
   let groupMap = null;
   let g = null; // Google JS map controller (only when the key + allowance + loading all work)
@@ -145,6 +146,7 @@ export async function render(root) {
       middle: null,
       venue: null,
       suggestions: restList,
+      keepView,
       onPick: choose,
       onSpot: handleSpot,
       fallbackCenter: center,
@@ -311,11 +313,15 @@ export async function render(root) {
     ctl?.abort();
     const request = ctl = new AbortController();
     box.innerHTML = `<p class="muted">${esc(t("ps.searching"))}</p>`;
-    restList = [];
+    keepView = !!bounds;
     picked = -1;
     const pc = qs("#pick-card", root);
     if (pc) pc.innerHTML = "";
-    paintMap();
+    // Keep the old pins on the map while searching (clearing them made the map jump to "me" and look empty).
+    if (!g) {
+      restList = [];
+      paintMap();
+    }
     try {
       // Google's own results first (the same places as in the Google Maps app); the free list if Google can't be used.
       // Google's own search for the picked food, limited to the area around the place I'm looking at (like the visible
@@ -345,6 +351,8 @@ export async function render(root) {
       announce(t("map.found", { n: list.length }));
     } catch (e) {
       if (!alive || request.signal.aborted) return;
+      restList = [];
+      paintMap();
       box.innerHTML = restaurantFallback("map.loadError") +
         ` <button type="button" class="btn sm" id="rest-retry">${esc(t("map.retry"))}</button>`;
       qs("#rest-retry", box).addEventListener("click", loadRestaurants);
