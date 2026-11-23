@@ -304,7 +304,8 @@ export async function render(root) {
       if (!alive || request.signal.aborted) return;
       if (!found?.length) found = (await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 })).list;
       if (!alive || request.signal.aborted) return;
-      const fromGoogle = found[0]?.source === "google";
+      const fromGoogle = (listFromGoogle = found[0]?.source === "google");
+      (window.__tbPlaces ||= []).push(`list ${fromGoogle ? "google" : "free"} ${found.length} ${picks.join(",")}`);
       const list = [...found].sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
       const bt = qs("#built-title", root);
       if (bt) bt.textContent = t(fromGoogle ? "map.googleList" : g ? "map.listOnly" : "map.builtIn");
@@ -378,6 +379,7 @@ export async function render(root) {
 
   // The real Google map around the picked place, searching for what was chosen. Nothing is read back from it.
   let gKey = "";
+  let listFromGoogle = false;
   function drawEmbed() {
     const box = qs("#gsearch", root);
     if (!box) return;
@@ -402,14 +404,14 @@ export async function render(root) {
     g = c;
     root.classList.add("g-mode");
     // This map shows OUR list's places (numbered), not Google's search results; say so.
-    qs("#g-hint", root).textContent = t("map.gHintPins");
-    qs("#built-title", root).textContent = t("map.listOnly");
+    qs("#g-hint", root).textContent = t(listFromGoogle ? "map.gHintGoogle" : "map.gHintPins");
+    qs("#built-title", root).textContent = t(listFromGoogle ? "map.googleList" : "map.listOnly");
     c.onSwap(() => {
       g = null;
       gFailed = true;
       root.classList.remove("g-mode");
       qs("#g-hint", root).textContent = t("map.gHint");
-      qs("#built-title", root).textContent = t("map.builtIn");
+      qs("#built-title", root).textContent = t(listFromGoogle ? "map.googleList" : "map.builtIn");
       drawEmbed();
       paintMap();
     });

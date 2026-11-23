@@ -126,7 +126,7 @@ export async function mountGoogleMap(container, data) {
   };
 
   function applySelection() {
-    sug.forEach((m, i) => m.content?.firstChild?.classList.toggle("gm-sel", i === selected));
+    sug.forEach((m, i) => m.content?.firstChild?.classList?.toggle("gm-sel", i === selected));
   }
 
   function update(d) {
@@ -234,15 +234,18 @@ export async function mountGoogleMap(container, data) {
 // Returns null whenever Google can't or shouldn't be used, and the caller shows the free list instead. Never throws.
 const PFAIL = "tb.gpFail";
 const placesFailed = () => { try { return sessionStorage.getItem(PFAIL) === "1"; } catch { return false; } };
+const gpLog = (...a) => { try { (window.__tbPlaces ||= []).push(a.join(" ")); } catch {} };
 export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
-  if (!key() || placesFailed() || navigator.onLine === false) return null;
+  if (!key() || placesFailed() || navigator.onLine === false) { gpLog("skip", !!key(), placesFailed()); return null; }
   const ck = `tb.gp:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
   try {
     const hit = JSON.parse(sessionStorage.getItem(ck) || "null");
-    if (hit && Date.now() - hit.at < 3600e3) return hit.list;
+    if (hit && Date.now() - hit.at < 3600e3) { gpLog("cache", query, hit.list.length); return hit.list; }
   } catch {}
   try {
-    if ((await api.claimGooglePlaces?.()) !== true) return null;
+    const ok = await api.claimGooglePlaces?.();
+    gpLog("claim", query, ok);
+    if (ok !== true) return null;
     await loadGoogle();
     const { Place } = await google.maps.importLibrary("places");
     const { places } = await Place.searchByText({
@@ -265,7 +268,8 @@ export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
       }));
     try { sessionStorage.setItem(ck, JSON.stringify({ at: Date.now(), list })); } catch {}
     return list;
-  } catch {
+  } catch (e) {
+    gpLog("error", query, e?.message || e);
     // Places not enabled for this key, quota reached, or offline: stop trying for this visit.
     try { sessionStorage.setItem(PFAIL, "1"); } catch {}
     return null;
