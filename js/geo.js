@@ -364,7 +364,8 @@ export function currentPosition({ timeout = 10000 } = {}) {
  * (a long trip and an uneven trip both cost points). Returns venues with `dists` (km from each point, same order as `points`).
  * With several cravings, results are interleaved so everybody's craving shows up.
  */
-export async function groupSuggestions({ points, cuisines = [], votes = null, signal, limit = 24 }) {
+// `google(cuisineKey, center, radiusKm)` (optional) returns Google's places for one craving, or null to use the free data.
+export async function groupSuggestions({ points, cuisines = [], votes = null, signal, limit = 24, google = null }) {
   const pts = points.filter((p) => p && Number.isFinite(+p.lat) && Number.isFinite(+p.lng)).map((p) => ({ lat: +p.lat, lng: +p.lng }));
   if (!pts.length) return [];
   const center = midpoint(pts);
@@ -373,6 +374,11 @@ export async function groupSuggestions({ points, cuisines = [], votes = null, si
   const radiusKm = Math.min(18, Math.max(7, reach + 5));
   const wanted = [...new Set(cuisines.length ? cuisines : [""])];
   const nearby = async (cuisine) => {
+    if (google) {
+      const g = await google(cuisine, center, radiusKm).catch(() => null);
+      signal?.throwIfAborted();
+      if (g?.length) return g;
+    }
     const [online, local] = await Promise.allSettled([
       cuisinePlaces(center, cuisine, { radiusKm, signal }),
       torontoVenuesNear(center, cuisine, radiusKm),

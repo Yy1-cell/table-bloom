@@ -632,6 +632,19 @@ export const api = {
     persist();
   },
 
+  async proposeVenue(id, venue) {
+    requireUser();
+    const t = need(id);
+    const m = t.members.find((x) => x.user_id === ME && x.status === "joined");
+    if (!t.is_private || !m) throw new ApiError("not_allowed");
+    m.proposal = venue?.name ? { name: venue.name, address: venue.address || null, lat: venue.lat ?? null, lng: venue.lng ?? null, poi_id: venue.poi_id || null } : null;
+    m.proposed_at = m.proposal ? new Date().toISOString() : null;
+    persist();
+  },
+  async listProposals(id) {
+    const t = need(id);
+    return t.members.filter((m) => m.status === "joined" && m.proposal).map((m) => ({ user_id: m.user_id, display_name: m.display_name || m.user_id, avatar_emoji: m.avatar_emoji, venue: m.proposal, proposed_at: m.proposed_at }));
+  },
   async listRemoved(id) {
     const t = need(id);
     if (t.host_id !== ME) return [];
@@ -682,9 +695,9 @@ export const api = {
   async setVenue(id, venue) {
     requireUser();
     const t = need(id);
-    const memberOk = t.is_private && t.members.some((m) => m.user_id === ME && m.status === "joined");
-    if (t.host_id !== ME && !memberOk) throw new ApiError("not_allowed");
+    if (t.host_id !== ME) throw new ApiError("not_allowed"); // friends propose; the host decides
     if (!venue?.name?.trim()) throw new ApiError("bad_venue");
+    t.members.forEach((m) => (m.proposal = null));
     t.venue = { id: uid(), name: venue.name, address: venue.address || null, lat: venue.lat ?? null, lng: venue.lng ?? null };
     t.area_label = venue.name.slice(0, 120);
     if (venue.lat != null) {

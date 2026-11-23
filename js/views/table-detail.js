@@ -7,6 +7,7 @@ import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
 import { publicLabel, startName, fuzz } from "../place-names.js";
+import { googlePlacesSearch } from "../google-maps.js";
 import { restaurantsForKeys, groupSuggestions } from "../geo.js";
 import { mountMap } from "../maps.js";
 import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys, searchWord, cuisinesOf } from "../data.js";
@@ -31,6 +32,7 @@ export async function openTable(id, { onClose } = {}) {
   let editingTime = false; // host is changing the date / time / note
   let schedChange = null; // { prev_starts_at, changed_at } after the host moved the time
   let removedList = []; // host only: people removed from this table (they can come back if the host lets them)
+  let proposals = []; // friends table: places people have proposed; the host picks one
   let suggestions = null;
   let photos = [];
   let feelings = null; // post-meal check-ins (mine + what others at the table shared)
@@ -92,6 +94,7 @@ export async function openTable(id, { onClose } = {}) {
     editingTime = false;
     schedChange = await api.scheduleChange?.(id).catch(() => null) ?? null;
     removedList = tb.my_status === "host" ? (await api.listRemoved?.(id).catch(() => [])) || [] : [];
+    proposals = tb.is_private && ["host", "joined"].includes(tb.my_status) ? (await api.listProposals?.(id).catch(() => [])) || [] : [];
     draw();
   }
 
@@ -276,6 +279,7 @@ export async function openTable(id, { onClose } = {}) {
         html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame group-map" id="shared-map" role="region" aria-label="${esc(t("td.sharedMap"))}"></div>
           <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p>${missingStartsHTML()}<div id="pick-card"></div></div>`);
       }
+      if (tb.is_private && proposals.length) html.push(proposalsHTML(isHost));
       if (!choosing) {
         html.push(placeBlockHTML({ canChange: isHost || tb.is_private, reminder }));
       } else {
@@ -290,7 +294,7 @@ export async function openTable(id, { onClose } = {}) {
           const ps = placeSearchHTML({ label: t("td.setVenue"), placeholder: t("td.venuePlaceholder"), hint: t("td.venueHint") });
           draw._vId = ps.id;
           return ps.html;
-        })()}<button type="button" class="btn sm" data-act="set-venue" disabled id="venue-save">${esc(t("td.saveVenue"))}</button>${changingVenue ? ` <button type="button" class="btn sm ghost" data-act="keep-venue">${esc(t("td.keepVenue"))}</button>` : ""}</div>
+        })()}<button type="button" class="btn sm" data-act="set-venue" disabled id="venue-save">${esc(t(tb.my_status === "host" ? "td.saveVenue" : "td.propose"))}</button>${changingVenue ? ` <button type="button" class="btn sm ghost" data-act="keep-venue">${esc(t("td.keepVenue"))}</button>` : ""}</div>
       </div>`);
       }
     } else if (tb.venue || tb.area_label || tb.meet_lat != null) {
@@ -457,7 +461,16 @@ export async function openTable(id, { onClose } = {}) {
       <p style="margin:0 0 8px"><strong>${esc(placeText(tb))}</strong>${tb.venue?.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}</p>
       ${hasPoint ? mapActionsHTML(where, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined, originName: mine?.start_lat != null ? startName(mine.start_label || "", { lat: mine.start_lat, lng: mine.start_lng }) : "" }) : ""}
       ${reminder || ""}
-      ${canChange && tb.venue ? `<button type="button" class="btn sm" data-act="change-venue" style="margin-top:8px">${esc(t("td.changeVenue"))}</button>` : ""}</div>`;
+      ${canChange && tb.venue ? `<button type="button" class="btn sm" data-act="change-venue" style="margin-top:8px">${esc(t(tb.my_status === "host" ? "td.changeVenue" : "td.suggestOther"))}</button>` : ""}</div>`;
+  }
+  // "Places people proposed": everyone at a friends table sees them; only the host has "Let's eat here!".
+  function proposalsHTML(isHost) {
+    const me = state.session?.userId;
+    return `<div class="section"><h3>🙋 ${esc(t("td.proposals"))}</h3><p class="hint" style="margin-top:0">${esc(t(isHost ? "td.proposalsHost" : "td.proposalsGuest"))}</p>
+      <ul class="suggest">${proposals.map((p, i) => `<li><span class="who"><strong>${esc(p.venue?.name || "")}</strong>
+          <small>${esc(t("td.proposedBy", { name: p.user_id === me ? t("td.you") : personName(p.display_name) }))}${p.venue?.address ? ` · ${esc(p.venue.address)}` : ""}</small></span>
+          ${isHost ? `<button type="button" class="btn sm primary" data-act="take-proposal" data-i="${i}">${esc(t("td.useVenue"))}</button>` : ""}
+          ${p.user_id === me ? `<button type="button" class="btn sm ghost" data-act="withdraw-proposal">${esc(t("td.withdrawProposal"))}</button>` : ""}</li>`).join("")}</ul></div>`;
   }
   const cravingVotesAny = () => (tb.members || []).some((m) => m.status === "joined" && m.cuisine);
 
@@ -476,7 +489,7 @@ export async function openTable(id, { onClose } = {}) {
       <div class="pick-head"><strong>${picked + 1}. ${esc(r.name)}</strong><small class="muted">${esc([r.address, dist].filter(Boolean).join(" · "))}</small></div>
       <div class="gmap-frame pick-frame"><iframe title="${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${esc(googleEmbedUrl(q, 16, r))}"></iframe></div>
       <div class="row wrap-row"><a class="btn sm" target="_blank" rel="noopener" href="${esc(mapsUrl(r))}">${esc(t("td.openGoogle"))}</a>
-        <button type="button" class="btn sm primary" data-act="use-venue" data-i="${picked}">${esc(t("td.useVenue"))}</button></div></div>`;
+        <button type="button" class="btn sm primary" data-act="use-venue" data-i="${picked}">${esc(t(tb.my_status === "host" ? "td.useVenue" : "td.propose"))}</button></div></div>`;
   }
 
   // ---- shared map (private friends tables): starting points, the middle, the chosen venue and the suggestions
@@ -542,6 +555,11 @@ export async function openTable(id, { onClose } = {}) {
           points: pts.length ? pts : [restaurantCenter()],
           cuisines: wanted.length ? wanted : searchKeys(tb),
           votes: wanted.length > 1 ? votes : null,
+          // Google's own places (as on the Map tab); each craving is one search, cached for an hour.
+          google: (key, center, radiusKm) => {
+            const word = searchWord(key);
+            return googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants`, center, radiusKm: Math.min(radiusKm, 10) });
+          },
         });
       } else {
         suggestions = (await restaurantsForKeys(restaurantCenter(), searchKeys(tb), { limit: 10 })).list;
@@ -573,7 +591,7 @@ export async function openTable(id, { onClose } = {}) {
       .map(
         (r, i) => `<li${i === picked ? ' class="chosen"' : ""}><span class="who" data-act="pick" data-i="${i}" tabindex="0" role="button" style="cursor:pointer"><strong>${i + 1}. ${esc(r.name)}</strong>${r.fitsAll ? ` <span class="tag">${esc(t("td.fitsAll"))}</span>` : r.fits?.length > 1 ? ` <span class="tag">${esc(t("td.fitsSome", { n: r.fitVotes }))}</span>` : ""}<small>${esc(r.address || r.cuisine || "")} · ${esc(r.dists ? r.dists.map((d, k) => `${suggestNames[k] || ""} ${d < 10 ? d.toFixed(1) : Math.round(d)} km`.trim()).join(" · ") : t("td.fromMiddle", { km: r.distKm.toFixed(1) }))}</small></span>
           <a class="btn sm ghost" href="${esc(mapsUrl(r))}" target="_blank" rel="noopener">⭐ ${esc(t("map.reviews"))}</a>
-          <button type="button" class="btn sm" data-act="use-venue" data-i="${i}">${esc(t("td.useVenue"))}</button></li>`
+          <button type="button" class="btn sm" data-act="use-venue" data-i="${i}">${esc(t(tb.my_status === "host" ? "td.useVenue" : "td.propose"))}</button></li>`
       )
       .join("") + more;
   }
@@ -637,6 +655,12 @@ export async function openTable(id, { onClose } = {}) {
     if (!sheet.closed) await reload();
   }
 
+  // Host: lock it in. Friends at a friends table: propose it; the host decides.
+  async function chooseVenue(btn, v) {
+    if (tb.my_status === "host") return confirmVenue(btn, v);
+    changingVenue = false;
+    await mutate(btn, () => api.proposeVenue(tb.id, v), t("td.proposed", { name: v.name }));
+  }
   // Host locks in the restaurant: save it, then back to My tables (the page doesn't stay in "choosing" mode).
   async function confirmVenue(btn, v) {
     try {
@@ -784,11 +808,19 @@ export async function openTable(id, { onClose } = {}) {
       }
       case "use-venue": {
         const r = suggestions[Number(btn.dataset.i)];
-        await confirmVenue(btn, { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id });
+        await chooseVenue(btn, { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id });
         break;
       }
+      case "take-proposal": {
+        const v = proposals[Number(btn.dataset.i)]?.venue;
+        if (v) await confirmVenue(btn, v);
+        break;
+      }
+      case "withdraw-proposal":
+        await mutate(btn, () => api.proposeVenue(tb.id, null), t("td.proposalWithdrawn"));
+        break;
       case "set-venue":
-        if (venuePick) await confirmVenue(btn, { name: venuePick.name, address: venuePick.address, lat: venuePick.lat, lng: venuePick.lng, poi_id: venuePick.poi_id });
+        if (venuePick) await chooseVenue(btn, { name: venuePick.name, address: venuePick.address, lat: venuePick.lat, lng: venuePick.lng, poi_id: venuePick.poi_id });
         break;
       case "ics": {
         const loc = [tb.venue?.name || tb.area_label, tb.venue?.address].filter(Boolean).join(", ");
