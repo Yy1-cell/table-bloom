@@ -591,3 +591,7 @@ select:not([multiple]) {
   .toolbar.disc-filters .sort-wrap { flex: 1 1 100%; margin-left: 0; }
   .toolbar.disc-filters .sort-wrap select { flex: 1; max-width: none; }
 }
+
+/* Keep toasts (e.g. "A new version is ready · Reload") clear of the "Powered by Netlify" badge */
+body:has(#nl-badge-frame) #toasts { bottom: calc(var(--nav-h) + 72px + env(safe-area-inset-bottom)); }
+@media (min-width: 820px) { body:has(#nl-badge-frame) #toasts { bottom: 84px; } }

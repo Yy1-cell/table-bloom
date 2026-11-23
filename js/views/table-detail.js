@@ -173,7 +173,7 @@ export async function openTable(id, { onClose } = {}) {
       const placeOpen = !tb.venue;
       const withNew = tb.audience !== "friends";
       act.push(`
-        <details class="more" ${(canJoin && !tb.is_private) || isHost ? "" : "open"}>
+        <details class="more" id="my-details" ${(canJoin && !tb.is_private) || isHost ? "" : "open"}>
           <summary>${esc(label)}${canJoin ? "" : ` <span class="muted">(${esc(t("common.optional"))})</span>`}</summary>
           ${`<p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
           ${(() => {
@@ -252,7 +252,7 @@ export async function openTable(id, { onClose } = {}) {
       const reminder = allergyReminderHTML(visibleMembers.map((m) => ({ name: m.user_id === state.session?.userId ? t("td.you") : personName(m.display_name), tags: m.diet_tags })));
       if (tb.is_private) {
         html.push(`<div class="section"><h3>${esc(t("td.sharedMap"))}</h3><div class="gmap-frame group-map" id="shared-map" role="region" aria-label="${esc(t("td.sharedMap"))}"></div>
-          <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p><div id="pick-card"></div></div>`);
+          <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p>${missingStartsHTML()}<div id="pick-card"></div></div>`);
       }
       if (!choosing) {
         html.push(`<div class="section"><h3>✅ ${esc(t("td.chosenVenue"))}</h3>
@@ -422,6 +422,18 @@ export async function openTable(id, { onClose } = {}) {
   }
 
   // ---- shared map (private friends tables): starting points, the middle, the chosen venue and the suggestions
+  // Under the shared map: who hasn't said where they start from yet (they're not on the map, and the middle needs two).
+  function missingStartsHTML() {
+    const me = state.session?.userId;
+    const joined = (tb.members || []).filter((m) => m.status === "joined");
+    const mine = joined.find((m) => m.user_id === me);
+    const others = joined.filter((m) => m.user_id !== me && m.start_lat == null).map((m) => personName(m.display_name));
+    let out = "";
+    if (mine && mine.start_lat == null) out += `<div class="notice" style="margin-top:8px">📍 ${esc(t("td.addYourStart"))} <button type="button" class="btn sm primary" data-act="add-start">${esc(t("td.addStartBtn"))}</button></div>`;
+    if (others.length) out += `<p class="hint" style="margin:6px 0 0">⏳ ${esc(t("td.othersNoStart", { names: others.join(t("cr.listSep")) }))}</p>`;
+    return out;
+  }
+
   let groupMap = null;
   let mapSeq = 0;
   function mapData() {
@@ -585,6 +597,15 @@ export async function openTable(id, { onClose } = {}) {
       case "close":
         sheet.close("button");
         break;
+      case "add-start": {
+        const d = qs("#my-details", sheet.body);
+        if (!d) break;
+        d.open = true;
+        const input = d.querySelector('input[type="text"], input[type="search"], input');
+        d.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => input?.focus({ preventScroll: true }), 350);
+        break;
+      }
       case "join":
         await mutate(btn, async () => {
           const o = detailsPayload();

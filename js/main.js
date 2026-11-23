@@ -340,14 +340,26 @@ function registerSW() {
   navigator.serviceWorker
     .register("./sw.js")
     .then((reg) => {
+      // A new version: use it at once if the page has only just opened (nothing typed yet), or as soon as the app goes to
+      // the background; otherwise offer a "Reload" button. People shouldn't be stuck on an old version.
+      const loadedAt = Date.now();
+      let applying = false;
+      function apply(worker) {
+        if (applying) return;
+        applying = true;
+        navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+        worker.postMessage("activate-update");
+      }
       function offerUpdate(worker) {
         if (!worker || !navigator.serviceWorker.controller) return;
-        toast(t("sw.update"), { actionLabel: t("sw.reload"), onAction: () => {
-          navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
-          worker.postMessage("activate-update");
-        }, duration: 0 });
+        const busy = () => !!document.querySelector(".sheet-backdrop");
+        if (Date.now() - loadedAt < 8000 && !busy()) return apply(worker);
+        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") apply(worker); });
+        toast(t("sw.update"), { actionLabel: t("sw.reload"), onAction: () => apply(worker), duration: 0 });
       }
       offerUpdate(reg.waiting);
+      // Look for a new version whenever the app comes back to the front (phones keep tabs open for days).
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
       reg.addEventListener("updatefound", () => {
         const worker = reg.installing;
         worker?.addEventListener("statechange", () => {
