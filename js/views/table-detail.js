@@ -6,12 +6,13 @@ import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
+import { publicLabel, startName, fuzz } from "../place-names.js";
 import { restaurantsForKeys, groupSuggestions } from "../geo.js";
 import { mountMap } from "../maps.js";
 import { INTENTIONS, PACES, REPORT_REASONS, FORMATS, FORMAT_QUERY, searchKeys, searchWord, cuisinesOf } from "../data.js";
 import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
-import { mealPickerHTML, wireChips, readChips, dietTagsHTML, allergyReminderHTML } from "./diet.js";
+import { mealPickerHTML, wireChips, readChips, dietTagsHTML, allergyReminderHTML, tableDietSummaryHTML } from "./diet.js";
 import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML, cuisineNames } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
@@ -128,16 +129,13 @@ export async function openTable(id, { onClose } = {}) {
         ${tb.host?.languages_spoken?.length ? `<div class="muted" style="font-size:14px">${esc(tb.host.languages_spoken.map((l) => t("lang." + l)).join(" · "))}</div>` : ""}</div></div>
       <ul class="facts">
         <li><span class="k" aria-hidden="true">🕖</span><span>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}</span></li>
-        <li><span class="k" aria-hidden="true">📍</span><span>${esc(placeText(tb))}${tb.venue?.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}
-        </span></li>
-        ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : ""}
+        ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : tb.is_private && cravingVotesAny() ? `<li><span class="k" aria-hidden="true">🍽️</span><span>${esc(cravingSummary())}</span></li>` : ""}
         ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
         ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</span></li>` : ""}
         <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>
         ${isHost && live && !ended ? `<li class="seat-edit"><span class="k" aria-hidden="true">➕</span><span class="seat-edit-row"><strong>${esc(t("td.seatsEdit"))}</strong>
           <span class="stepper" role="group" aria-label="${esc(t("td.seatsEdit"))}"><button type="button" data-act="cap" data-d="-1" aria-label="${esc(t("td.seatsLess"))}" ${tb.capacity <= Math.max(2, tb.seats_taken) ? "disabled" : ""}>−</button><output aria-live="polite">${tb.capacity}</output><button type="button" data-act="cap" data-d="1" aria-label="${esc(t("td.seatsMore"))}" ${tb.capacity >= 12 ? "disabled" : ""}>＋</button></span></span></li>` : ""}
       </ul>
-      ${mapLink ? mapActionsHTML({ name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng }, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined, originName: mine?.start_lat != null ? mine.start_label || "" : "" }) : ""}
       ${tb.note ? `<p>${esc(tb.note)}</p>` : ""}
       ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}`);
 
@@ -181,7 +179,7 @@ export async function openTable(id, { onClose } = {}) {
             draw._psId = ps.id;
             return ps.html;
           })()}
-          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}`}
+          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: startName(mine.start_label, { lat: mine.start_lat, lng: mine.start_lng }) }))}</p>` : ""}`}
           <div class="field"><span class="lbl">${esc(t("diet.title"))}</span>${mealPickerHTML(dietPick ?? (mine ? mine.diet_tags || [] : state.me?.dietary_tags || []), state.me?.dietary_tags || [])}
             <details class="diet-more" ${mine?.diet_note ? "open" : ""}><summary>＋ ${esc(t("diet.note"))}</summary>
               <input id="d-diet-note" type="text" maxlength="200" aria-label="${esc(t("diet.note"))}" placeholder="${esc(t("diet.notePh"))}" value="${esc(mine?.diet_note || "")}" style="margin-top:8px"></details>
@@ -219,17 +217,21 @@ export async function openTable(id, { onClose } = {}) {
     // ---- members
     const visibleMembers = members.filter((m) => m.status === "joined" || (isHost && m.status === "requested"));
     if (visibleMembers.length) {
-      html.push(`<div class="section"><h3>${esc(t("td.who"))}</h3><ul class="members">${visibleMembers
+      // Before joining you see who's coming (name and emoji) only: starting points and food needs are for the people at the table
+      // (a friends link can be forwarded).
+      const seeDetails = isMember || me === "requested";
+      const summary = seeDetails ? tableDietSummaryHTML(visibleMembers.filter((m) => m.status === "joined").map((m) => m.diet_tags)) : "";
+      html.push(`<div class="section"><h3>${esc(t("td.who"))}</h3>${summary}<ul class="members">${visibleMembers
         .map((m) => {
           const isMe = m.user_id === state.session?.userId;
           const req = m.status === "requested";
           return `<li data-uid="${esc(m.user_id)}">
             <span class="av" aria-hidden="true">${esc(m.avatar_emoji)}</span>
             <span class="who"><strong>${esc(personName(m.display_name))}</strong>${m.role === "host" ? ` <span class="badge ok">${esc(t("td.hostTag"))}</span>` : ""}${isMe ? ` <span class="muted">(${esc(t("td.you"))})</span>` : ""}
-              ${(isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(m.start_label)}</small>` : ""}
-              ${tb.is_private && m.status === "joined" && !m.start_label && !isMe ? `<small class="muted">📍 ${esc(t("td.noStartYet"))}</small>` : ""}
-              ${dietTagsHTML(m.diet_tags, m.diet_note)}
-              ${m.cuisine && menuItem(m.cuisine) ? `<small>${esc(menuItem(m.cuisine).emoji)} ${esc(menuItem(m.cuisine).name)}</small>` : ""}
+              ${seeDetails && (isHost || tb.is_private) && m.start_label ? `<small>📍 ${esc(startName(m.start_label, { lat: m.start_lat, lng: m.start_lng }))}</small>` : ""}
+              ${seeDetails && tb.is_private && m.status === "joined" && !m.start_label && !isMe ? `<small class="muted">📍 ${esc(t("td.noStartYet"))}</small>` : ""}
+              ${seeDetails ? dietTagsHTML(m.diet_tags, m.diet_note) : ""}
+              ${seeDetails && !tb.venue && m.cuisine && menuItem(m.cuisine) ? `<small>${esc(menuItem(m.cuisine).emoji)} ${esc(menuItem(m.cuisine).name)}</small>` : ""}
               ${isHost && m.no_show_count > 0 ? `<small>⚠️ ${esc(t("td.noShows", { n: m.no_show_count }))}</small>` : ""}</span>
             ${req ? `<button type="button" class="btn sm primary" data-act="accept" data-uid="${esc(m.user_id)}">${esc(t("td.accept"))}</button><button type="button" class="btn sm" data-act="decline" data-uid="${esc(m.user_id)}">${esc(t("td.decline"))}</button>` : ""}
             ${isHost && !req && m.role !== "host" ? `<button type="button" class="btn sm ghost" data-act="remove" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.remove"))}</button>${started ? `<button type="button" class="btn sm ghost" data-act="noshow" data-uid="${esc(m.user_id)}" data-name="${esc(m.display_name)}">${esc(t("td.noShow"))}</button>` : ""}` : ""}
@@ -240,7 +242,7 @@ export async function openTable(id, { onClose } = {}) {
     }
 
     // ---- photos
-    if (isMember && !tb.is_sample) html.push(`<div class="section" id="photo-section">${photosHTML()}</div>`);
+    if (isMember && started && !tb.is_sample) html.push(`<div class="section" id="photo-section">${photosHTML()}</div>`);
 
     // ---- how the meal felt (after the meal, members only)
     if (isMember && started && !tb.is_sample) html.push(`<div class="section" id="feel-section">${feelingSectionHTML(feelings)}</div>`);
@@ -255,10 +257,7 @@ export async function openTable(id, { onClose } = {}) {
           <p class="hint" style="margin:6px 0 0">${esc(t("td.mapLegend"))}</p>${missingStartsHTML()}<div id="pick-card"></div></div>`);
       }
       if (!choosing) {
-        html.push(`<div class="section"><h3>✅ ${esc(t("td.chosenVenue"))}</h3>
-          <p style="margin:0 0 8px"><strong>${esc(tb.venue.name)}</strong>${tb.venue.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}</p>
-          ${reminder}
-          <button type="button" class="btn sm" data-act="change-venue">${esc(t("td.changeVenue"))}</button></div>`);
+        html.push(placeBlockHTML({ canChange: isHost || tb.is_private, reminder }));
       } else {
         html.push(`<div class="section"><h3>${esc(t("td.findSpot"))}</h3>
         ${reminder}
@@ -274,9 +273,13 @@ export async function openTable(id, { onClose } = {}) {
         })()}<button type="button" class="btn sm" data-act="set-venue" disabled id="venue-save">${esc(t("td.saveVenue"))}</button>${changingVenue ? ` <button type="button" class="btn sm ghost" data-act="keep-venue">${esc(t("td.keepVenue"))}</button>` : ""}</div>
       </div>`);
       }
-    } else if (me === "joined" && mine?.start_lat != null && tb.meet_lat != null) {
-      const km = haversineKm({ lat: mine.start_lat, lng: mine.start_lng }, { lat: tb.meet_lat, lng: tb.meet_lng });
-      html.push(`<p class="muted">🚶 ${esc(t("td.fromYou", { km: km < 10 ? km.toFixed(1) : Math.round(km) }))}</p>`);
+    } else if (tb.venue || tb.area_label || tb.meet_lat != null) {
+      // Everyone else: where it is (a friends table only shows its place to the people at it).
+      if (!tb.is_private || isMember) html.push(placeBlockHTML({ canChange: false, reminder: "" }));
+      if (me === "joined" && mine?.start_lat != null && tb.meet_lat != null && !tb.venue) {
+        const km = haversineKm({ lat: mine.start_lat, lng: mine.start_lng }, { lat: tb.meet_lat, lng: tb.meet_lng });
+        html.push(`<p class="muted">🚶 ${esc(t("td.fromYou", { km: km < 10 ? km.toFixed(1) : Math.round(km) }))}</p>`);
+      }
     }
 
     // ---- footer actions
@@ -293,7 +296,7 @@ export async function openTable(id, { onClose } = {}) {
     mountSharedMap();
     paintPick();
     wirePlaceSearches();
-    if (isMember && !tb.is_sample) loadPhotos();
+    if (isMember && started && !tb.is_sample) loadPhotos();
     if (isMember && started && !tb.is_sample) loadFeelings();
     autoSuggest();
   }
@@ -403,6 +406,19 @@ export async function openTable(id, { onClose } = {}) {
     paintPick();
     qs("#pick-card", sheet.body)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
+  // The place, all in one block: name, address, then ratings & how to get there (from my starting point if I gave one).
+  function placeBlockHTML({ canChange, reminder }) {
+    const mine = tb.my_membership;
+    const where = { name: tb.venue?.name || tb.area_label, address: tb.venue?.address, lat: tb.venue?.lat ?? tb.meet_lat, lng: tb.venue?.lng ?? tb.meet_lng };
+    const hasPoint = where.lat != null || where.name;
+    return `<div class="section place-block"><h3>${tb.venue ? `✅ ${esc(t("td.chosenVenue"))}` : `📍 ${esc(t("td.where"))}`}</h3>
+      <p style="margin:0 0 8px"><strong>${esc(placeText(tb))}</strong>${tb.venue?.address ? `<br><span class="muted">${esc(tb.venue.address)}</span>` : ""}</p>
+      ${hasPoint ? mapActionsHTML(where, { origin: mine?.start_lat != null ? { lat: Number(mine.start_lat), lng: Number(mine.start_lng) } : undefined, originName: mine?.start_lat != null ? startName(mine.start_label || "", { lat: mine.start_lat, lng: mine.start_lng }) : "" }) : ""}
+      ${reminder || ""}
+      ${canChange && tb.venue ? `<button type="button" class="btn sm" data-act="change-venue" style="margin-top:8px">${esc(t("td.changeVenue"))}</button>` : ""}</div>`;
+  }
+  const cravingVotesAny = () => (tb.members || []).some((m) => m.status === "joined" && m.cuisine);
+
   function paintPick() {
     const box = !sheet.closed && qs("#pick-card", sheet.body);
     if (!box) return;
@@ -437,12 +453,14 @@ export async function openTable(id, { onClose } = {}) {
   let groupMap = null;
   let mapSeq = 0;
   function mapData() {
-    const people = (tb.members || [])
+    const exact = (tb.members || [])
       .filter((m) => m.status === "joined" && m.start_lat != null && m.start_lng != null && Number.isFinite(Number(m.start_lat)) && Number.isFinite(Number(m.start_lng)))
       .map((m) => ({ name: personName(m.display_name), avatar: m.avatar_emoji, lat: Number(m.start_lat), lng: Number(m.start_lng) }));
+    // Markers are placed within ~200 m of each real starting point (no exact home on the map); the middle uses the real points.
+    const people = exact.map((p) => ({ ...p, lat: fuzz(p.lat), lng: fuzz(p.lng) }));
     return {
       people,
-      middle: people.length > 1 ? midpoint(people) : null,
+      middle: exact.length > 1 ? midpoint(exact) : null,
       venue: tb.venue && tb.venue.lat != null ? { name: tb.venue.name, lat: Number(tb.venue.lat), lng: Number(tb.venue.lng) } : null,
       suggestions: Array.isArray(suggestions) && (!tb.venue || changingVenue) ? suggestions : [],
       onPick: choose,
@@ -552,7 +570,7 @@ export async function openTable(id, { onClose } = {}) {
       pace: val("#d-pace", mm.pace),
       cuisine: val("#d-craving", mm.cuisine),
     };
-    if (startPick) Object.assign(o, { start_label: startPick.name, start_lat: startPick.lat, start_lng: startPick.lng });
+    if (startPick) Object.assign(o, { start_label: publicLabel(startPick), start_lat: startPick.lat, start_lng: startPick.lng });
     else if (startPick === undefined && tb.my_membership) Object.assign(o, { start_label: tb.my_membership.start_label, start_lat: tb.my_membership.start_lat, start_lng: tb.my_membership.start_lng });
     return o;
   }
@@ -575,6 +593,22 @@ export async function openTable(id, { onClose } = {}) {
       showError(e);
     }
     if (!sheet.closed) await reload();
+  }
+
+  // Host locks in the restaurant: save it, then back to My tables (the page doesn't stay in "choosing" mode).
+  async function confirmVenue(btn, v) {
+    try {
+      await withBusy(btn, () => api.setVenue(tb.id, v));
+    } catch (e) {
+      showError(e);
+      return;
+    }
+    toast(t("td.venueConfirmed", { name: v.name }));
+    announce(t("td.venueConfirmed", { name: v.name }));
+    bus.emit("tables-changed");
+    sheet.onClose = null;
+    closeSheet({ silent: true });
+    go("#mine");
   }
 
   sheet.body.addEventListener("change", (e) => {
@@ -685,11 +719,11 @@ export async function openTable(id, { onClose } = {}) {
       }
       case "use-venue": {
         const r = suggestions[Number(btn.dataset.i)];
-        await mutate(btn, () => api.setVenue(tb.id, { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id }), t("td.venueSet"));
+        await confirmVenue(btn, { name: r.name, address: r.address, lat: r.lat, lng: r.lng, poi_id: r.poi_id });
         break;
       }
       case "set-venue":
-        if (venuePick) await mutate(btn, () => api.setVenue(tb.id, { name: venuePick.name, address: venuePick.address, lat: venuePick.lat, lng: venuePick.lng, poi_id: venuePick.poi_id }), t("td.venueSet"));
+        if (venuePick) await confirmVenue(btn, { name: venuePick.name, address: venuePick.address, lat: venuePick.lat, lng: venuePick.lng, poi_id: venuePick.poi_id });
         break;
       case "ics": {
         const loc = [tb.venue?.name || tb.area_label, tb.venue?.address].filter(Boolean).join(", ");

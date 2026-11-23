@@ -12,6 +12,7 @@ import { mountLocPicker } from "./loc-picker.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { restaurantsForKeys, currentPosition } from "../geo.js";
 import { nameMatchesKey } from "../toronto-venues.js";
+import { publicLabel } from "../place-names.js";
 import { allergyReminderHTML } from "./diet.js";
 
 export function openCreate({ onClose } = {}) {
@@ -600,7 +601,7 @@ export function openCreate({ onClose } = {}) {
           try {
             if (d.startMe) {
               await api.updateMembership(made.id, {
-                start_label: d.startMe.name, start_lat: d.startMe.lat, start_lng: d.startMe.lng,
+                start_label: publicLabel(d.startMe), start_lat: d.startMe.lat, start_lng: d.startMe.lng,
               });
             }
             if (d.craving) await api.setCraving(made.id, d.craving);

@@ -48,10 +48,48 @@ export function wireChips(root) {
 export const readChips = (root) => [...root.querySelectorAll("[data-diet][aria-pressed='true']")].map((b) => b.dataset.diet);
 
 // Small read-only tags (members list)
+// Three quiet lines instead of a wall of chips: allergies (the only highlighted line), diet rules (redundant ones
+// dropped: vegan already means no meat or seafood), and this-meal wishes. Words only, no emoji, so it stays light.
+const IMPLIED = {
+  vegan: ["vegetarian", "no_pork", "no_beef", "no_seafood"],
+  vegetarian: ["no_pork", "no_beef", "no_seafood"],
+};
+const MEAL = new Set(DIET_MEAL.map((d) => d.slug));
+export function dietSplit(tags) {
+  const items = [...new Set((tags || []).filter((s) => KNOWN.has(s)))];
+  const drop = new Set(items.flatMap((s) => IMPLIED[s] || []));
+  return {
+    allergies: items.filter(isAllergy),
+    rules: items.filter((s) => !isAllergy(s) && !MEAL.has(s) && !drop.has(s)),
+    meal: items.filter((s) => MEAL.has(s)),
+  };
+}
+const short = (s) => t("ds." + s);
 export function dietTagsHTML(tags, note) {
-  const items = (tags || []).filter((s) => KNOWN.has(s));
-  if (!items.length && !note) return "";
-  return `<small class="diet-tags">${items.map((s) => `<span class="diet-tag${isAllergy(s) ? " allergy" : ""}">${esc(dietLabel(s))}</span>`).join(" ")}${note ? ` <span class="muted">${esc(note)}</span>` : ""}</small>`;
+  const { allergies, rules, meal } = dietSplit(tags);
+  if (!allergies.length && !rules.length && !meal.length && !note) return "";
+  const line = (cls, text) => `<span class="diet-line ${cls}">${text}</span>`;
+  return `<span class="diet-lines">${[
+    allergies.length ? line("al", `⚠️ ${esc(t("diet.allergyLine", { list: allergies.map(short).join(t("diet.sep")) }))}`) : "",
+    rules.length ? line("rule", esc(rules.map((s) => t("dt." + s)).join(t("diet.sep")))) : "",
+    meal.length || note ? line("meal", esc([meal.length ? t("diet.mealLine", { list: meal.map((s) => t("dt." + s)).join(t("diet.sep")) }) : "", note || ""].filter(Boolean).join(" · "))) : "",
+  ].join("")}</span>`;
+}
+
+// One line over the members list: what this table as a whole has to watch out for ("3 dairy · 1 vegan").
+export function tableDietSummaryHTML(lists) {
+  const n = new Map();
+  for (const tags of lists) {
+    const { allergies, rules } = dietSplit(tags);
+    for (const s of [...allergies, ...rules]) n.set(s, (n.get(s) || 0) + 1);
+  }
+  if (!n.size) return "";
+  const order = [...n].sort((a, b) => b[1] - a[1]);
+  const times = (k) => (k > 1 ? ` ×${k}` : "");
+  const al = order.filter(([s]) => isAllergy(s)).map(([s, k]) => short(s) + times(k));
+  const ru = order.filter(([s]) => !isAllergy(s)).map(([s, k]) => t("dt." + s) + times(k));
+  const parts = [al.length ? t("diet.allergyLine", { list: al.join(t("diet.sep")) }) : "", ru.join(t("diet.sep"))].filter(Boolean);
+  return `<p class="diet-summary">⚠️ <strong>${esc(t("diet.tableWatch"))}</strong> ${esc(parts.join(t("diet.partSep")))}</p>`;
 }
 
 // Reminder shown while choosing a restaurant. `people` = [{name, tags}], only those with allergies are listed.

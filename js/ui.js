@@ -69,7 +69,8 @@ export function openSheet({ html, label = "", className = "", onClose } = {}) {
       closeSheet({ by });
     },
     focusFirst() {
-      (qs("[autofocus]", body) || qs(FOCUSABLE, body) || sheet).focus({ preventScroll: true });
+      // Full pages (the table page) start with nothing focused, so no search box pops open its suggestions.
+      (qs("[autofocus]", body) || (sheet.classList.contains("sheet-detail") ? null : qs(FOCUSABLE, body)) || sheet).focus({ preventScroll: true });
     },
     onClose,
   };
