@@ -234,9 +234,17 @@ export async function mountGoogleMap(container, data) {
 // Returns null whenever Google can't or shouldn't be used, and the caller shows the free list instead. Never throws.
 const PFAIL = "tb.gpFail";
 const placesFailed = () => { try { return sessionStorage.getItem(PFAIL) === "1"; } catch { return false; } };
-export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
+// Results are limited to a box around `center` (a hard limit, like the visible area in the Google Maps app; a soft "bias"
+// let famous places from across the city, or hundreds of km away, into the list). With fewer than 6 results the box
+// is widened once.
+const boxAround = (c, km) => {
+  const dLat = km / 111;
+  const dLng = km / (111 * Math.max(0.2, Math.cos((c.lat * Math.PI) / 180)));
+  return { south: c.lat - dLat, west: c.lng - dLng, north: c.lat + dLat, east: c.lng + dLng };
+};
+export async function googlePlacesSearch({ query, center, radiusKm = 6 }) {
   if (!key() || placesFailed() || navigator.onLine === false) return null;
-  const ck = `tb.gp:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+  const ck = `tb.gp2:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}:${radiusKm}`;
   try {
     const hit = JSON.parse(sessionStorage.getItem(ck) || "null");
     if (hit && Date.now() - hit.at < 3600e3) return hit.list;
@@ -245,13 +253,15 @@ export async function googlePlacesSearch({ query, center, radiusKm = 3 }) {
     if ((await api.claimGooglePlaces?.()) !== true) return null;
     await loadGoogle();
     const { Place } = await google.maps.importLibrary("places");
-    const { places } = await Place.searchByText({
+    const ask = (km) => Place.searchByText({
       textQuery: query,
       fields: ["id", "displayName", "location", "formattedAddress"],
-      locationBias: { center: { lat: center.lat, lng: center.lng }, radius: Math.min(50000, radiusKm * 1000) },
+      locationRestriction: boxAround(center, km),
       maxResultCount: 20,
       language: getLang() === "zh" ? "zh-CN" : "en",
     });
+    let { places } = await ask(radiusKm);
+    if ((places || []).length < 6 && (await api.claimGooglePlaces?.()) === true) ({ places } = await ask(radiusKm * 2.5));
     const list = (places || [])
       .filter((p) => p.location)
       .map((p) => ({

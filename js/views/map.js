@@ -298,9 +298,10 @@ export async function render(root) {
     paintMap();
     try {
       // Google's own results first (the same places as in the Google Maps app); the free list if Google can't be used.
-      // Exactly the search the "Open in Google Maps" button runs ("Korean restaurants near 43.73,-79.34"), so the list,
-      // the pins and the Google Maps app show the same places in the same order.
-      let found = await googlePlacesSearch({ query: googleQuery(), center, radiusKm: 5 });
+      // Google's own search for the picked food, limited to the area around the place I'm looking at (like the visible
+      // map in the Google Maps app), kept in Google's order.
+      const word = picks.map(searchWord).filter(Boolean).join(" ");
+      let found = await googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants`, center, radiusKm: 6 });
       if (found) found = found.map((r) => ({ ...r, distKm: haversineKm(center, r) }));
       if (!alive || request.signal.aborted) return;
       if (!found?.length) found = (await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 })).list;
