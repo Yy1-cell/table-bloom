@@ -10,12 +10,10 @@ export const guideSeen = () => {
 const markSeen = () => { try { localStorage.setItem(KEY, "1"); } catch {} };
 
 // e = picture, k = text key (gd.<k>.t / .b / .l = three short bullet points), tone = background colour of the picture
+// Three cards: most people skip past the second one, so each carries one whole idea.
 const CARDS = [
-  { e: "🍲", k: "welcome", tone: "green" },
-  { e: "🗺️", k: "map", tone: "sky" },
-  { e: "🍽️", k: "host", tone: "peach" },
+  { e: "🍲", k: "meet", tone: "green" },
   { e: "👫", k: "friends", tone: "rose" },
-  { e: "🌿", k: "reflect", tone: "green" },
   { e: "🔒", k: "safe", tone: "sky" },
 ];
 

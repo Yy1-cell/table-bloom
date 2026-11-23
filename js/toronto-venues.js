@@ -4,6 +4,10 @@ import { haversineKm } from "./util.js";
 
 let directory;
 
+// DineSafe inspects every kitchen in the city: schools, hospitals, daycares, churches, staff cafeterias, caterers,
+// community kitchens, convenience stores… none of which you can book a dinner at. Leave those out.
+const notDining = /kitchenette|community kitchen|programming and event|event kitchen|main kitchen|large kitchen|teaching kitchen|staff (cafeteria|kitchen|meal)|recreation (centre|room)|\bcafeteria\b|day ?care|child ?care|early learning|preschool|nursery school|\bschool\b|hospital\b|nursing home|long[- ]term care|retirement|assisted living|home for seniors|seniors? (centre|center|home|club|support)|home care|\bchurch\b(?!\s*(st\b|street))|mosque|synagogue|congregation|hindu temple|masonic temple|temple sinai|food bank|\bshelter\b|catering|caterer|commissary|ghost kitchens?\b|commercial kitchen|convenience|\bvariety\b|grocery|supermarket|fruit market|drug mart|pharmacy|gas station|\bymca\b|community cent(re|er)|bookstore/i;
+
 // The directory's names were title-cased letter by letter after apostrophes ("Mother'S", "Tahini'S") and acronyms ("Bbq").
 const fixCase = (name) => String(name)
   .replace(/(['’])([A-Z])(?![\p{L}])/gu, (m, q, c) => q + c.toLowerCase())
@@ -16,7 +20,7 @@ function venues() {
         if (!response.ok) throw new Error("venue_directory_unavailable");
         return response.json();
       })
-      .then(({ venues }) => venues.map(([name, address, lat, lng]) => ({ name: fixCase(name), address, lat, lng })))
+      .then(({ venues }) => venues.filter(([name]) => !notDining.test(name)).map(([name, address, lat, lng]) => ({ name: fixCase(name), address, lat, lng })))
       .catch((error) => {
         directory = null;
         throw error;

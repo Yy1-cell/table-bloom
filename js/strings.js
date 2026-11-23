@@ -56,7 +56,7 @@ export const EN = {
   "disc.count": "{n} tables", "disc.noLocation": "Couldn't get your location. Allow location access to sort by distance.",
   "disc.emptyTitle": "No tables match yet", "disc.emptyBody": "Try another filter, or be the first to host one.",
   "disc.occasion": "Occasion", "disc.anyOccasion": "Any occasion",
-  "chip.all": "All", "chip.today": "Today", "chip.new": "Open to new people", "chip.friend": "Friends welcome",
+  "chip.all": "All", "chip.today": "Today", "chip.weekend": "This weekend", "chip.new": "Open to new people", "chip.friend": "Friends welcome", "sort.soon": "Soonest", "disc.cuisine": "Cuisine", "disc.anyCuisine": "Any cuisine", "disc.anyType": "Any type",
   "sort.match": "Best taste match", "sort.budget": "Lowest budget", "sort.closest": "Closest to me",
 
   // cards
@@ -252,9 +252,9 @@ export const EN = {
   "gd.welcome.t": "Welcome to Table & Bloom", "gd.welcome.b": "Share a meal, meet someone new. Eat with people you haven't met yet, or plan a dinner with friends — wherever you are.", "gd.welcome.p1": "🌱 Meet new people over food you both like", "gd.welcome.p2": "👫 Or get friends together somewhere fair for everyone", "gd.welcome.p3": "🌿 Remember how every meal felt",
   "gd.map.t": "Find a place you feel like going", "gd.map.b": "The Map shows restaurants around you for the food you pick.", "gd.map.p1": "Pick up to 3 cuisines, like Sichuan + hotpot", "gd.map.p2": "Open Google Maps for reviews, hours and directions", "gd.map.p3": "Works in any city — set where you are once",
   "gd.host.t": "Host a table, or join one", "gd.host.b": "Discover lists tables near you. Join one, or start your own in a minute.", "gd.host.p1": "Choose food, time, seats and budget", "gd.host.p2": "People ask to join and you say yes", "gd.host.p3": "Get a notice when someone asks or the table is full",
-  "gd.friends.t": "Dinner with friends? Meet in the middle", "gd.friends.b": "Host a “Friends” table first, then send your friends the link.", "gd.friends.p1": "Everyone adds where they start and what they feel like eating", "gd.friends.p2": "It updates live on your table page", "gd.friends.p3": "We suggest fair restaurants near the middle — you pick one together",
+  "gd.meet.t": "Meet new people over a meal", "gd.meet.b": "Find a table near you on Discover and join, or host your own in a minute.", "gd.meet.p1": "🍽️ Pick a restaurant on the Map, then host a table there", "gd.meet.p2": "🙋 People ask to join — you say yes", "gd.meet.p3": "🌿 After the meal, a 30-second check-in makes suggestions fit you better", "gd.friends.t": "Dinner with friends? Meet in the middle", "gd.friends.b": "Host a “Friends” table and send your friends the link.", "gd.friends.p1": "📍 Everyone adds where they start and what they feel like eating", "gd.friends.p2": "🗺️ See everyone on one map, live", "gd.friends.p3": "✨ We suggest places that suit the most people, fair for everyone to reach",
   "gd.reflect.t": "After the meal, write it down", "gd.reflect.b": "A short reflection, just for you.", "gd.reflect.p1": "Rate the food and how the table felt", "gd.reflect.p2": "Note your mood before and after", "gd.reflect.p3": "Your journal helps suggest tables you'll enjoy",
-  "gd.safe.t": "Safe and private", "gd.safe.b": "Built for meeting people comfortably.", "gd.safe.p1": "Meet in public places, 18+ only", "gd.safe.p2": "Friends tables are invite-only; only your name and emoji are shown", "gd.safe.p3": "Block or report anyone, any time",
+  "gd.safe.t": "Safe and private", "gd.safe.b": "Built for meeting people comfortably.", "gd.safe.p1": "🏙️ Meet in public places, 18+ only", "gd.safe.p2": "🔗 Friends tables are invite-only; others see only your name and emoji", "gd.safe.p3": "🛡️ Block or report anyone, any time",
   "td.seatsEdit": "Seats", "td.seatsLess": "Remove a seat", "td.seatsMore": "Add a seat", "td.seatsDone": "Seats updated.", "td.noStartYet": "Hasn't added a starting point yet", "td.addStartNudge": "Tip: add where you're starting from so everyone can find a fair middle.",
 };
 
@@ -310,7 +310,7 @@ export const ZH = {
   "disc.count": "共 {n} 桌", "disc.noLocation": "无法获取你的位置。请允许定位后再按距离排序。",
   "disc.emptyTitle": "还没有合适的饭局", "disc.emptyBody": "换个筛选条件，或者做第一个发起人。",
   "disc.occasion": "场合", "disc.anyOccasion": "全部场合",
-  "chip.all": "全部", "chip.today": "今天", "chip.new": "欢迎新朋友", "chip.friend": "朋友可同行",
+  "chip.all": "全部", "chip.today": "今天", "chip.weekend": "本周末", "chip.new": "欢迎新朋友", "chip.friend": "朋友可同行", "sort.soon": "时间最近", "disc.cuisine": "菜系", "disc.anyCuisine": "所有菜系", "disc.anyType": "所有类型",
   "sort.match": "口味最匹配", "sort.budget": "预算最低", "sort.closest": "离我最近",
 
   "card.untitled": "一起吃饭", "card.hostedBy": "发起人：{name}", "card.match": "匹配", "card.matchHint": "菜系与你的口味排序的契合度",
@@ -495,8 +495,8 @@ export const ZH = {
   "gd.welcome.t": "欢迎来到 Table & Bloom（饭局）", "gd.welcome.b": "一起吃顿饭，认识新朋友。可以和还不认识的人拼桌，也可以约朋友聚餐——人在哪里都能用。", "gd.welcome.p1": "🌱 和口味相近的人一起吃，认识新朋友", "gd.welcome.p2": "👫 或者约朋友，找一家对大家都公平的餐厅", "gd.welcome.p3": "🌿 记下每一顿饭的心情",
   "gd.map.t": "找一家想去的店", "gd.map.b": "地图会按你选的菜，显示你周围的餐厅。", "gd.map.p1": "最多选 3 个菜系，比如川菜 + 火锅", "gd.map.p2": "一键打开 Google 地图看评价、营业时间和路线", "gd.map.p3": "任何城市都能用，只需设置一次你在哪",
   "gd.host.t": "发起饭局，或加入别人的", "gd.host.b": "“发现”里列出你附近的饭局。可以加入，也可以一分钟内自己发起。", "gd.host.p1": "选好菜系、时间、人数和预算", "gd.host.p2": "有人申请加入，由你同意", "gd.host.p3": "有人申请或桌子满了，会通知你",
-  "gd.friends.t": "和朋友聚餐？约在中间", "gd.friends.b": "先发起一桌“朋友局”，再把链接发给朋友。", "gd.friends.p1": "每个人填自己从哪出发、想吃什么", "gd.friends.p2": "内容会实时显示在你的饭局页面上", "gd.friends.p3": "我们推荐路程公平的中间餐厅，大家一起选一家",
+  "gd.meet.t": "一起吃饭，认识新朋友", "gd.meet.b": "在“发现”里找附近的饭局加入，或者一分钟发起一桌。", "gd.meet.p1": "🍽️ 在地图上挑好餐厅，直接在那里开一桌", "gd.meet.p2": "🙋 有人想加入，由你同意", "gd.meet.p3": "🌿 吃完花 30 秒写个感受，推荐会越来越合你口味", "gd.friends.t": "和朋友聚餐？约在中间", "gd.friends.b": "发起一桌“朋友局”，把链接发给朋友。", "gd.friends.p1": "📍 每个人填自己从哪出发、想吃什么", "gd.friends.p2": "🗺️ 所有人的位置实时显示在同一张地图上", "gd.friends.p3": "✨ 推荐最多人想吃、大家过去都不远的餐厅",
   "gd.reflect.t": "吃完，写下来", "gd.reflect.b": "一小段感受，只给你自己看。", "gd.reflect.p1": "给菜品和这顿饭的氛围打分", "gd.reflect.p2": "记下吃饭前后的心情", "gd.reflect.p3": "日记会帮你找到更合适的饭局",
-  "gd.safe.t": "安全，也保护隐私", "gd.safe.b": "让你放心地认识新朋友。", "gd.safe.p1": "在公共场所见面，仅限 18 岁以上", "gd.safe.p2": "朋友局只有链接可进；别人只能看到你的昵称和表情", "gd.safe.p3": "随时可以屏蔽或举报",
+  "gd.safe.t": "安全，也保护隐私", "gd.safe.b": "让你放心地认识新朋友。", "gd.safe.p1": "🏙️ 在公共场所见面，仅限 18 岁以上", "gd.safe.p2": "🔗 朋友局只有链接可进；别人只能看到你的昵称和表情", "gd.safe.p3": "🛡️ 随时可以屏蔽或举报",
   "td.seatsEdit": "人数", "td.seatsLess": "减一个位子", "td.seatsMore": "加一个位子", "td.seatsDone": "人数已更新。", "td.noStartYet": "还没填出发点", "td.addStartNudge": "小提示：填上你的出发点，大家才能找到公平的中间餐厅。",
 };

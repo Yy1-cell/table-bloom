@@ -502,8 +502,8 @@ details.loc-details > summary { cursor: pointer; font-weight: 600; padding: 8px 
 .intro-actions { display: inline-flex; gap: 8px; }
 .intro-skip, .intro-lang { border: 1px solid var(--line); background: rgba(255, 255, 255, 0.8); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14px; color: var(--green-900); }
 .intro-skip { background: var(--paper); }
-.intro-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 10px 0 14px; animation: intro-in 0.28s ease; }
-@keyframes intro-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.intro-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 10px 0 14px; animation: intro-in 0.16s ease-out; }
+@keyframes intro-in { from { opacity: 0.4; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 .intro-pic { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 16px; box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.55), var(--shadow-lg); }
 .intro-pic span { font-size: 76px; line-height: 1; }
 .tone-green { background: linear-gradient(145deg, #e4efd3, #c9dfb3); }
@@ -576,3 +576,18 @@ select:not([multiple]) {
 .g-wrap { display: flex; flex-direction: column; align-items: center; }
 .g-label { margin-top: 2px; font-weight: 600; font-size: 12px; background: #fff; padding: 1px 7px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.25); white-space: nowrap; }
 .gm-spot { background: #fff; }
+
+/* Discover: place + distance on one line; one compact filter row (time chips, cuisine, kind of place, sort) */
+.toolbar.loc-bar #loc-btn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar.loc-bar select { flex: 0 0 auto; width: 172px; max-width: 48%; }
+.toolbar.disc-filters { align-items: center; gap: 8px; margin-bottom: 12px; }
+.toolbar.disc-filters .chips { flex: 0 0 auto; width: auto; }
+.toolbar.disc-filters select { flex: 0 1 auto; width: auto; max-width: 220px; }
+.toolbar.disc-filters .sort-wrap { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; white-space: nowrap; margin-left: auto; }
+.toolbar.disc-filters .sort-wrap select { max-width: 180px; }
+@media (max-width: 819px) {
+  .toolbar.disc-filters .chips { flex: 1 1 100%; }
+  .toolbar.disc-filters select { flex: 1 1 calc(50% - 4px); max-width: none; min-width: 0; }
+  .toolbar.disc-filters .sort-wrap { flex: 1 1 100%; margin-left: 0; }
+  .toolbar.disc-filters .sort-wrap select { flex: 1; max-width: none; }
+}

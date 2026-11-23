@@ -1,4 +1,6 @@
-// Discover: browse open tables, filter, sort by taste match / budget / distance.
+// Discover: browse open tables. Filters stay coarse on purpose (few tables early on: fine filters only empty the page):
+// when (today / this weekend), cuisine family (Chinese, Japanese, …; a Sichuan table counts as Chinese), kind of place.
+// With fewer than FEW tables nearby the filters are hidden altogether.
 import { esc, isToday, qs, qsa } from "../util.js";
 import { t } from "../i18n.js";
 import { state, cuisineOf } from "../state.js";
@@ -8,30 +10,51 @@ import { locationPermission } from "../geo.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { toast, announce } from "../ui.js";
 import { hasRanks, tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
-import { OCCASIONS, FORMATS, VENUE_TYPES } from "../data.js";
+import { VENUE_TYPES, CUISINE_GROUPS, cuisinesOf } from "../data.js";
 import { buildProfile, scoreTable } from "../dining-profile.js";
-import { groupOfSlug } from "./menu-picker.js";
+import { groupOfSlug, menuGroups } from "./menu-picker.js";
 
-const CHIPS = ["all", "today", "new", "friend"];
+const CHIPS = ["all", "today", "weekend"];
+const FEW = 5;
+
+// This coming Saturday/Sunday (today too, if it is one), in local time.
+function isThisWeekend(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = start.getDay();
+  const sat = new Date(start);
+  sat.setDate(start.getDate() + (day === 0 ? -1 : 6 - day));
+  const end = new Date(sat);
+  end.setDate(sat.getDate() + 2);
+  return d >= (day === 0 || day === 6 ? start : sat) && d < end;
+}
+// "sichuan" -> "chinese"; a family slug is its own family.
+const familyOf = (slug) => (CUISINE_GROUPS.includes(slug) ? slug : groupOfSlug(slug));
+
+// Tables within the chosen distance of the place I'm looking at (tables with no known point are kept).
+function nearby(list) {
+  const loc = effectiveLoc();
+  let out = list.filter((x) => x.my_status !== "declined");
+  if (loc && state.filters.radius) out = out.filter((x) => { const d = kmFrom(loc, x); return d == null || d <= state.filters.radius; });
+  return out;
+}
 
 function visible(list) {
-  const { chip, sort, fmt, vtype, radius } = state.filters;
-  let out = list.filter((x) => x.my_status !== "declined");
-  // Only tables within the chosen distance of the place I'm looking at (tables with no known point are kept).
-  const loc = effectiveLoc();
-  if (loc && radius) out = out.filter((x) => { const d = kmFrom(loc, x); return d == null || d <= radius; });
+  const { chip, sort, cg, vtype } = state.filters;
+  let out = nearby(list);
   if (chip === "today") out = out.filter((x) => isToday(x.starts_at));
-  if (chip === "new") out = out.filter((x) => x.audience !== "friends");
-  if (chip === "friend") out = out.filter((x) => x.audience !== "new_people");
-  if (fmt) out = out.filter((x) => (x.formats || []).includes(fmt));
+  if (chip === "weekend") out = out.filter((x) => isThisWeekend(x.starts_at));
+  if (cg) out = out.filter((x) => cuisinesOf(x).some((k) => familyOf(k) === cg));
   if (vtype) out = out.filter((x) => x.venue_type === vtype);
   const byTime = (a, b) => new Date(a.starts_at) - new Date(b.starts_at);
-  if (sort === "budget") out.sort((a, b) => (a.budget_cents ?? 1e9) - (b.budget_cents ?? 1e9) || byTime(a, b));
+  if (sort === "soon") out.sort(byTime);
+  else if (sort === "budget") out.sort((a, b) => (a.budget_cents ?? 1e9) - (b.budget_cents ?? 1e9) || byTime(a, b));
   else if (sort === "closest") out.sort((a, b) => (distanceKm(a) ?? 1e9) - (distanceKm(b) ?? 1e9) || byTime(a, b));
   else if (sort === "foryou" && state.diningProfile?.n) {
     const fit = (x) => scoreTable(x, state.diningProfile).score * 20 + tasteOf(x) * 0.5;
     out.sort((a, b) => fit(b) - fit(a) || byTime(a, b));
-  } else if (!hasRanks()) out.sort((a, b) => (distanceKm(a) ?? 1e9) - (distanceKm(b) ?? 1e9) || byTime(a, b));
+  } else if (!hasRanks()) out.sort(byTime);
   else out.sort((a, b) => tasteOf(b) - tasteOf(a) || byTime(a, b));
   return out;
 }
@@ -55,7 +78,9 @@ export async function render(root) {
   let alive = true;
   const f = state.filters;
   // "For you" is offered once there are check-ins to learn from
-  const sortOptions = () => ([...(state.diningProfile?.n ? ["foryou"] : []), ...(hasRanks() ? ["match"] : []), ...(hasRanks() ? ["budget", "closest"] : ["closest", "budget"])]).map((s) => `<option value="${s}" ${f.sort === s ? "selected" : ""}>${esc(t("sort." + s))}</option>`).join("");
+  f.fmt = ""; // "how we eat" is no longer a Discover filter
+  const sortOptions = () => ([...(state.diningProfile?.n ? ["foryou"] : []), ...(hasRanks() ? ["match"] : []), "soon", "closest", "budget"]).map((s) => `<option value="${s}" ${f.sort === s ? "selected" : ""}>${esc(t("sort." + s))}</option>`).join("");
+  const families = menuGroups().map((x) => ({ g: x.g, emoji: x.generic.emoji }));
 
   root.innerHTML = `
     <section class="hero">
@@ -64,23 +89,21 @@ export async function render(root) {
       <a class="btn" href="#new">＋ ${esc(t("disc.host"))}</a>
       <button type="button" class="btn ghost hero-how" id="how">❓ ${esc(t("gd.open"))}</button>
     </section>
-    <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}">
+    <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}" id="loc-bar">
       <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
       <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>
       <select id="radius-sel">${[10, 25, 50, 200, 0].map((r) => `<option value="${r}" ${Number(f.radius) === r ? "selected" : ""}>${esc(r ? t("loc.within", { km: r }) : t("loc.anywhere"))}</option>`).join("")}</select>
-      <label class="sr-only" for="sort-sel">${esc(t("disc.sort"))}</label>
-      <select id="sort-sel">${sortOptions()}</select>
     </div>
     <div class="card loc-panel" id="loc-panel" hidden></div>
-    <div class="toolbar" role="group" aria-label="${esc(t("disc.filters"))}">
+    <div class="toolbar disc-filters" role="group" aria-label="${esc(t("disc.filters"))}" id="disc-filters" hidden>
       <div class="chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}</div>
+      <label class="sr-only" for="cg-sel">${esc(t("disc.cuisine"))}</label>
+      <select id="cg-sel"><option value="">🍽️ ${esc(t("disc.anyCuisine"))}</option>${families.map((x) => `<option value="${x.g}" ${f.cg === x.g ? "selected" : ""}>${x.emoji} ${esc(t("cg." + x.g))}</option>`).join("")}</select>
+      <label class="sr-only" for="vt-sel">${esc(t("disc.vtype"))}</label>
+      <select id="vt-sel"><option value="">☕ ${esc(t("disc.anyType"))}</option>${VENUE_TYPES.map((v) => `<option value="${v.slug}" ${f.vtype === v.slug ? "selected" : ""}>${v.emoji} ${esc(t("vt." + v.slug))}</option>`).join("")}</select>
       <span class="spacer"></span>
+      <label class="sort-wrap"><span class="muted">${esc(t("disc.sort"))}</span> <select id="sort-sel">${sortOptions()}</select></label>
     </div>
-    <details class="more-filters" id="more-filters" ${f.fmt || f.vtype ? "open" : ""}>
-      <summary>🍽️ ${esc(t("disc.moreFilters"))}<span class="mf-on" id="mf-on"></span></summary>
-      <div class="mf-row"><span class="mf-label">${esc(t("disc.vtype"))}</span><div class="chips" id="vt-chips">${[{ slug: "", emoji: "" }, ...VENUE_TYPES].map((o) => `<button type="button" class="chip" data-vt="${o.slug}" aria-pressed="${(f.vtype || "") === o.slug}">${o.slug ? `<span aria-hidden="true">${o.emoji}</span> ${esc(t("vt." + o.slug))}` : esc(t("chip.all"))}</button>`).join("")}</div></div>
-      <div class="mf-row"><span class="mf-label">${esc(t("disc.fmt"))}</span><div class="chips" id="fm-chips">${[{ slug: "", emoji: "" }, ...FORMATS].map((o) => `<button type="button" class="chip" data-fm="${o.slug}" aria-pressed="${(f.fmt || "") === o.slug}">${o.slug ? `<span aria-hidden="true">${o.emoji}</span> ${esc(t("fm." + o.slug))}` : esc(t("chip.all"))}</button>`).join("")}</div></div>
-    </details>
     <div class="grid" id="list" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div>`;
 
   const list = qs("#list", root);
@@ -89,8 +112,17 @@ export async function render(root) {
   function paint() {
     if (!alive) return;
     // Everyone sees their own city first: until a place is set, no other city's tables are shown.
-    if (!effectiveLoc()) {
-      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big" aria-hidden="true">📍</div><h2>${esc(t("loc.needTitle"))}</h2><p>${esc(t("loc.needBody"))}</p><button type="button" class="btn primary" id="need-loc">📍 ${esc(t("map.useMe"))}</button></div>`;
+    const hasLoc = !!effectiveLoc();
+    qs("#loc-bar", root).hidden = !hasLoc;
+    if (!hasLoc) {
+      qs("#disc-filters", root).hidden = true;
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big" aria-hidden="true">📍</div><h2>${esc(t("loc.needTitle"))}</h2><p>${esc(t("loc.needBody"))}</p><button type="button" class="btn primary" id="need-loc">📍 ${esc(t("map.useMe"))}</button>
+        <p style="margin-top:10px"><button type="button" class="btn ghost sm" id="need-search">🔎 ${esc(t("loc.search"))}</button></p></div>`;
+      qs("#need-search", list)?.addEventListener("click", () => {
+        qs("#loc-bar", root).hidden = false;
+        togglePanel(true);
+        panel.querySelector("input")?.focus();
+      });
       qs("#need-loc", list)?.addEventListener("click", async (e) => {
         e.currentTarget.disabled = true;
         try {
@@ -104,6 +136,14 @@ export async function render(root) {
         }
       });
       return;
+    }
+    // Only a few tables around: show them all, no filters (they would only empty the page).
+    const few = nearby(state.tables).length < FEW;
+    qs("#disc-filters", root).hidden = few;
+    if (few && (f.chip !== "all" || f.cg || f.vtype)) {
+      f.chip = "all"; f.cg = ""; f.vtype = "";
+      qsa("[data-chip]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.chip === "all")));
+      qs("#cg-sel", root).value = ""; qs("#vt-sel", root).value = "";
     }
     const items = visible(state.tables);
     if (!items.length) {
@@ -124,7 +164,8 @@ export async function render(root) {
       state.tables = tables;
       if (rows) state.diningProfile = buildProfile(rows, groupOfSlug);
       // with some check-ins on record, "For you" becomes the default order (until the person picks another)
-      if (!f.sortSet && f.sort === "match") f.sort = state.diningProfile?.n ? "foryou" : hasRanks() ? "match" : "closest";
+      // No taste data: soonest first (when it is, is what decides going or not).
+      if (!f.sortSet && ["match", "closest"].includes(f.sort)) f.sort = state.diningProfile?.n ? "foryou" : hasRanks() ? "match" : "soon";
       const sel = qs("#sort-sel", root);
       if (sel) {
         sel.innerHTML = sortOptions();
@@ -146,29 +187,12 @@ export async function render(root) {
     qsa("[data-chip]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.chip === f.chip)));
     paint();
   });
-  const paintMf = () => {
-    const n = (f.fmt ? 1 : 0) + (f.vtype ? 1 : 0);
-    qs("#mf-on", root).textContent = n ? ` · ${n}` : "";
+  const onFilter = () => {
+    paint();
+    announce(t("disc.count", { n: visible(state.tables).length }));
   };
-  paintMf();
-  qs("#vt-chips", root).addEventListener("click", (e) => {
-    const b = e.target.closest("[data-vt]");
-    if (!b) return;
-    f.vtype = b.dataset.vt;
-    qsa("[data-vt]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.vt === f.vtype)));
-    paintMf();
-    paint();
-    announce(t("disc.count", { n: visible(state.tables).length }));
-  });
-  qs("#fm-chips", root).addEventListener("click", (e) => {
-    const b = e.target.closest("[data-fm]");
-    if (!b) return;
-    f.fmt = b.dataset.fm;
-    qsa("[data-fm]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.fm === f.fmt)));
-    paintMf();
-    paint();
-    announce(t("disc.count", { n: visible(state.tables).length }));
-  });
+  qs("#cg-sel", root).addEventListener("change", (e) => { f.cg = e.target.value; onFilter(); });
+  qs("#vt-sel", root).addEventListener("change", (e) => { f.vtype = e.target.value; onFilter(); });
   const paintLoc = () => {
     const cur = effectiveLoc();
     qs("#loc-btn", root).innerHTML = `📍 ${esc(cur ? cur.label || t("map.here") : t("loc.set"))} <span aria-hidden="true">▾</span>`;
@@ -198,7 +222,6 @@ export async function render(root) {
   };
   qs("#loc-btn", root).addEventListener("click", () => togglePanel(panel.hidden));
   if (!effectiveLoc()) {
-    togglePanel(true);
     // If the browser already allows location, just use it (no prompt is shown in that case).
     locationPermission().then(async (perm) => {
       if (perm !== "granted" || !alive || effectiveLoc()) return;
