@@ -169,19 +169,19 @@ export async function openTable(id, { onClose } = {}) {
     const showDetails = !ended && (canJoin || me === "requested" || me === "joined" || (isHost && live));
     if (showDetails) {
       const label = canJoin ? t("td.shareMore") : t("td.myDetails");
-      // Once the restaurant is chosen, where you start from and what you feel like eating no longer matter.
+      // Once the restaurant is chosen, what you feel like eating no longer matters; where you start from stays (directions, distances).
       const placeOpen = !tb.venue;
       const withNew = tb.audience !== "friends";
       act.push(`
         <details class="more" ${(canJoin && !tb.is_private) || isHost ? "" : "open"}>
           <summary>${esc(label)}${canJoin ? "" : ` <span class="muted">(${esc(t("common.optional"))})</span>`}</summary>
-          ${placeOpen ? `<p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
+          ${`<p class="hint" style="margin-top:0">${esc(tb.is_private ? t("td.privacyPrivate") : t("td.privacy"))}</p>
           ${(() => {
             const ps = placeSearchHTML({ label: t("td.startPoint"), placeholder: t("td.startPlaceholder"), hint: t("td.startHint") });
             draw._psId = ps.id;
             return ps.html;
           })()}
-          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}` : ""}
+          ${mine?.start_label && startPick === undefined ? `<p class="hint" data-start-current>${esc(t("td.currentStart", { name: mine.start_label }))}</p>` : ""}`}
           <div class="field"><span class="lbl">${esc(t("diet.title"))}</span>${mealPickerHTML(dietPick ?? (mine ? mine.diet_tags || [] : state.me?.dietary_tags || []), state.me?.dietary_tags || [])}
             <details class="diet-more" ${mine?.diet_note ? "open" : ""}><summary>＋ ${esc(t("diet.note"))}</summary>
               <input id="d-diet-note" type="text" maxlength="200" aria-label="${esc(t("diet.note"))}" placeholder="${esc(t("diet.notePh"))}" value="${esc(mine?.diet_note || "")}" style="margin-top:8px"></details>
