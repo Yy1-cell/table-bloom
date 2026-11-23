@@ -51,8 +51,8 @@ export const readChips = (root) => [...root.querySelectorAll("[data-diet][aria-p
 // Three quiet lines instead of a wall of chips: allergies (the only highlighted line), diet rules (redundant ones
 // dropped: vegan already means no meat or seafood), and this-meal wishes. Words only, no emoji, so it stays light.
 const IMPLIED = {
-  vegan: ["vegetarian", "no_pork", "no_beef", "no_seafood"],
-  vegetarian: ["no_pork", "no_beef", "no_seafood"],
+  vegan: ["vegetarian", "no_pork", "no_beef", "no_lamb", "no_seafood"],
+  vegetarian: ["no_pork", "no_beef", "no_lamb", "no_seafood"],
 };
 const MEAL = new Set(DIET_MEAL.map((d) => d.slug));
 export function dietSplit(tags) {

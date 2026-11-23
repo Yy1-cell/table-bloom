@@ -146,7 +146,7 @@ export const PEER_SIGNALS = [
 // Slugs are stored as-is in profiles.dietary_tags / table_members.diet_tags (a-z and _ only); labels live in strings as dt.<slug>.
 export const DIET_FIXED = [
   { slug: "vegetarian", emoji: "🥬" }, { slug: "vegan", emoji: "🌱" }, { slug: "halal", emoji: "☪️" }, { slug: "kosher", emoji: "✡️" },
-  { slug: "no_pork", emoji: "🐖" }, { slug: "no_beef", emoji: "🐄" }, { slug: "no_seafood", emoji: "🦐" },
+  { slug: "no_pork", emoji: "🐖" }, { slug: "no_beef", emoji: "🐄" }, { slug: "no_lamb", emoji: "🐑" }, { slug: "no_seafood", emoji: "🦐" },
   { slug: "allergy_peanut", emoji: "🥜", allergy: true }, { slug: "allergy_shellfish", emoji: "🦞", allergy: true },
   { slug: "allergy_dairy", emoji: "🥛", allergy: true }, { slug: "allergy_gluten", emoji: "🌾", allergy: true }, { slug: "allergy_egg", emoji: "🥚", allergy: true },
 ];
