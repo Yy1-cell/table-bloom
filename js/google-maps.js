@@ -215,6 +215,10 @@ export async function mountGoogleMap(container, data) {
     onFail(cb) {
       failCbs.push(cb);
     },
+    /** The area the map shows right now: { south, west, north, east }. */
+    bounds() {
+      return map.getBounds()?.toJSON() || null;
+    },
     destroy() {
       items.forEach((m) => (m.map = null));
       items = [];
@@ -242,9 +246,11 @@ const boxAround = (c, km) => {
   const dLng = km / (111 * Math.max(0.2, Math.cos((c.lat * Math.PI) / 180)));
   return { south: c.lat - dLat, west: c.lng - dLng, north: c.lat + dLat, east: c.lng + dLng };
 };
-export async function googlePlacesSearch({ query, center, radiusKm = 6 }) {
+// `bounds` (optional): search exactly this area (the map as it is on screen, like "Search this area" in Google Maps).
+export async function googlePlacesSearch({ query, center, radiusKm = 6, bounds = null }) {
   if (!key() || placesFailed() || navigator.onLine === false) return null;
-  const ck = `tb.gp2:${getLang()}:${query}:${center.lat.toFixed(3)},${center.lng.toFixed(3)}:${radiusKm}`;
+  const area = bounds ? [bounds.south, bounds.west, bounds.north, bounds.east].map((x) => x.toFixed(3)).join(",") : `${center.lat.toFixed(3)},${center.lng.toFixed(3)}:${radiusKm}`;
+  const ck = `tb.gp3:${getLang()}:${query}:${area}`;
   try {
     const hit = JSON.parse(sessionStorage.getItem(ck) || "null");
     if (hit && Date.now() - hit.at < 3600e3) return hit.list;
@@ -256,7 +262,7 @@ export async function googlePlacesSearch({ query, center, radiusKm = 6 }) {
     const ask = (km) => Place.searchByText({
       textQuery: query,
       fields: ["id", "displayName", "location", "formattedAddress"],
-      locationRestriction: boxAround(center, km),
+      locationRestriction: bounds && km === radiusKm ? bounds : boxAround(center, km),
       maxResultCount: 20,
       language: getLang() === "zh" ? "zh-CN" : "en",
     });

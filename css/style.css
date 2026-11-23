@@ -620,3 +620,6 @@ body:has(#nl-badge-frame) #toasts { bottom: calc(var(--nav-h) + 72px + env(safe-
 
 /* "Powered by Netlify" badge: hidden on phones, where it covered buttons and content */
 @media (max-width: 819px) { #nl-badge-frame { display: none !important; } }
+
+/* "Search this area" sits just above the Google map */
+.search-area { display: block; margin: 0 auto 8px; }

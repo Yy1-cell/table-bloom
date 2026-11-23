@@ -3,7 +3,7 @@
  * - Never caches API calls (Supabase, map search): user data must always be live.
  * Bump CACHE_VERSION whenever you deploy changed files.
  */
-const CACHE_VERSION = "tb-v71";
+const CACHE_VERSION = "tb-v72";
 const SHELL = [
   "./",
   "./index.html",

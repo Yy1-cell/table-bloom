@@ -286,7 +286,27 @@ export async function render(root) {
     qsa("[data-open]", box).forEach((b) => b.addEventListener("click", () => go(`#t-${b.dataset.open}`)));
   }
 
-  async function loadRestaurants() {
+  // Google search, one per picked food (a single "Japanese Korean restaurants" search returns a muddle, and each
+  // search gives at most 20), merged in turn so every pick gets its best places near the top.
+  async function googleList(bounds) {
+    const words = picks.length ? picks.map(searchWord).filter(Boolean) : [""];
+    const radiusKm = picks.length ? 10 : 6;
+    const lists = await Promise.all((words.length ? words : [""]).map((w) => googlePlacesSearch({ query: `${w ? w + " " : ""}restaurants`, center, radiusKm, bounds })));
+    if (lists.every((l) => !l)) return null;
+    const out = [];
+    const seen = new Set();
+    for (let i = 0; i < 20; i++) {
+      for (const l of lists) {
+        const r = l?.[i];
+        if (!r || seen.has(r.google_id)) continue;
+        seen.add(r.google_id);
+        out.push(r);
+      }
+    }
+    return out;
+  }
+
+  async function loadRestaurants({ bounds = null } = {}) {
     const box = qs("#rest", root);
     ctl?.abort();
     const request = ctl = new AbortController();
@@ -300,8 +320,7 @@ export async function render(root) {
       // Google's own results first (the same places as in the Google Maps app); the free list if Google can't be used.
       // Google's own search for the picked food, limited to the area around the place I'm looking at (like the visible
       // map in the Google Maps app), kept in Google's order.
-      const word = picks.map(searchWord).filter(Boolean).join(" ");
-      let found = await googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants`, center, radiusKm: 6 });
+      let found = await googleList(bounds);
       if (found) found = found.map((r) => ({ ...r, distKm: haversineKm(center, r) }));
       if (!alive || request.signal.aborted) return;
       if (!found?.length) found = (await restaurantsForKeys(center, picks, { signal: request.signal, limit: 20 })).list;
@@ -404,6 +423,19 @@ export async function render(root) {
     }
     g = c;
     root.classList.add("g-mode");
+    // Like Google Maps: move or zoom the map, then search the area it shows.
+    if (!qs("#search-area", root)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.id = "search-area";
+      b.className = "btn sm search-area";
+      b.textContent = `🔍 ${t("map.searchArea")}`;
+      b.addEventListener("click", () => {
+        const bounds = g?.bounds?.();
+        if (bounds) loadRestaurants({ bounds });
+      });
+      box.parentElement.insertBefore(b, box);
+    }
     // This map shows OUR list's places (numbered), not Google's search results; say so.
     qs("#g-hint", root).textContent = t(listFromGoogle ? "map.gHintGoogle" : "map.gHintPins");
     qs("#built-title", root).textContent = t(listFromGoogle ? "map.googleList" : "map.listOnly");

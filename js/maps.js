@@ -30,6 +30,7 @@ export async function mountMap(container, data, { fallback = true, google = true
     update: (d) => impl?.update(d),
     select: (i) => impl?.select(i),
     clearSpot: () => impl?.clearSpot?.(),
+    bounds: () => impl?.bounds?.() || null,
     destroy: () => impl?.destroy(),
     onSwap: (cb) => (onSwap = cb),
     get data() {
