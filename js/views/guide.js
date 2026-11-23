@@ -12,6 +12,7 @@ const markSeen = () => { try { localStorage.setItem(KEY, "1"); } catch {} };
 // e = picture, k = text key (gd.<k>.t / .b / .l = three short bullet points), tone = background colour of the picture
 // Three cards: most people skip past the second one, so each carries one whole idea.
 const CARDS = [
+  { e: "🌱", k: "why", tone: "peach", more: true },
   { e: "🍲", k: "meet", tone: "green" },
   { e: "👫", k: "friends", tone: "rose" },
   { e: "🔒", k: "safe", tone: "sky" },
@@ -56,6 +57,7 @@ export function openGuide({ onClose } = {}) {
         <h2 id="intro-h">${esc(t(`gd.${c.k}.t`))}</h2>
         <p class="intro-lead">${esc(t(`gd.${c.k}.b`))}</p>
         ${points.length ? `<ul class="intro-points">${points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
+        ${c.more ? `<button type="button" class="intro-more" data-about>${esc(t("about.more"))}</button>` : ""}
       </div>
       <div class="intro-foot">
         <div class="intro-dots" role="tablist" aria-label="${esc(t("gd.title"))}">${CARDS.map((_, n) => `<button type="button" role="tab" aria-selected="${n === i}" aria-label="${n + 1}" data-dot="${n}" class="${n === i ? "on" : ""}"></button>`).join("")}</div>
@@ -80,6 +82,7 @@ export function openGuide({ onClose } = {}) {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.skip !== undefined) close();
+    else if (b.dataset.about !== undefined) { close(); import("./about.js").then((m) => m.openAbout()); }
     else if (b.dataset.lang !== undefined) setLang(getLang() === "zh" ? "en" : "zh");
     else if (b.dataset.next !== undefined) step(1);
     else if (b.dataset.back !== undefined) step(-1);

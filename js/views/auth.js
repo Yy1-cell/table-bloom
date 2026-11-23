@@ -16,7 +16,8 @@ export async function render(root) {
     const demo = state.mode === "demo";
     root.innerHTML = `
     <section class="card auth-card stack">
-      <div class="center"><div style="font-size:42px" aria-hidden="true">🍲</div><h1>${esc(t("auth.title"))}</h1><p class="muted">${esc(t(demo ? "auth.sub" : "auth.subLink"))}</p></div>
+      <div class="center"><div style="font-size:42px" aria-hidden="true">🍲</div><h1>${esc(t("auth.title"))}</h1><p class="muted">${esc(t(demo ? "auth.sub" : "auth.subLink"))}</p>
+        <button type="button" class="link-btn" id="a-about">${esc(t("about.btn"))}</button></div>
       ${demo ? `<div class="notice">🧪 ${esc(t("auth.demo"))}</div>` : ""}
       ${
         step === "email"
@@ -101,6 +102,7 @@ export async function render(root) {
         setErr(t("err.google_unavailable"));
       }
     });
+    qs("#a-about", root)?.addEventListener("click", async () => (await import("./about.js")).openAbout());
     qs("#a-guest", root)?.addEventListener("click", async (e) => {
       if (!qs("#a-age", root).checked) return setErr(t("auth.ageNeeded"));
       try {

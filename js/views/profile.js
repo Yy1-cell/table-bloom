@@ -62,7 +62,7 @@ export async function render(root) {
       <ul style="margin:0;padding-left:20px"><li>${esc(t("pf.tip1"))}</li><li>${esc(t("pf.tip2"))}</li><li>${esc(t("pf.tip3"))}</li></ul>
       ${window.TB_CONFIG?.SUPPORT_EMAIL ? `<p><a href="mailto:${esc(window.TB_CONFIG.SUPPORT_EMAIL)}">${esc(t("pf.contact"))}</a></p>` : ""}
     </section>
-    <section class="card stack page-section"><button type="button" class="btn" id="how-pf">❓ ${esc(t("gd.open"))}</button></section>
+    <section class="card stack page-section"><div class="row wrap-row"><button type="button" class="btn" id="how-pf">❓ ${esc(t("gd.open"))}</button><button type="button" class="btn" id="about-pf">${esc(t("about.btn"))}</button></div></section>
     ${state.isAdmin ? `<section class="card stack page-section"><h2>🛠 ${esc(t("ad.title"))}</h2><p class="muted">${esc(t("ad.entry"))}</p><a class="btn" href="#admin">${esc(t("ad.open"))}</a></section>` : ""}
     <section class="card stack page-section"><h2>${esc(t("pf.account"))}</h2>
       <p class="muted">${esc(me.guest ? t("pf.guestNote") : me.email || "")}</p>
@@ -96,6 +96,7 @@ export async function render(root) {
       draw();
     });
     qs("#how-pf", root)?.addEventListener("click", async () => (await import("./guide.js")).openGuide());
+    qs("#about-pf", root)?.addEventListener("click", async () => (await import("./about.js")).openAbout());
     qs("#link-google", root)?.addEventListener("click", async (e) => {
       try {
         await withBusy(e.currentTarget, () => api.linkGoogle());
