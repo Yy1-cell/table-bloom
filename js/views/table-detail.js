@@ -558,7 +558,7 @@ export async function openTable(id, { onClose } = {}) {
           // Google's own places (as on the Map tab); each craving is one search, cached for an hour.
           google: (key, center, radiusKm) => {
             const word = searchWord(key);
-            return googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants`, center, radiusKm: Math.min(radiusKm, 10) });
+            return googlePlacesSearch({ query: `${word ? word + " " : ""}restaurants near ${center.lat.toFixed(5)},${center.lng.toFixed(5)}`, center, radiusKm: Math.min(radiusKm, 10) });
           },
         });
       } else {
