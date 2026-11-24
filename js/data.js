@@ -111,7 +111,20 @@ export function searchKeys({ cuisine, cuisines, formats = [], venue_type } = {})
 }
 
 // Vibe tags a host can add (older tables may still carry mandarin_friendly, bring_a_friend, easy_conversation; their labels stay in strings).
-export const TAGS = ["split_bill", "new_to_toronto", "try_somewhere_new"];
+export const TAGS = ["split_bill", "try_somewhere_new"];
+
+// Communities: one optional theme per table with new people. All are open to everyone except "women"
+// (women, including trans women, and non-binary people; the host always approves requests). Names: com.<slug>, purpose: comFor.<slug>.
+export const COMMUNITIES = [
+  { slug: "newcomers", emoji: "🏙️" },
+  { slug: "mandarin", emoji: "🗣️" },
+  { slug: "slow", emoji: "🌙" },
+  { slug: "lgbtq", emoji: "🏳️‍🌈" },
+  { slug: "women", emoji: "🌸", forGroup: true },
+];
+export const communityOf = (slug) => COMMUNITIES.find((c) => c.slug === slug) || null;
+/** A restaurant found by search (Google, OpenStreetMap, City of Toronto list), not a hand-typed spot on the map. */
+export const isRealPlace = (p) => !!p?.name && /^(g:.+|d:.+|[NWR][0-9]+)$/.test(p.poi_id || "");
 
 // What the table is for. Optional, chosen by the host when creating the table.
 export const OCCASIONS = [
@@ -128,7 +141,7 @@ export const INTENTIONS = ["unwind", "catch_up", "study_tips", "new_perspectives
 export const PACES = ["talking", "ease_in", "listening"];
 export const SPOKEN = ["zh", "en", "yue", "other"];
 export const AVATARS = ["🍊", "🥑", "🍑", "🍋", "🍓", "🥝", "🍇", "🌽", "🥕", "🍄", "🌸", "🌿"];
-export const REPORT_REASONS = ["harassment", "no_show", "unsafe", "spam", "other"];
+export const REPORT_REASONS = ["harassment", "unwanted_advances", "discrimination", "impersonation", "unsafe", "no_show", "spam", "other"];
 export const MOODS = ["😔", "😕", "😐", "🙂", "😄"];
 
 // Post-meal check-in. FEELS: how the meal felt overall (shared with the table). Positive vibe tags are shared;

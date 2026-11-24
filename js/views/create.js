@@ -4,7 +4,8 @@ import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
 import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
-import { AUDIENCES, TAGS, OCCASIONS, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys } from "../data.js";
+import { AUDIENCES, TAGS, OCCASIONS, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys, COMMUNITIES, isRealPlace } from "../data.js";
+import { readyToMeetStrangers } from "./safety.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML, orList } from "./common.js";
 import { effectiveLoc } from "../location.js";
 import { currencyFor, budgetRange } from "../currency.js";
@@ -38,6 +39,7 @@ export function openCreate({ onClose } = {}) {
     area_label: "",
     budget: pre?.budget != null ? String(Math.round(pre.budget / 100)) : "", // chosen per meal on the Map, not stored on the profile
     tags: [],
+    community: "",
     occasion: "",
     note: "",
     // Only used to suggest restaurants. Never sent to the server.
@@ -86,6 +88,8 @@ export function openCreate({ onClose } = {}) {
   let sugCtl = null;
   let sugTimer = null;
   const isFriends = () => d.audience === "friends";
+  // Tables with new people: at least 3 seats, so nobody ends up alone with a stranger.
+  const minCap = () => (isFriends() ? 2 : 3);
   const sheet = openSheet({ label: t("cr.label"), className: "sheet-create", html: "", onClose });
   const baseLoc = () => d.base || effectiveLoc();
   // Priced in the currency of the place (the chosen restaurant if it knows its country, otherwise the area).
@@ -111,7 +115,9 @@ export function openCreate({ onClose } = {}) {
   function draw() {
     let body = "";
     if (step === 1) {
-      const kindOpen = more[1] || !!((isFriends() && d.occasion) || d.tags.length);
+      const kindOpen = more[1] || !!((isFriends() && d.occasion) || d.tags.length || (!isFriends() && d.community));
+      if (d.capacity < minCap()) d.capacity = minCap();
+      if (d.community === "women") d.join_mode = "request";
       body = `
         <h2>${esc(t("cr.s1"))}</h2>
         ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
@@ -120,14 +126,22 @@ export function openCreate({ onClose } = {}) {
         </div></fieldset>
         <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
         <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
-          ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
-        </div></fieldset>
+          ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""} ${m === "instant" && d.community === "women" ? "disabled" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
+        </div><p class="hint" id="jm-women" ${d.community === "women" ? "" : "hidden"} style="margin:6px 0 0">🌸 ${esc(t("com.womenJm"))}</p></fieldset>
         <fieldset id="f-cuis" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
         <p class="notice" id="f-cuis-friends" ${isFriends() ? "" : "hidden"}>🍽️ ${esc(t("cr.friendsCuisine"))}</p>
         <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
-          <p class="hint">${esc(t("cr.capacityHint"))}</p></div>
+          <p class="hint">${esc(t("cr.capacityHint"))}</p><p class="hint" id="cap-min" ${isFriends() ? "hidden" : ""} style="margin-top:2px">🛡️ ${esc(t("cr.capMin3"))}</p></div>
         <details class="more" id="c-more" ${kindOpen ? "open" : ""}><summary>${esc(t("cr.kind"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
+          <div id="c-com-f" ${isFriends() ? "hidden" : ""}>
+            <p class="lbl" style="margin:4px 0">🤝 ${esc(t("com.title"))}</p>
+            <div class="chips" id="c-com">
+              <button type="button" class="chip" data-com="" aria-pressed="${!d.community}">${esc(t("com.none"))}</button>
+              ${COMMUNITIES.map((c) => `<button type="button" class="chip" data-com="${c.slug}" aria-pressed="${d.community === c.slug}"><span aria-hidden="true">${c.emoji}</span> ${esc(t("com." + c.slug))}</button>`).join("")}
+            </div>
+            <p class="hint" id="c-com-for" style="margin:6px 0 10px">${esc(d.community ? t("comFor." + d.community) : t("com.hint"))}</p>
+          </div>
           <div class="chips" id="c-kind">
             <span id="c-occs" style="display:${isFriends() ? "contents" : "none"}">${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}</span>
             ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
@@ -184,7 +198,7 @@ export function openCreate({ onClose } = {}) {
         </div>
         ${ps.html}
         <div id="c-maplink">${mapLinkHTML(d.place)}</div>
-        <div class="field" id="f-label"><label for="c-label">${esc(t("cr.orArea"))}</label><input id="c-label" type="text" maxlength="120" value="${esc(d.area_label)}" placeholder="${esc(t("cr.orAreaPh"))}"></div>`;
+        <p class="hint" id="f-real">🛡️ ${esc(t("cr.realPlaceHint"))}</p>`;
           })();
       body = `
         <h2>${esc(t("cr.s2"))}</h2>
@@ -386,7 +400,8 @@ export function openCreate({ onClose } = {}) {
     if (!d.date) return bad("#f-date", t("cr.errDate"));
     if (!d.time) return bad("#f-time", t("cr.errTime"));
     if (new Date(toISO(d.date, d.time)).getTime() < Date.now() + 5 * 60000) return bad("#f-date", t("err.start_in_past"));
-    if (!isFriends() && !d.place && !d.area_label) return bad("#f-label", t("cr.errPlace"));
+    // Tables with new people meet at a real restaurant found by search, never a hand-typed spot (it could be a private home).
+    if (!isFriends() && !isRealPlace(d.place)) return bad("#f-real", t("err.real_place_needed"));
     if (!d.place && !baseLoc()) return bad("#c-base", t("loc.errBase"));
     return true;
   }
@@ -406,6 +421,12 @@ export function openCreate({ onClose } = {}) {
           const occs = qs("#c-occs", b);
           occs.hidden = !isFriends();
           occs.style.display = isFriends() ? "contents" : "none";
+          qs("#c-com-f", b).hidden = isFriends();
+          qs("#cap-min", b).hidden = isFriends();
+          if (d.capacity < minCap()) {
+            d.capacity = minCap();
+            qs("#cap-v", b).textContent = d.capacity;
+          }
         })
       );
       qsa('input[name="jm"]', b).forEach((r) => r.addEventListener("change", () => (d.join_mode = r.value)));
@@ -418,6 +439,21 @@ export function openCreate({ onClose } = {}) {
           d.cuisines = v;
           formatChipsHTML(); // drops formats that no longer fit
         },
+      });
+      qs("#c-com", b).addEventListener("click", (e) => {
+        const c = e.target.closest("[data-com]");
+        if (!c) return;
+        d.community = c.dataset.com;
+        qsa("[data-com]", b).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.com === d.community)));
+        qs("#c-com-for", b).textContent = d.community ? t("comFor." + d.community) : t("com.hint");
+        // Women & non-binary tables: the host always approves who joins.
+        const women = d.community === "women";
+        qs("#jm-women", b).hidden = !women;
+        qsa('input[name="jm"]', b).forEach((r) => {
+          r.disabled = women && r.value === "instant";
+          if (women) r.checked = r.value === "request";
+        });
+        if (women) d.join_mode = "request";
       });
       qs("#c-kind", b).addEventListener("click", (e) => {
         const o = e.target.closest("[data-occ]");
@@ -433,7 +469,7 @@ export function openCreate({ onClose } = {}) {
       });
       qsa("[data-cap]", b).forEach((x) =>
         x.addEventListener("click", () => {
-          d.capacity = Math.min(12, Math.max(2, d.capacity + Number(x.dataset.cap)));
+          d.capacity = Math.min(12, Math.max(minCap(), d.capacity + Number(x.dataset.cap)));
           qs("#cap-v", b).textContent = d.capacity;
         })
       );
@@ -564,6 +600,7 @@ export function openCreate({ onClose } = {}) {
   }
 
   async function publish(btn) {
+    if (!isFriends() && !(await readyToMeetStrangers())) return;
     const center = areaCenter();
     // Friends tables normally start without a venue (the group picks it together once people have joined),
     // unless the host already chose one, e.g. from the Map tab.
@@ -590,6 +627,7 @@ export function openCreate({ onClose } = {}) {
       budget_cents: budget,
       currency: tableCurrency(),
       tags: d.tags,
+      community: isFriends() ? null : d.community || null,
       occasion: isFriends() ? d.occasion || null : null,
       note: d.note || null,
     };

@@ -190,6 +190,24 @@ export async function createApi(cfg) {
     async claimGooglePlaces() {
       return (await rpc("claim_google_places")) === true;
     },
+    async agreeConduct() {
+      try {
+        await rpc("agree_conduct");
+      } catch (e) {
+        // Before the 2026-11-24 SQL is run the function doesn't exist yet: remember the answer for this visit only.
+        if (!/agree_conduct|schema cache|PGRST202|does not exist/i.test(`${e?.message} ${e?.detail}`)) throw e;
+      }
+    },
+    async saveSafetyCheck(tableId, answer) {
+      await rpc("save_safety_check", { p_table: tableId, p_answer: answer });
+    },
+    async mySafetyCheck(tableId) {
+      try {
+        return (await rpc("my_safety_check", { p_table: tableId })) || null;
+      } catch {
+        return null;
+      }
+    },
     async claimGoogleAutocomplete() {
       // Before the SQL is run the function doesn't exist: rpc throws and the search box quietly uses the free search.
       return (await rpc("claim_google_autocomplete")) === true;

@@ -291,6 +291,10 @@ function userInfo(id) {
 
 const isBlockedPair = (hostId) => !!hostId && hostId !== ME && cache.blocks.some((b) => b.user_id === hostId);
 
+const COMMUNITY_SLUGS = ["newcomers", "mandarin", "slow", "lgbtq", "women"];
+// A restaurant found by search (Google, OpenStreetMap, City of Toronto list), not a hand-typed spot.
+const realPlace = (v) => !!v?.name && /^(g:.+|d:.+|[NWR][0-9]+)$/.test(v.poi_id || "");
+
 function tableJson(t) {
   const L = demoText(t);
   const mine = t.members.find((m) => m.user_id === ME);
@@ -315,6 +319,7 @@ function tableJson(t) {
     meet_lng: t.meet_lng ?? null,
     tags: [...(t.tags || [])],
     occasion: t.occasion ?? null,
+    community: t.community ?? null,
     note: (L ? L.note : t.note) || null,
     join_mode: t.join_mode,
     status: t.status,
@@ -452,6 +457,8 @@ export const api = {
       .map((m) => {
         const u = userInfo(m.user_id);
         const see = isHost || m.user_id === ME || (t.is_private && canSee);
+        // where someone starts from: friends tables only, never shown to strangers (not even the host)
+        const seeStart = m.user_id === ME || (t.is_private && canSee);
         return {
           user_id: m.user_id,
           role: m.role,
@@ -459,9 +466,9 @@ export const api = {
           display_name: u.display_name,
           avatar_emoji: u.avatar_emoji,
           no_show_count: isHost ? u.no_show_count : null,
-          start_label: see ? m.start_label ?? null : null,
-          start_lat: see ? m.start_lat ?? null : null,
-          start_lng: see ? m.start_lng ?? null : null,
+          start_label: seeStart ? m.start_label ?? null : null,
+          start_lat: seeStart ? m.start_lat ?? null : null,
+          start_lng: seeStart ? m.start_lng ?? null : null,
           cuisine: see ? m.cuisine ?? null : null,
           diet_tags: see ? [...(m.diet_tags || [])] : null,
           diet_note: see ? m.diet_note ?? null : null,
@@ -471,6 +478,7 @@ export const api = {
     return clone({
       ...tableJson(t),
       members,
+      my_conduct: !!d.profile.conduct_at,
       my_membership: mine ? { start_label: mine.start_label ?? null, start_lat: mine.start_lat ?? null, start_lng: mine.start_lng ?? null, intention: mine.intention ?? null, pace: mine.pace ?? null, cuisine: mine.cuisine ?? null, diet_tags: [...(mine.diet_tags || [])], diet_note: mine.diet_note ?? null } : null,
     });
   },
@@ -484,13 +492,22 @@ export const api = {
     if (!Number.isInteger(cap) || cap < 2 || cap > 12) throw new ApiError("bad_capacity");
     const recent = d.tables.filter((t) => t.host_id === ME && Date.now() - new Date(t.created_at) < 864e5).length;
     if (recent >= 5) throw new ApiError("rate_limited");
+    const isPublic = p.audience !== "friends";
+    const community = isPublic && COMMUNITY_SLUGS.includes(p.community) ? p.community : null;
+    if (isPublic) {
+      // same rules as the server: strangers' tables need the code of conduct, a real restaurant and 3+ seats
+      if (!d.profile.conduct_at) throw new ApiError("conduct_needed");
+      if (!realPlace(p.venue)) throw new ApiError("real_place_needed");
+      if (cap < 3) throw new ApiError("bad_capacity");
+    }
 
     const t = {
       id: uid(),
       host_id: ME,
       is_sample: false,
       status: "open",
-      join_mode: p.audience === "friends" || p.join_mode === "instant" ? "instant" : "request",
+      join_mode: p.audience === "friends" || (p.join_mode === "instant" && community !== "women") ? "instant" : "request",
+      community,
       is_private: p.audience === "friends",
       area_id: p.area_id || d.profile.area_id,
       title: (p.title || "").trim().slice(0, 60) || null,
@@ -532,6 +549,7 @@ export const api = {
     const ex = t.members.find((m) => m.user_id === ME);
     if (ex && ["requested", "joined"].includes(ex.status)) throw new ApiError("already_member");
     if (ex && ["declined", "removed"].includes(ex.status)) throw new ApiError("not_allowed");
+    if (!t.is_private && !d.profile.conduct_at) throw new ApiError("conduct_needed");
     const open = d.tables.filter((x) => x.members.some((m) => m.user_id === ME && m.status === "requested")).length;
     if (open >= 5) throw new ApiError("too_many_requests");
     const status = t.join_mode === "instant" ? "joined" : "requested";
@@ -674,7 +692,7 @@ export const api = {
     requireUser();
     const t = need(id);
     if (t.host_id !== ME || ["cancelled", "completed"].includes(t.status)) throw new ApiError("not_allowed");
-    if (!Number.isInteger(capacity) || capacity < Math.max(2, joinedCount(t)) || capacity > 12) throw new ApiError("bad_capacity");
+    if (!Number.isInteger(capacity) || capacity < Math.max(t.is_private ? 2 : 3, joinedCount(t)) || capacity > 12) throw new ApiError("bad_capacity");
     t.capacity = capacity;
     refresh(t);
     persist();
@@ -915,6 +933,24 @@ export const api = {
   },
 
   // ------------------------------------------------------------ safety
+  async agreeConduct() {
+    const d = requireUser();
+    d.profile.conduct_at ||= new Date().toISOString();
+    persist();
+  },
+  async saveSafetyCheck(tableId, answer) {
+    const d = requireUser();
+    if (!["yes", "unsure", "no"].includes(answer)) throw new ApiError("bad_request");
+    if (!memberOf(need(tableId))) throw new ApiError("not_allowed");
+    d.safety = d.safety || {};
+    d.safety[tableId] = answer;
+    if (answer === "no") d.reports.push({ id: uid(), table_id: tableId, user_id: null, reason: "felt_unsafe", details: "Post-meal check-in", created_at: new Date().toISOString() });
+    persist();
+  },
+  async mySafetyCheck(tableId) {
+    const d = requireUser();
+    return d.safety?.[tableId] || null;
+  },
   async reportContent({ table_id = null, user_id = null, reason, details = "" }) {
     const d = requireUser();
     if (!table_id && !user_id) throw new ApiError("bad_report");

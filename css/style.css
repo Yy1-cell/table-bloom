@@ -638,3 +638,18 @@ body:has(#nl-badge-frame) #toasts { bottom: calc(var(--nav-h) + 72px + env(safe-
 .about-refs { margin-top: 16px; font-size: 13px; color: var(--muted); }
 .about-refs summary { cursor: pointer; font-weight: 600; }
 .about-refs ol { padding-left: 20px; line-height: 1.5; }
+
+/* Communities and safety */
+.seg.seg-row { grid-template-columns: repeat(3, 1fr); }
+.seg.seg-row label { justify-content: center; align-items: center; }
+.seg.seg-row input { margin-top: 0; }
+.tag.com { background: #f3ecfa; border-color: #e0d2f0; color: #4b3566; }
+.tag.com-women { background: #fdeef2; border-color: #f5cfda; color: #7a2f45; }
+.tag.com-lgbtq { background: #eef5fb; border-color: #cfe1f2; color: #2b4a66; }
+.notice.com-note { background: #f7f2fc; border-color: #e3d6f1; }
+.notice.com-note.com-women { background: #fdf1f4; border-color: #f3d3dc; }
+.notice.com-note span { font-size: 14px; }
+.rules-list { margin: 6px 0 0; padding-left: 20px; line-height: 1.5; }
+.rules-list li { margin: 4px 0; }
+.safety-dialog h3 { margin-top: 0; }
+#disc-filters select#com-sel { max-width: 100%; }

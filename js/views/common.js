@@ -5,9 +5,14 @@ import { state, cuisineOf, areaOf } from "../state.js";
 import { toast } from "../ui.js";
 import { effectiveLoc, kmFrom } from "../location.js";
 import { codeOf } from "../errors.js";
-import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES, cuisinesOf } from "../data.js";
+import { CUISINES, CUISINE_GROUPS, OCCASIONS, FORMATS, VENUE_TYPES, cuisinesOf, communityOf } from "../data.js";
 
 // The "what is this table for" badge (date, family meal…), shown before the vibe tags.
+export function communityTag(tb) {
+  const c = communityOf(tb?.community);
+  return c ? `<span class="tag com com-${c.slug}"><span aria-hidden="true">${c.emoji}</span> ${esc(t("com." + c.slug))}</span>` : "";
+}
+
 export function occasionTag(tb) {
   const o = OCCASIONS.find((x) => x.slug === tb?.occasion);
   return o ? `<span class="tag occ"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</span>` : "";
@@ -167,7 +172,7 @@ export function tableCardHTML(tb, { showMatch = hasRanks(), reason = "" } = {}) 
       ${cn ? `<li><span aria-hidden="true">${esc(cuisineOf(cuisinesOf(tb)[0])?.emoji || "🍽️")}</span>${esc(cuisineNames(tb, { emoji: false }))}</li>` : ""}
       ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</li>` : ""}
     </ul>
-    ${tb.tags?.length || tb.occasion || tb.formats?.length || tb.venue_type ? `<div class="tags">${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+    ${tb.tags?.length || tb.occasion || tb.community || tb.formats?.length || tb.venue_type ? `<div class="tags">${communityTag(tb)}${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
     ${reason ? `<div class="reason">✨ ${esc(reason)}</div>` : ""}
     <div class="foot"><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(seatsText(tb))}</span><span class="muted">${esc(t("aud." + tb.audience))}</span></div>
   </button>`;

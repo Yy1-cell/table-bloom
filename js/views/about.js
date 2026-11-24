@@ -25,7 +25,8 @@ const TEXT = {
       ["Meet new people at a table", "Belonging; weak ties: even casual contact with acquaintances lifts mood and belonging (Granovetter, 1973; Sandstrom & Dunn, 2014)."],
       ["You choose who joins, and can leave or block any time", "Autonomy, one of the three basic needs in self-determination theory (Deci & Ryan, 2000)."],
       ["Host a table in two steps; friends tables combine everyone's cravings", "Competence; fewer choices and steps reduce choice overload (Iyengar & Lepper, 2000)."],
-      ["Meet in public, 18+, no home address shown, details only after joining", "Feeling safe lowers the perceived risk of meeting strangers, so people are more willing to try."],
+      ["Meet at real restaurants, 18+, at least 3 people, no starting points or home addresses shown to strangers, table rules everyone agrees to, a 🛡️ Safety button and a private “did you feel safe?” after the meal", "Feeling safe lowers the perceived risk of meeting strangers, so people are more willing to try. Clear shared rules (social norms) set expectations for how people behave."],
+      ["Communities: new in town, Mandarin speakers, slow to warm up, LGBTQ+ friendly, women & non-binary", "Affinity spaces help people who are in a minority position feel they belong and feel safe, which eases minority stress (Meyer, 2003). Most tables stay open to everyone, balancing bonding within a group with bridging across groups (Putnam, 2000)."],
       ["30-second check-in after the meal and “eat together again”", "Reflection on positive social experiences; repeated contact turns one meal into lasting relationships (relatedness)."],
     ],
     gainH: "What you get",
@@ -57,7 +58,8 @@ const TEXT = {
       ["和新朋友一起吃饭", "归属感；弱关系：和不太熟的人轻松互动，也能提升当天的心情和归属感（Granovetter, 1973；Sandstrom & Dunn, 2014）。"],
       ["由你决定谁加入，随时可以退出或屏蔽", "自主感，自我决定理论的三大基本心理需要之一（Deci & Ryan, 2000）。"],
       ["两步发起饭局；朋友局自动合并大家的口味", "胜任感；减少选项和步骤，避免“选择过载”（Iyengar & Lepper, 2000）。"],
-      ["公共场所见面、仅限 18 岁以上、不显示住址、加入后才看到细节", "安全感降低了和陌生人见面的感知风险，让人更愿意尝试。"],
+      ["在真实餐厅见面、仅限 18 岁以上、至少 3 人、陌生人看不到你的出发地和住址、所有人都同意饭局守则、🛡️ 安全按钮、饭后私下问“你感到安全吗”", "安全感降低了和陌生人见面的感知风险，让人更愿意尝试；清楚的共同守则（社会规范）让每个人知道该怎么做。"],
+      ["社群局：刚到这座城市、说普通话、慢热友好、LGBTQ+ 友好、女生和非二元", "同类群体的空间让处于少数位置的人更有归属感和安全感，缓解少数群体压力（Meyer, 2003）。大多数饭局仍对所有人开放，兼顾群体内部的紧密联系和跨群体的桥接（Putnam, 2000）。"],
       ["吃完 30 秒写感受、标记“想再一起吃”", "对积极社交经历的反思；多次接触让一顿饭变成长期的关系（关联感）。"],
     ],
     gainH: "你能得到什么",
@@ -79,6 +81,8 @@ const REFS = [
   "Dunbar, R. I. M. (2017). Breaking bread: The functions of social eating. Adaptive Human Behavior and Physiology, 3(3), 198–211.",
   "Granovetter, M. S. (1973). The strength of weak ties. American Journal of Sociology, 78(6), 1360–1380.",
   "Iyengar, S. S., & Lepper, M. R. (2000). When choice is demotivating. Journal of Personality and Social Psychology, 79(6), 995–1006.",
+  "Meyer, I. H. (2003). Prejudice, social stress, and mental health in lesbian, gay, and bisexual populations. Psychological Bulletin, 129(5), 674–697.",
+  "Putnam, R. D. (2000). Bowling alone: The collapse and revival of American community. Simon & Schuster.",
   "Sandstrom, G. M., & Dunn, E. W. (2014). Social interactions and well-being: The surprising power of weak ties. Personality and Social Psychology Bulletin, 40(7), 910–922.",
 ];
 

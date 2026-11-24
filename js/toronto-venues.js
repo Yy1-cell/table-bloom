@@ -13,6 +13,13 @@ const fixCase = (name) => String(name)
   .replace(/(['’])([A-Z])(?![\p{L}])/gu, (m, q, c) => q + c.toLowerCase())
   .replace(/\b(Bbq|Ayce|Kfc|Hk)\b/g, (w) => w.toUpperCase());
 
+// A stable id for a City of Toronto (DineSafe) listing, so a table there counts as a real restaurant.
+function dineId(name, address) {
+  let h = 2166136261;
+  for (const ch of `${name}|${address}`) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  return `d:${h.toString(36)}`;
+}
+
 function venues() {
   if (!directory) {
     directory = fetch(new URL("../data/toronto-venues.json", import.meta.url))
@@ -20,7 +27,7 @@ function venues() {
         if (!response.ok) throw new Error("venue_directory_unavailable");
         return response.json();
       })
-      .then(({ venues }) => venues.filter(([name]) => !notDining.test(name)).map(([name, address, lat, lng]) => ({ name: fixCase(name), address, lat, lng })))
+      .then(({ venues }) => venues.filter(([name]) => !notDining.test(name)).map(([name, address, lat, lng]) => ({ name: fixCase(name), address, lat, lng, poi_id: dineId(name, address) })))
       .catch((error) => {
         directory = null;
         throw error;

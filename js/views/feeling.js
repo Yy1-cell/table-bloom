@@ -39,8 +39,9 @@ const rateRow = (name, labels, value, cls = "moods") =>
 export async function openFeelingForm({ table_id, title = "", onSaved } = {}) {
   let tb;
   let data;
+  let safe;
   try {
-    [tb, data] = await Promise.all([api.getTable(table_id), api.getFeelings(table_id)]);
+    [tb, data, safe] = await Promise.all([api.getTable(table_id), api.getFeelings(table_id), api.mySafetyCheck?.(table_id).catch(() => null)]);
   } catch (e) {
     return showError(e);
   }
@@ -77,6 +78,10 @@ export async function openFeelingForm({ table_id, title = "", onSaved } = {}) {
               .join("")}</ul></fieldset>`
           : `<p class="hint">💚 ${esc(t("fb.peersAlone"))}</p>`
       }
+      <fieldset><legend>🛡️ ${esc(t("fb.safeQ"))} <small class="muted">· ${esc(t("fb.optional"))}</small></legend>
+        <div class="seg seg-row">${["yes", "unsure", "no"].map((v) => `<label><input type="radio" name="safe" value="${v}" ${safe === v ? "checked" : ""}><span>${esc(t("fb.safe_" + v))}</span></label>`).join("")}</div>
+        <p class="hint" style="margin:6px 0 0">🔒 ${esc(t("fb.safePrivate"))}</p>
+      </fieldset>
       <fieldset><legend>📷 ${esc(t("fb.photosQ"))} <small class="muted">· ${esc(t("fb.optional"))}</small></legend>
         <p class="hint" style="margin:0 0 6px">${esc(t("fb.photosHint"))}</p>
         <input type="file" id="ff-photos" accept="image/*" multiple hidden>
@@ -148,9 +153,17 @@ export async function openFeelingForm({ table_id, title = "", onSaved } = {}) {
     };
     try {
       await withBusy(qs('[type="submit"]', body), () => api.saveFeeling(payload));
+      const safeNow = fd.get("safe");
+      let safeSaved = false;
+      if (safeNow && safeNow !== safe) {
+        try {
+          await api.saveSafetyCheck?.(table_id, safeNow);
+          safeSaved = true;
+        } catch { /* the check-in itself is saved */ }
+      }
       state.diningProfile = undefined;
       closeSheet({ silent: true });
-      toast(t("fb.saved"));
+      toast(safeSaved && safeNow === "no" ? t("fb.safeSorry") : t("fb.saved"), safeSaved && safeNow === "no" ? { duration: 9000 } : undefined);
       announce(t("fb.saved"));
       onSaved?.();
     } catch (err) {

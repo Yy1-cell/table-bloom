@@ -10,7 +10,7 @@ import { locationPermission } from "../geo.js";
 import { mountLocPicker } from "./loc-picker.js";
 import { toast, announce } from "../ui.js";
 import { hasRanks, tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
-import { VENUE_TYPES, CUISINE_GROUPS, cuisinesOf } from "../data.js";
+import { VENUE_TYPES, CUISINE_GROUPS, COMMUNITIES, cuisinesOf } from "../data.js";
 import { buildProfile, scoreTable } from "../dining-profile.js";
 import { groupOfSlug, menuGroups } from "./menu-picker.js";
 
@@ -41,12 +41,13 @@ function nearby(list) {
 }
 
 function visible(list) {
-  const { chip, sort, cg, vtype } = state.filters;
+  const { chip, sort, cg, vtype, com } = state.filters;
   let out = nearby(list);
   if (chip === "today") out = out.filter((x) => isToday(x.starts_at));
   if (chip === "weekend") out = out.filter((x) => isThisWeekend(x.starts_at));
   if (cg) out = out.filter((x) => cuisinesOf(x).some((k) => familyOf(k) === cg));
   if (vtype) out = out.filter((x) => x.venue_type === vtype);
+  if (com) out = out.filter((x) => x.community === com);
   const byTime = (a, b) => new Date(a.starts_at) - new Date(b.starts_at);
   if (sort === "soon") out.sort(byTime);
   else if (sort === "budget") out.sort((a, b) => (a.budget_cents ?? 1e9) - (b.budget_cents ?? 1e9) || byTime(a, b));
@@ -100,6 +101,8 @@ export async function render(root) {
       <label class="sr-only" for="cg-sel">${esc(t("disc.cuisine"))}</label>
       <select id="cg-sel"><option value="">🍽️ ${esc(t("disc.anyCuisine"))}</option>${families.map((x) => `<option value="${x.g}" ${f.cg === x.g ? "selected" : ""}>${x.emoji} ${esc(t("cg." + x.g))}</option>`).join("")}</select>
       <label class="sr-only" for="vt-sel">${esc(t("disc.vtype"))}</label>
+      <label class="sr-only" for="com-sel">${esc(t("com.title"))}</label>
+      <select id="com-sel"><option value="">🤝 ${esc(t("com.filterAll"))}</option>${COMMUNITIES.map((c) => `<option value="${c.slug}" ${f.com === c.slug ? "selected" : ""}>${c.emoji} ${esc(t("com." + c.slug))}</option>`).join("")}</select>
       <select id="vt-sel"><option value="">☕ ${esc(t("disc.anyType"))}</option>${VENUE_TYPES.map((v) => `<option value="${v.slug}" ${f.vtype === v.slug ? "selected" : ""}>${v.emoji} ${esc(t("vt." + v.slug))}</option>`).join("")}</select>
       <span class="spacer"></span>
       <label class="sort-wrap"><span class="muted">${esc(t("disc.sort"))}</span> <select id="sort-sel">${sortOptions()}</select></label>
@@ -140,10 +143,10 @@ export async function render(root) {
     // Only a few tables around: show them all, no filters (they would only empty the page).
     const few = nearby(state.tables).length < FEW;
     qs("#disc-filters", root).hidden = few;
-    if (few && (f.chip !== "all" || f.cg || f.vtype)) {
-      f.chip = "all"; f.cg = ""; f.vtype = "";
+    if (few && (f.chip !== "all" || f.cg || f.vtype || f.com)) {
+      f.chip = "all"; f.cg = ""; f.vtype = ""; f.com = "";
       qsa("[data-chip]", root).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.chip === "all")));
-      qs("#cg-sel", root).value = ""; qs("#vt-sel", root).value = "";
+      qs("#cg-sel", root).value = ""; qs("#vt-sel", root).value = ""; qs("#com-sel", root).value = "";
     }
     const items = visible(state.tables);
     if (!items.length) {
@@ -193,6 +196,7 @@ export async function render(root) {
   };
   qs("#cg-sel", root).addEventListener("change", (e) => { f.cg = e.target.value; onFilter(); });
   qs("#vt-sel", root).addEventListener("change", (e) => { f.vtype = e.target.value; onFilter(); });
+  qs("#com-sel", root).addEventListener("change", (e) => { f.com = e.target.value; onFilter(); });
   const paintLoc = () => {
     const cur = effectiveLoc();
     qs("#loc-btn", root).innerHTML = `📍 ${esc(cur ? cur.label || t("map.here") : t("loc.set"))} <span aria-hidden="true">▾</span>`;
