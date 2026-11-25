@@ -9,14 +9,40 @@ export const guideSeen = () => {
 };
 const markSeen = () => { try { localStorage.setItem(KEY, "1"); } catch {} };
 
-// e = picture, k = text key (gd.<k>.t / .b / .l = three short bullet points), tone = background colour of the picture
-// Three cards: most people skip past the second one, so each carries one whole idea.
+// k = text key: gd.<k>.t (title), gd.<k>.s (one short line), gd.<k>.c1–c3 (three tiny chips). tone = colour of the card.
+// Pictures first, very few words: people decide in a second whether to read on.
 const CARDS = [
-  { e: "🌱", k: "why", tone: "peach", more: true },
-  { e: "🍲", k: "meet", tone: "green" },
-  { e: "👫", k: "friends", tone: "rose" },
-  { e: "🔒", k: "safe", tone: "sky" },
+  { k: "why", tone: "peach", more: true },
+  { k: "meet", tone: "green" },
+  { k: "friends", tone: "rose" },
+  { k: "safe", tone: "sky" },
 ];
+
+// Little illustrated scenes, built from emoji + CSS (no images to download).
+const ART = {
+  why: `<div class="art art-why">
+      <span class="a-table">🍲</span>
+      <span class="a-p p1">🧑🏻</span><span class="a-p p2">👩🏽</span><span class="a-p p3">🧑🏿</span><span class="a-p p4">👩🏼</span>
+      <span class="a-spark s1">✨</span><span class="a-spark s2">💬</span><span class="a-spark s3">🌱</span>
+    </div>`,
+  meet: () => `<div class="art art-meet">
+      <div class="m-card m-back"></div>
+      <div class="m-card">
+        <div class="m-row"><span class="m-emo">🍜</span><div><b>${esc(t("gd.meet.demoT"))}</b><small>${esc(t("gd.meet.demoW"))}</small></div></div>
+        <div class="m-row m-seats"><span class="m-dot on"></span><span class="m-dot on"></span><span class="m-dot"></span><span class="m-dot"></span><small>2 / 4</small><span class="m-join">${esc(t("gd.meet.demoJ"))}</span></div>
+      </div>
+      <span class="a-spark s1">🙋</span>
+    </div>`,
+  friends: `<div class="art art-friends">
+      <svg viewBox="0 0 300 200" aria-hidden="true"><path d="M48 46 L150 94 M252 52 L150 94 M150 192 L150 94" /></svg>
+      <span class="f-pin f1">📍</span><span class="f-pin f2">📍</span><span class="f-pin f3">📍</span>
+      <span class="f-mid">⭐</span>
+    </div>`,
+  safe: `<div class="art art-safe">
+      <span class="s-shield">🛡️</span>
+      <span class="s-badge b1">🏙️</span><span class="s-badge b2">🔒</span><span class="s-badge b3">✅</span>
+    </div>`,
+};
 
 export function openGuide({ onClose } = {}) {
   if (document.getElementById("intro")) return null;
@@ -45,18 +71,19 @@ export function openGuide({ onClose } = {}) {
   function draw() {
     const c = CARDS[i];
     const last = i === CARDS.length - 1;
-    const points = ["1", "2", "3"].map((n) => t(`gd.${c.k}.p${n}`)).filter((x) => x && !x.startsWith("gd."));
+    const chips = ["c1", "c2", "c3"].map((n) => t(`gd.${c.k}.${n}`)).filter((x) => x && !x.startsWith("gd."));
+    const art = typeof ART[c.k] === "function" ? ART[c.k]() : ART[c.k];
+    el.dataset.tone = c.tone;
     el.innerHTML = `
       <div class="intro-top">
         <span class="intro-brand"><span aria-hidden="true">✳</span> Table &amp; Bloom</span>
         <span class="intro-actions"><button type="button" class="intro-lang" data-lang>${getLang() === "zh" ? "EN" : "中文"}</button><button type="button" class="intro-skip" data-skip>${esc(t("gd.skip"))}</button></span>
       </div>
       <div class="intro-body" data-swipe>
-        <div class="intro-pic tone-${c.tone}" aria-hidden="true"><span>${c.e}</span></div>
-        <p class="intro-n">${esc(t("gd.stepOf", { n: i + 1, total: CARDS.length }))}</p>
+        <div class="intro-stage tone-${c.tone}" aria-hidden="true">${art}</div>
         <h2 id="intro-h">${esc(t(`gd.${c.k}.t`))}</h2>
-        <p class="intro-lead">${esc(t(`gd.${c.k}.b`))}</p>
-        ${points.length ? `<ul class="intro-points">${points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
+        <p class="intro-lead">${esc(t(`gd.${c.k}.s`))}</p>
+        ${chips.length ? `<div class="intro-chips">${chips.map((p) => `<span>${esc(p)}</span>`).join("")}</div>` : ""}
         ${c.more ? `<button type="button" class="intro-more" data-about>${esc(t("about.more"))}</button>` : ""}
       </div>
       <div class="intro-foot">
