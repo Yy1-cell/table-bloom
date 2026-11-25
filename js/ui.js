@@ -171,9 +171,8 @@ export function placeSearchHTML({ label, placeholder, hint = "" }) {
                aria-autocomplete="list" placeholder="${esc(placeholder || t("ps.placeholder"))}" enterkeyhint="search">
         <ul id="${id}-list" class="ps-list" role="listbox" hidden></ul>
       </div>
-      <p class="ps-status hint" id="${id}-status" role="status" aria-live="polite">${esc(hint || t("ps.hint"))}</p>
+      <p class="ps-status hint" id="${id}-status" role="status" aria-live="polite">${esc(hint)}</p>
       <div class="ps-chosen" hidden></div>
-      <p class="attrib">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>${nearToronto(effectiveLoc()) ? ` · ${venueAttributionHTML()}` : ""}</p>
     </div>`,
   };
 }
@@ -401,3 +400,8 @@ document.addEventListener("click", (e) => {
   try { localStorage.setItem(tipKey(box.dataset.tip), "1"); } catch {}
   box.remove();
 });
+
+/** Where place data comes from: one small line at the bottom of a page (not under every search box). */
+export function sourcesHTML() {
+  return `<p class="attrib sources-foot">${esc(t("ps.attrib"))} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>${nearToronto(effectiveLoc()) ? ` · ${venueAttributionHTML()}` : ""} · Google</p>`;
+}

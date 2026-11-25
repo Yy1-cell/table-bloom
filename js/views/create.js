@@ -3,7 +3,7 @@ import { esc, qs, qsa, todayStr, toISO, pad, midpoint, haversineKm, mapsUrl } fr
 import { t } from "../i18n.js";
 import { state, bus } from "../state.js";
 import { api } from "../api.js";
-import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch } from "../ui.js";
+import { openSheet, closeSheet, toast, placeSearchHTML, bindPlaceSearch, sourcesHTML } from "../ui.js";
 import { AUDIENCES, TAGS, OCCASIONS, FORMATS, VENUE_TYPES, MAX_FORMATS, formatsForMany, searchKeys, COMMUNITIES, isRealPlace } from "../data.js";
 import { readyToMeetStrangers } from "./safety.js";
 import { go, nameOf, showError, withBusy, mapActionsHTML, orList } from "./common.js";
@@ -160,13 +160,12 @@ export function openCreate({ onClose } = {}) {
       const startBlock = isFriends()
         ? `<div class="section-lite" id="c-start">
             <h3>${esc(t("cr.pairTitle"))}</h3>
-            <p class="hint">${esc(t("cr.pairHint"))}</p>
-            ${mk("me", t("cr.startMe"), t("cr.startPh"), t("cr.startHint"))}
+            ${mk("me", t("cr.startMe"), t("cr.startPh"), "")}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
             <fieldset id="c-crave-f"${d.place ? " hidden" : ""}><legend>${esc(t("cr.myCraving"))}</legend><div id="c-craving"></div></fieldset>
           </div>`
         : `<div class="section-lite" id="c-start">
-            ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), t("cr.startHint"))}
+            ${mk("me", t("cr.startMeOpt"), t("cr.startPh"), "")}
             <div class="row wrap-row"><button type="button" class="btn sm" data-locate>${esc(t("cr.useLocation"))}</button></div>
           </div>`;
       // Friends tables: nobody picks the restaurant up front. Friends join first, share where they start
@@ -176,12 +175,11 @@ export function openCreate({ onClose } = {}) {
             ? `<div class="notice" id="c-later">📍 ${esc(t("cr.friendsStartWith", { name: d.place.name }))}${d.place.address ? ` · ${esc(d.place.address)}` : ""} <button type="button" class="btn sm ghost" data-clear-place>${esc(t("cr.clearPlace"))}</button></div>`
             : `<div class="notice" id="c-later">🍽️ ${esc(t("cr.friendsLater"))}</div>`)
         : (() => {
-            const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh"), hint: t("cr.placeHint") });
+            const ps = placeSearchHTML({ label: t("cr.orSearch"), placeholder: t("cr.placePh") });
             ids.venue = ps.id;
             return `<div class="section-lite" id="c-sug-wrap"${d.place ? " hidden" : ""}>
           <div class="pick-map">
             <button type="button" class="btn sm" data-pick-map>🗺️ ${esc(t("cr.pickOnMap"))}</button>
-            <p class="hint" style="margin:4px 0 0">${esc(t("cr.pickOnMapHint"))}</p>
           </div>
           <h3>${esc(t("cr.sugTitle"))}</h3>
           <details class="cuis-details" id="c-narrow" ${d.formats.length || d.vtype ? "open" : ""}><summary>${esc(t("cr.narrow"))}</summary>
@@ -197,7 +195,7 @@ export function openCreate({ onClose } = {}) {
         </div>
         ${ps.html}
         <div id="c-maplink">${mapLinkHTML(d.place)}</div>
-        <p class="hint" id="f-real">🛡️ ${esc(t("cr.realPlaceHint"))}</p>`;
+        <p class="hint" id="f-real"></p>`;
           })();
       body = `
         <h2>${esc(t("cr.s2"))}</h2>
@@ -217,7 +215,8 @@ export function openCreate({ onClose } = {}) {
         <div class="notice" id="c-summary">${summary()}</div>
         <div class="field" id="f-title" ${d.title || more.title ? "" : "hidden"}><label for="c-title">${esc(t("cr.title"))}</label>
           <input id="c-title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="${esc(autoTitle())}"><div class="counter"><span id="c-title-n">${d.title.length}</span>/60</div></div>
-        <div id="c-err" class="err-text" role="alert"></div>`;
+        <div id="c-err" class="err-text" role="alert"></div>
+        ${sourcesHTML()}`;
     }
     sheet.setHTML(`${stepper()}${body}
       <div class="sheet-actions">
@@ -564,7 +563,8 @@ export function openCreate({ onClose } = {}) {
         }
       });
       const craving = qs("#c-craving", b);
-      if (craving) mountMenuPicker(craving, { value: d.craving, formats: true, onChange: (v) => (d.craving = v) });
+      // Cuisines only (hot pot, BBQ… come later as "narrow it down"): one short row instead of two long ones.
+      if (craving) mountMenuPicker(craving, { value: d.craving, formats: false, onChange: (v) => (d.craving = v) });
       qs("[data-sug-refresh]", b)?.addEventListener("click", () => loadSuggest());
       qs("[data-pick-map]", b)?.addEventListener("click", pickOnMap);
       qs("#c-sug", b)?.addEventListener("click", (e) => {

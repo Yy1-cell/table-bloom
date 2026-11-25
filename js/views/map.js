@@ -6,10 +6,10 @@ import { state } from "../state.js";
 import { api } from "../api.js";
 import { currentPosition, locationPermission, restaurantsForKeys, reverseGeocode } from "../geo.js";
 import { effectiveLoc, setLoc as saveLoc } from "../location.js";
-import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML } from "../ui.js";
+import { placeSearchHTML, bindPlaceSearch, toast, announce, venueAttributionHTML, sourcesHTML } from "../ui.js";
 import { mountMap } from "../maps.js";
 import { googlePlacesSearch } from "../google-maps.js";
-import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText } from "./common.js";
+import { mapActionsHTML, nameOf, showError, go, tableTitle, placeText, tableEmoji } from "./common.js";
 import { mountMenuPicker, menuItem, isFormat } from "./menu-picker.js";
 import { searchWord } from "../data.js";
 import { currencyFor, budgetRange } from "../currency.js";
@@ -37,14 +37,12 @@ export async function render(root) {
   };
   let center = state.mapCenter || areaC();
 
-  const ps = placeSearchHTML({ label: t("map.search"), placeholder: t("map.searchPh"), hint: t("map.searchHint") });
+  const ps = placeSearchHTML({ label: t("map.search"), placeholder: t("map.searchPh") });
   root.innerHTML = `
     ${picking() ? `<div class="notice pick-banner" id="pick-banner">🍽️ ${esc(t("map.pickBanner"))}
       <div class="row wrap-row" style="margin-top:8px"><button type="button" class="btn sm" id="back-to-table">← ${esc(t("map.backToTable"))}</button></div></div>` : ""}
-    <h1>${esc(t("map.title"))}</h1>
-    <p class="muted">${esc(t("map.sub"))}</p>
-    ${ps.html}
-    <div class="row wrap-row"><button type="button" class="btn sm" id="use-me">📍 ${esc(t("map.useMe"))}</button></div>
+    <h1 class="page-h1">${esc(t("map.title"))}</h1>
+    <div class="map-search">${ps.html}<button type="button" class="btn sm map-me" id="use-me" aria-label="${esc(t("map.useMe"))}">📍</button></div>
     <p class="hint loc-status" id="loc-status" role="status" aria-live="polite"></p>
     <div class="map-bar" aria-label="${esc(t("map.barLabel"))}">
       <div class="map-center" id="center"></div>
@@ -55,20 +53,20 @@ export async function render(root) {
       <div class="budget-row" id="budget-row" role="group" aria-label="${esc(t("map.budget"))}"></div>
     </div>
     <div id="allergy"></div>
-    <section class="card page-section"><h2>🗺️ ${esc(t("map.gTitle"))}</h2>
-      <p class="hint" id="g-hint">${esc(t("map.gHint"))}</p>
+    <section class="card page-section map-card">
       <div class="gmap-frame" id="gsearch"></div>
+      <p class="hint g-hint" id="g-hint">${esc(t("map.gHint"))}</p>
       <div class="row wrap-row" style="margin-top:8px">
-        <a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a>
         ${picking() ? "" : `<button type="button" class="btn sm primary" id="host-near">🍽️ ${esc(t("map.hostNear"))}</button>`}
+        <a class="btn sm" id="gmaps-link" href="#" target="_blank" rel="noopener">🗺️ ${esc(t("map.googleBtn"))}</a>
       </div>
-      <p class="hint">${esc(t(picking() ? "map.pickGoogleHint" : "map.hostNearHint"))}</p>
       <div id="spot-card"></div><div id="pick-card"></div></section>
     <section class="card page-section"><h2>${esc(t("map.tables"))}</h2><div id="tbl"></div></section>
     <details class="card built page-section" id="built" ${window.innerWidth >= 820 || picking() ? "open" : ""}>
       <summary><strong id="built-title">${esc(t("map.builtIn"))}</strong> <span class="muted" id="built-n"></span></summary>
       <div id="gmap" style="margin-top:10px"></div>
-      <p class="hint">${esc(t("map.listNote"))}</p><div id="rest" aria-live="polite"></div></details>`;
+      <div id="rest" aria-live="polite"></div></details>
+    ${sourcesHTML()}`;
 
   const distLine = (p) => {
     const parts = [];
@@ -278,10 +276,11 @@ export async function render(root) {
       ? rows
           .map(({ x, dist }) => {
             const place = { name: x.venue?.name || x.area_label, address: x.venue?.address, lat: Number(x.meet_lat), lng: Number(x.meet_lng) };
-            return `<div class="place-row"><h3>${esc(tableTitle(x))}</h3>
-              <div class="sub">${esc(fmtWhen(x.starts_at, t))} · ${esc(placeText(x))} · ${esc(distLine({ dist, lat: place.lat, lng: place.lng }))}</div>
-              <div class="row wrap-row" style="margin-top:8px"><button type="button" class="btn sm primary" data-open="${esc(x.id)}">${esc(t("map.viewTable"))}</button></div>
-              ${mapActionsHTML(place, fromHere())}</div>`;
+            // Compact: one tap opens the table (directions and reviews are on the table page).
+            return `<button type="button" class="map-trow" data-open="${esc(x.id)}">
+              <span class="tc-emo" style="width:44px;height:44px;font-size:24px;border-radius:14px;background:#fff1e2" aria-hidden="true">${esc(tableEmoji(x))}</span>
+              <span class="map-trow-t"><b>${esc(tableTitle(x))}</b><small>${esc(fmtWhen(x.starts_at, t))} · ${esc(km(dist))} km</small></span>
+              <span class="wl-arrow" aria-hidden="true">→</span></button>`;
           })
           .join("")
       : `<p class="muted">${esc(t("map.noTables"))}</p>`;

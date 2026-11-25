@@ -46,7 +46,6 @@ export async function render(root) {
       <div class="row wrap-row" style="margin-bottom:6px"><h1 style="margin:0">${esc(t("jr.title"))}</h1><span class="spacer"></span><button type="button" class="btn primary" id="add">＋ ${esc(t("jr.add"))}</button></div>
       ${diningCardHTML(prof)}
       ${againPeopleHTML(again)}
-      <p class="muted">🔒 ${esc(t("jr.private"))}</p>
       <div class="stats">
         <div class="stat"><b>${items.length}</b><span>${esc(t("jr.statCount"))}</span></div>
         <div class="stat"><b>${am ? MOODS[Math.round(am) - 1] : "–"}</b><span>${esc(t("jr.statMood"))}</span></div>

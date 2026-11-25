@@ -4,7 +4,7 @@ import { t } from "../i18n.js";
 import { effectiveLoc } from "../location.js";
 import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
-import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce, tipHTML } from "../ui.js";
+import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce, tipHTML, sourcesHTML } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
 import { publicLabel, startName, fuzz } from "../place-names.js";
 import { googlePlacesSearch } from "../google-maps.js";
@@ -306,7 +306,7 @@ export async function openTable(id, { onClose } = {}) {
         ${tb.is_private ? `<p class="notice" style="margin:6px 0" id="wants-line">🍽️ ${esc(cravingSummary())}</p>` : ""}
         <div class="row wrap-row"><button type="button" class="btn" data-act="suggest">${esc(t("td.suggest"))}</button>
           <a class="btn" target="_blank" rel="noopener" href="${esc(nearbyMapsLink())}">${esc(t("td.googleNearby"))}</a></div>
-        <ul class="suggest" id="suggest-list" aria-live="polite">${suggestions ? suggestHTML(suggestions) : ""}</ul>
+        <ul class="suggest" id="suggest-list" aria-live="polite">${suggestions ? suggestHTML(suggestions) : ""}</ul>${sourcesHTML()}
         <div style="margin-top:12px">${(() => {
           const ps = placeSearchHTML({ label: t("td.setVenue"), placeholder: t("td.venuePlaceholder"), hint: t("td.venueHint") });
           draw._vId = ps.id;

@@ -41,7 +41,7 @@ export function diningCardHTML(p) {
 
 /** "New friends I'd eat with again": people I marked in a check-in. Private; "mutual" means they marked me too. */
 export function againPeopleHTML(list = []) {
-  const head = `<h2>💚 ${esc(t("again.title"))}</h2><p class="hint" style="margin-top:0">🔒 ${esc(t("again.privacy"))}</p>`;
+  const head = `<h2>💚 ${esc(t("again.title"))}</h2><p class="hint" style="margin-top:0">🔒 ${esc(t("again.privacyShort"))}</p>`;
   if (!list.length) return `<section class="card dp">${head}<p class="muted">${esc(t("again.empty"))}</p></section>`;
   return `<section class="card dp">${head}<ul class="again-list">${list
     .map(
