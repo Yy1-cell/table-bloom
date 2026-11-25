@@ -15,22 +15,21 @@ export async function render(root) {
   function draw() {
     const demo = state.mode === "demo";
     root.innerHTML = `
-    <section class="card auth-card stack">
-      <div class="center"><div style="font-size:42px" aria-hidden="true">🍲</div><h1>${esc(t("auth.title"))}</h1><p class="muted">${esc(t(demo ? "auth.sub" : "auth.subLink"))}</p>
-        <button type="button" class="link-btn" id="a-about">${esc(t("about.btn"))}</button></div>
-      ${demo ? `<div class="notice">🧪 ${esc(t("auth.demo"))}</div>` : ""}
+    <section class="auth2">
+      <div class="blob2 b1" aria-hidden="true"></div><div class="blob2 b2" aria-hidden="true"></div>
+      <div class="a2-ico" aria-hidden="true">🍲</div>
+      <h1 class="a2-title">${esc(t("auth2.t1"))}<br><span>${esc(t("auth2.t2"))}</span></h1>
       ${
         step === "email"
           ? `<form id="f-email" novalidate>
-              <div class="field"><label for="a-email">${esc(t("auth.email"))}</label>
-                <input id="a-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required value="${esc(email)}" placeholder="you@example.com"></div>
-              <label class="row" style="align-items:flex-start;margin-bottom:14px"><input id="a-age" type="checkbox" style="width:22px;height:22px;margin-top:2px;accent-color:var(--green-700)"> <span style="font-size:14px">${esc(t("auth.age"))}</span></label>
+              <p class="a2-sub">${esc(t(demo ? "auth2.subCode" : "auth2.subLink"))}</p>
+              <label class="sr-only" for="a-email">${esc(t("auth.email"))}</label>
+              <input id="a-email" class="a2-input" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required value="${esc(email)}" placeholder="you@example.com">
+              <label class="a2-check"><input id="a-age" type="checkbox"> <span>${esc(t("auth2.age"))}</span></label>
               <div class="err-text" id="a-err" role="alert"></div>
-              <button class="btn primary block" type="submit">${esc(t(demo ? "auth.send" : "auth.sendLink"))}</button>
-              <div class="auth-or" aria-hidden="true"><span>${esc(t("auth.or"))}</span></div>
-              ${demo ? "" : `<button class="btn block" type="button" id="a-google" style="margin-bottom:10px">${esc(t("auth.google"))}</button>`}
-              <button class="btn block" type="button" id="a-guest">${esc(t("auth.guest"))}</button>
-              <p class="hint">${esc(t("auth.guestHint"))}</p>
+              <button class="btn primary block a2-btn" type="submit">${esc(t(demo ? "auth.send" : "auth.sendLink"))}</button>
+              ${demo ? "" : `<button class="btn block a2-google" type="button" id="a-google">${esc(t("auth.google"))}</button>`}
+              <button class="a2-guest" type="button" id="a-guest" title="${esc(t("auth.guestHint"))}">${esc(t("auth2.guest"))}</button>
             </form>`
           : `<form id="f-code" novalidate>
               <p>${esc(t(demo ? "auth.sent" : "auth.sentLink", { email }))}</p>

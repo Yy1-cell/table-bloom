@@ -15,7 +15,7 @@ import { readyToMeetStrangers, openSafety } from "./safety.js";
 import { menuGroups, menuItem } from "./menu-picker.js";
 import { feelingSectionHTML, openFeelingForm } from "./feeling.js";
 import { mealPickerHTML, wireChips, readChips, dietTagsHTML, allergyReminderHTML, tableDietSummaryHTML } from "./diet.js";
-import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML, cuisineNames } from "./common.js";
+import { go, nameOf, showError, withBusy, seatsHTML, statusBadge, tableTitle, placeText, mapActionsHTML, occasionTag, menuTagsHTML, cuisineNames, tableEmoji } from "./common.js";
 
 const ENDED_GRACE_MIN = 120;
 
@@ -132,6 +132,7 @@ export async function openTable(id, { onClose } = {}) {
 
     const html = [];
     html.push(`
+      <div class="td-hero" aria-hidden="true"><span>${esc(tableEmoji(tb))}</span></div>
       <div class="row wrap-row" style="margin-bottom:6px">${statusBadge(tb)} ${tb.is_private ? `<span class="badge">🔒 ${esc(t("badge.private"))}</span>` : tb.join_mode === "instant" ? `<span class="badge">${esc(t("td.instant"))}</span>` : ""}</div>
       <h2>${esc(tableTitle(tb))}</h2>
       <div class="row" style="margin-bottom:6px"><span class="av lg" aria-hidden="true">${esc(tb.host?.avatar_emoji || "🍽️")}</span>

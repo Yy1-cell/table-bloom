@@ -31,23 +31,30 @@ export async function render(root) {
   }
 
   function draw() {
+    const startName = (me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name;
+    // Onboarding shows 8 faces; the full set when editing later. The current one is always there.
+    const faces = onboarding ? [...new Set([draft.avatar, "🍑", "🍊", "🥑", "🍓", "🍋", "🍄", "🌸", "🌿"].filter(Boolean))].slice(0, 8) : AVATARS;
     root.innerHTML = `
-    <h1>${esc(onboarding ? t("pf.welcome") : t("pf.title"))}</h1>
-    ${onboarding ? `<p class="muted" style="margin:-6px 0 14px">${esc(t("pf.onbBody"))}</p>` : ""}
-    <form id="pf" class="card" novalidate>
-      <div class="field" style="margin:0"><label for="pf-name">${esc(t("pf.name"))}</label>
-        <input id="pf-name" type="text" maxlength="30" required value="${esc(((me.is_default_name || me.display_name === "New friend") && onboarding ? "" : me.display_name))}" placeholder="${esc(t("pf.namePh"))}">
-        <div class="err-text" id="pf-name-err" role="alert"></div></div>
-      <fieldset style="margin:0"><legend>${esc(t("pf.avatar"))}</legend><div class="avatar-pick">
-        ${AVATARS.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
+    ${onboarding ? "" : `<h1>${esc(t("pf.title"))}</h1>`}
+    <section class="pf-hero">
+      <div class="pf-big" id="pf-big" aria-hidden="true">${esc(draft.avatar)}</div>
+      <div class="pf-bigname" id="pf-bigname">${esc(startName || t("pf.yourName"))}</div>
+      <p class="pf-seen">${esc(t("pf.seenAs"))}</p>
+    </section>
+    <form id="pf" class="pf-form" novalidate>
+      <label class="sr-only" for="pf-name">${esc(t("pf.name"))}</label>
+      <input id="pf-name" class="a2-input" type="text" maxlength="30" required value="${esc(startName)}" placeholder="${esc(t("pf.namePh2"))}">
+      <div class="err-text" id="pf-name-err" role="alert"></div>
+      <fieldset class="pf-faces"><legend class="sr-only">${esc(t("pf.avatar"))}</legend><div class="face-grid">
+        ${faces.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
       </div></fieldset>
-      ${onboarding ? `<details class="profile-diet"><summary>${esc(t("diet.optional"))}</summary>` : ""}
+      ${onboarding ? `<details class="profile-diet pf-diet"><summary>🥜 ${esc(t("pf.dietChip"))}</summary>` : ""}
       <fieldset style="margin:0"><legend>${esc(t("diet.title"))}</legend><p class="hint" style="margin-top:0">${esc(t("diet.profileHint"))}</p>
         ${fixedPickerHTML(me.dietary_tags || [])}
         <div class="field" style="margin:10px 0 0"><label for="pf-diet">${esc(t("diet.profileNote"))}</label>
           <input id="pf-diet" type="text" maxlength="200" value="${esc(me.dietary_notes || "")}" placeholder="${esc(t("diet.profileNotePh"))}"></div></fieldset>
       ${onboarding ? "</details>" : ""}
-      <button type="submit" class="btn primary block">${esc(onboarding ? t("pf.saveStart") : t("common.save"))}</button>
+      <button type="submit" class="btn primary block a2-btn">${esc(onboarding ? t("pf.start") : t("common.save"))}</button>
     </form>
 
     ${
@@ -74,7 +81,13 @@ export async function render(root) {
   }
 
   function wire() {
-    qsa('input[name="av"]', root).forEach((r) => r.addEventListener("change", () => (draft.avatar = r.value)));
+    qsa('input[name="av"]', root).forEach((r) => r.addEventListener("change", () => {
+      draft.avatar = r.value;
+      const big = qs("#pf-big", root);
+      big.textContent = r.value;
+      big.classList.remove("pop"); void big.offsetWidth; big.classList.add("pop");
+    }));
+    qs("#pf-name", root)?.addEventListener("input", (e) => (qs("#pf-bigname", root).textContent = e.target.value.trim() || t("pf.yourName")));
     wireChips(qs("#pf-diet-chips", root));
     qs("#pf", root).addEventListener("submit", save);
     qsa("[data-unblock]", root).forEach((b) =>

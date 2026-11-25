@@ -115,25 +115,25 @@ export function openCreate({ onClose } = {}) {
   function draw() {
     let body = "";
     if (step === 1) {
+      if (d.audience === "new_people") d.audience = "friends_and_new";
       const kindOpen = more[1] || !!((isFriends() && d.occasion) || d.tags.length || (!isFriends() && d.community));
       if (d.capacity < minCap()) d.capacity = minCap();
       if (d.community === "women") d.join_mode = "request";
       body = `
-        <h2>${esc(t("cr.s1"))}</h2>
         ${d.place ? `<div class="notice" id="c-hostat">📍 ${esc(t("cr.hostingAt", { name: d.place.name }))}</div>` : ""}
-        <fieldset><legend>${esc(t("cr.audience"))}</legend><div class="seg">
-          ${AUDIENCES.map((a) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a ? "checked" : ""}><span>${esc(t("aud." + a))}<small>${esc(t("audHint." + a))}</small></span></label>`).join("")}
+        <fieldset class="cr2-who"><legend class="cr2-h">${esc(t("cr2.who"))}</legend><div class="aud-cards">
+          ${[["friends", "👫", "cr2.friends"], ["friends_and_new", "🤝", "cr2.new"]].map(([a, e, k]) => `<label><input type="radio" name="aud" value="${a}" ${d.audience === a || (a === "friends_and_new" && d.audience === "new_people") ? "checked" : ""}><span><b aria-hidden="true">${e}</b>${esc(t(k))}</span></label>`).join("")}
         </div></fieldset>
-        <p class="notice" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr.privateHint"))}</p>
-        <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
-          ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""} ${m === "instant" && d.community === "women" ? "disabled" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
-        </div><p class="hint" id="jm-women" ${d.community === "women" ? "" : "hidden"} style="margin:6px 0 0">🌸 ${esc(t("com.womenJm"))}</p></fieldset>
-        <fieldset id="f-cuis" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.cuisine"))} <span class="muted">(${esc(t("cr.cuisineMax", { n: 3 }))})</span></legend><div id="c-menu"></div></fieldset>
-        <p class="notice" id="f-cuis-friends" ${isFriends() ? "" : "hidden"}>🍽️ ${esc(t("cr.friendsCuisine"))}</p>
-        <div class="field"><label id="cap-l">${esc(t("cr.capacity"))}</label>
+        <p class="hint" id="f-priv" ${isFriends() ? "" : "hidden"}>🔒 ${esc(t("cr2.privShort"))}</p>
+        <fieldset id="f-cuis" ${isFriends() ? "hidden" : ""}><legend class="cr2-h">${esc(t("cr2.what"))} <span class="muted cr2-max">${esc(t("cr.cuisineMax", { n: 3 }))}</span></legend><div id="c-menu"></div></fieldset>
+        <p class="hint" id="f-cuis-friends" ${isFriends() ? "" : "hidden"}>🍽️ ${esc(t("cr2.friendsCuis"))}</p>
+        <div class="field"><label id="cap-l" class="cr2-h">${esc(t("cr2.howMany"))}</label>
           <div class="stepper" role="group" aria-labelledby="cap-l"><button type="button" data-cap="-1" aria-label="${esc(t("cr.fewer"))}">−</button><output id="cap-v" aria-live="polite">${d.capacity}</output><button type="button" data-cap="1" aria-label="${esc(t("cr.more"))}">＋</button></div>
-          <p class="hint">${esc(t("cr.capacityHint"))}</p><p class="hint" id="cap-min" ${isFriends() ? "hidden" : ""} style="margin-top:2px">🛡️ ${esc(t("cr.capMin3"))}</p></div>
-        <details class="more" id="c-more" ${kindOpen ? "open" : ""}><summary>${esc(t("cr.kind"))} <span class="muted">(${esc(t("common.optional"))})</span></summary>
+          <p class="hint" id="cap-min" ${isFriends() ? "hidden" : ""} style="margin-top:6px">🛡️ ${esc(t("cr.capMin3"))}</p></div>
+        <details class="more" id="c-more" ${kindOpen ? "open" : ""}><summary>⚙︎ ${esc(t("cr2.moreSet"))}</summary>
+          <fieldset id="f-jm" ${isFriends() ? "hidden" : ""}><legend>${esc(t("cr.joinMode"))}</legend><div class="seg">
+            ${["request", "instant"].map((m) => `<label><input type="radio" name="jm" value="${m}" ${d.join_mode === m ? "checked" : ""} ${m === "instant" && d.community === "women" ? "disabled" : ""}><span>${esc(t("jm." + m))}<small>${esc(t("jmHint." + m))}</small></span></label>`).join("")}
+          </div><p class="hint" id="jm-women" ${d.community === "women" ? "" : "hidden"} style="margin:6px 0 0">🌸 ${esc(t("com.womenJm"))}</p></fieldset>
           <div id="c-com-f" ${isFriends() ? "hidden" : ""}>
             <p class="lbl" style="margin:4px 0">🤝 ${esc(t("com.title"))}</p>
             <div class="chips" id="c-com">
@@ -146,7 +146,6 @@ export function openCreate({ onClose } = {}) {
             <span id="c-occs" style="display:${isFriends() ? "contents" : "none"}">${OCCASIONS.map((o) => `<button type="button" class="chip" data-occ="${o.slug}" aria-pressed="${d.occasion === o.slug}"><span aria-hidden="true">${o.emoji}</span> ${esc(t("oc." + o.slug))}</button>`).join("")}</span>
             ${TAGS.map((g) => `<button type="button" class="chip" data-tag="${g}" aria-pressed="${d.tags.includes(g)}">${esc(t("tag." + g))}</button>`).join("")}
           </div>
-          <p class="hint" style="margin:8px 0 0">${esc(t("cr.kindHint"))}</p>
         </details>`;
     } else if (step === 2) {
       const ids = (draw._ids = {});

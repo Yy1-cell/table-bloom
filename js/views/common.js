@@ -151,30 +151,43 @@ export function distanceKm(tb) {
 // The taste match needs a cuisine ranking. New profiles no longer ask for one, so no ranking = no (meaningless) percentage.
 export const hasRanks = () => (state.ranks || []).length > 0;
 
+/** The picture for a table: how we eat (hot pot, BBQ…) says more than the cuisine. */
+export function tableEmoji(tb) {
+  const f = FORMATS.find((x) => x.slug === (tb.formats || [])[0]);
+  return f?.emoji || cuisineOf(cuisinesOf(tb)[0])?.emoji || "🍽️";
+}
+
+const TILE = ["#ffeede", "#e7f1df", "#fdeef2", "#e3f0f6", "#fff4d6", "#f1ecfa"];
+const tileFor = (id = "") => TILE[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % TILE.length];
+
 export function tableCardHTML(tb, { showMatch = hasRanks(), reason = "" } = {}) {
-  const cn = cuisineNames(tb);
   const match = tasteOf(tb);
   const d = distanceKm(tb);
-  const pending = tb.pending_count > 0 ? `<span class="badge warn">${esc(t("card.pending", { n: tb.pending_count }))}</span>` : "";
+  const emoji = tableEmoji(tb);
+  const left = Math.max(0, tb.capacity - tb.seats_taken);
+  const badges = [
+    tb.my_status || tb.is_sample ? statusBadge(tb) : "",
+    tb.is_private ? `<span class="badge">🔒 ${esc(t("badge.private"))}</span>` : "",
+    tb.pending_count > 0 ? `<span class="badge warn">${esc(t("card.pending", { n: tb.pending_count }))}</span>` : "",
+  ].join("");
+  const extra = Math.max(0, Math.min(tb.seats_taken - 1, 3));
+  const right = tb.community ? communityTag(tb) : showMatch ? `<span class="tc-match" title="${esc(t("card.matchHint"))}">${match}% ${esc(t("card.match"))}</span>` : "";
   return `
-  <button type="button" class="tcard" data-id="${esc(tb.id)}" aria-label="${esc(tableTitle(tb))}">
-    <div class="tcard-top">
-      <div style="min-width:0">
+  <button type="button" class="tcard tcard2" data-id="${esc(tb.id)}" aria-label="${esc(tableTitle(tb))}">
+    <div class="tc-row">
+      <span class="tc-emo" style="background:${tileFor(tb.id)}" aria-hidden="true">${esc(emoji)}</span>
+      <span class="tc-main">
         <h3>${esc(tableTitle(tb))}</h3>
-        <div class="row wrap-row">${statusBadge(tb)} ${tb.is_private ? `<span class="badge">🔒 ${esc(t("badge.private"))}</span>` : ""} ${pending}</div>
-      </div>
-      ${showMatch ? `<span class="match" title="${esc(t("card.matchHint"))}"><span>${match}%</span><small>${esc(t("card.match"))}</small></span>` : ""}
+        <span class="tc-meta">${esc(fmtWhen(tb.starts_at, t))} · ${esc(placeText(tb))}${d != null ? ` · ${d < 10 ? d.toFixed(1) : Math.round(d)} km` : ""}</span>
+      </span>
     </div>
-    <div class="host"><span class="av" aria-hidden="true">${esc(tb.host?.avatar_emoji || "🍽️")}</span><span>${esc(t("card.hostedBy", { name: personName(tb.host?.display_name) }))}</span></div>
-    <ul class="meta">
-      <li><span aria-hidden="true">🕖</span>${esc(fmtWhen(tb.starts_at, t))}</li>
-      <li><span aria-hidden="true">📍</span>${esc(placeText(tb))}${d != null ? ` · ${d < 10 ? d.toFixed(1) : Math.round(d)} km` : ""}</li>
-      ${cn ? `<li><span aria-hidden="true">${esc(cuisineOf(cuisinesOf(tb)[0])?.emoji || "🍽️")}</span>${esc(cuisineNames(tb, { emoji: false }))}</li>` : ""}
-      ${tb.budget_cents != null ? `<li><span aria-hidden="true">💵</span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</li>` : ""}
-    </ul>
-    ${tb.tags?.length || tb.occasion || tb.community || tb.formats?.length || tb.venue_type ? `<div class="tags">${communityTag(tb)}${menuTagsHTML(tb)}${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+    ${badges.trim() ? `<div class="tc-badges">${badges}</div>` : ""}
+    <div class="tc-foot">
+      <span class="tc-avs" aria-hidden="true"><span class="tc-av">${esc(tb.host?.avatar_emoji || "🍽️")}</span>${extra ? `<span class="tc-av more">+${extra}</span>` : ""}</span>
+      <span class="tc-seats">${seatsHTML(tb.seats_taken, tb.capacity)}<span>${esc(left ? t("card.left", { n: left }) : t("card.fullShort"))}</span></span>
+      <span class="tc-right">${right}</span>
+    </div>
     ${reason ? `<div class="reason">✨ ${esc(reason)}</div>` : ""}
-    <div class="foot"><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(seatsText(tb))}</span><span class="muted">${esc(t("aud." + tb.audience))}</span></div>
   </button>`;
 }
 

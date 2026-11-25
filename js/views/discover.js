@@ -84,21 +84,22 @@ export async function render(root) {
   const families = menuGroups().map((x) => ({ g: x.g, emoji: x.generic.emoji }));
 
   root.innerHTML = `
-    <section class="hero">
-      <h1>${esc(t("disc.title"))}</h1>
-      <p>${esc(t("disc.sub"))}</p>
-      <a class="btn" href="#new">＋ ${esc(t("disc.host"))}</a>
-      <button type="button" class="btn ghost hero-how" id="how">❓ ${esc(t("gd.open"))}</button>
-    </section>
+    <header class="disc-head">
+      <div class="disc-head-l">
+        <h1>${esc(t("disc2.title"))}</h1>
+        <div class="loc-bar disc-loc" role="group" aria-label="${esc(t("disc.area"))}" id="loc-bar">
+          <button type="button" class="loc-link" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
+          <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>
+          <select id="radius-sel" class="loc-radius">${[10, 25, 50, 200, 0].map((r) => `<option value="${r}" ${Number(f.radius) === r ? "selected" : ""}>${esc(r ? t("loc.within", { km: r }) : t("loc.anywhere"))}</option>`).join("")}</select>
+        </div>
+      </div>
+      <a class="btn primary disc-host" href="#new">＋ ${esc(t("disc2.host"))}</a>
+    </header>
     ${tipHTML("discover", `👋 ${esc(t("tip.discover"))}`)}
-    <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}" id="loc-bar">
-      <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
-      <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>
-      <select id="radius-sel">${[10, 25, 50, 200, 0].map((r) => `<option value="${r}" ${Number(f.radius) === r ? "selected" : ""}>${esc(r ? t("loc.within", { km: r }) : t("loc.anywhere"))}</option>`).join("")}</select>
-    </div>
     <div class="card loc-panel" id="loc-panel" hidden></div>
     <div class="toolbar disc-filters" role="group" aria-label="${esc(t("disc.filters"))}" id="disc-filters" hidden>
-      <div class="chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}</div>
+      <div class="chips disc-chips" id="chips">${CHIPS.map((c) => `<button type="button" class="chip" data-chip="${c}" aria-pressed="${f.chip === c}">${esc(t("chip." + c))}</button>`).join("")}<button type="button" class="chip" id="more-f" aria-expanded="${!!(f.cg || f.com || f.vtype)}" aria-controls="more-filters">⚙︎ ${esc(t("disc2.filter"))}${f.cg || f.com || f.vtype ? " •" : ""}</button></div>
+      <div class="more-filters" id="more-filters" ${f.cg || f.com || f.vtype ? "" : "hidden"}>
       <label class="sr-only" for="cg-sel">${esc(t("disc.cuisine"))}</label>
       <select id="cg-sel"><option value="">🍽️ ${esc(t("disc.anyCuisine"))}</option>${families.map((x) => `<option value="${x.g}" ${f.cg === x.g ? "selected" : ""}>${x.emoji} ${esc(t("cg." + x.g))}</option>`).join("")}</select>
       <label class="sr-only" for="vt-sel">${esc(t("disc.vtype"))}</label>
@@ -107,11 +108,16 @@ export async function render(root) {
       <select id="vt-sel"><option value="">☕ ${esc(t("disc.anyType"))}</option>${VENUE_TYPES.map((v) => `<option value="${v.slug}" ${f.vtype === v.slug ? "selected" : ""}>${v.emoji} ${esc(t("vt." + v.slug))}</option>`).join("")}</select>
       <span class="spacer"></span>
       <label class="sort-wrap"><span class="muted">${esc(t("disc.sort"))}</span> <select id="sort-sel">${sortOptions()}</select></label>
+      </div>
     </div>
     <div class="grid" id="list" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div>`;
 
   const list = qs("#list", root);
-  qs("#how", root).addEventListener("click", async () => (await import("./guide.js")).openGuide());
+  qs("#more-f", root)?.addEventListener("click", (e) => {
+    const box = qs("#more-filters", root);
+    box.hidden = !box.hidden;
+    e.currentTarget.setAttribute("aria-expanded", String(!box.hidden));
+  });
 
   function paint() {
     if (!alive) return;
