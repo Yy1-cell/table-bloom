@@ -220,7 +220,12 @@ async function doRoute() {
     if (name === "discover" && state.me?.onboarded_at && !guideShown) {
       guideShown = true;
       const g = await import("./views/guide.js");
-      if (!g.guideSeen() && !hasSheet()) g.openGuide();
+      if (!g.guideSeen() && !hasSheet()) g.openWelcome();
+      // The path picked on the welcome screen: "eat with friends" goes straight to hosting a friends table.
+      if (g.takeIntent() === "friends" && !hasSheet()) {
+        state.createPrefill = { audience: "friends" };
+        location.hash = "#new";
+      }
     }
   } else if (name === "admin") {
     // operator console: the server refuses non-admins anyway; this just keeps everyone else from seeing an empty page
@@ -293,7 +298,7 @@ async function boot() {
   // First visit: explain the whole app before anything else (sign-in comes after). Invite links go straight to the table.
   if (!/^#(invite|t-)/.test(location.hash)) {
     const g = await import("./views/guide.js");
-    if (!g.guideSeen()) g.openGuide();
+    if (!g.guideSeen()) g.openWelcome();
   }
   await initApi();
   state.mode = apiMod.api.mode;

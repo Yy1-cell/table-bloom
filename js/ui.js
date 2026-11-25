@@ -385,3 +385,19 @@ export function bindPlaceSearch(root, { id, near, restaurantsOnly = false, googl
     },
   };
 }
+
+// ---------------------------------------------------------------- one-time tips ("how to use" right where it matters)
+const tipKey = (k) => `tb.tip.${k}`;
+const tipSeen = (k) => { try { return localStorage.getItem(tipKey(k)) === "1"; } catch { return true; } };
+/** A small "first time here" hint, shown until the person taps "Got it". */
+export function tipHTML(key, text) {
+  if (tipSeen(key)) return "";
+  return `<div class="tip-once" data-tip="${key}"><span>${text}</span><button type="button" class="tip-ok" data-tip-ok>${t("tip.ok")}</button></div>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-tip-ok]");
+  if (!b) return;
+  const box = b.closest("[data-tip]");
+  try { localStorage.setItem(tipKey(box.dataset.tip), "1"); } catch {}
+  box.remove();
+});

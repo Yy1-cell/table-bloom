@@ -8,7 +8,7 @@ import { api } from "../api.js";
 import { effectiveLoc, locateMe, kmFrom } from "../location.js";
 import { locationPermission } from "../geo.js";
 import { mountLocPicker } from "./loc-picker.js";
-import { toast, announce } from "../ui.js";
+import { toast, announce, tipHTML } from "../ui.js";
 import { hasRanks, tableCardHTML, bindCards, nameOf, showError, go, distanceKm, tasteOf, cuisineNames } from "./common.js";
 import { VENUE_TYPES, CUISINE_GROUPS, COMMUNITIES, cuisinesOf } from "../data.js";
 import { buildProfile, scoreTable } from "../dining-profile.js";
@@ -90,6 +90,7 @@ export async function render(root) {
       <a class="btn" href="#new">＋ ${esc(t("disc.host"))}</a>
       <button type="button" class="btn ghost hero-how" id="how">❓ ${esc(t("gd.open"))}</button>
     </section>
+    ${tipHTML("discover", `👋 ${esc(t("tip.discover"))}`)}
     <div class="toolbar loc-bar" role="group" aria-label="${esc(t("disc.area"))}" id="loc-bar">
       <button type="button" class="chip" id="loc-btn" aria-expanded="false" aria-controls="loc-panel"></button>
       <label class="sr-only" for="radius-sel">${esc(t("loc.radius"))}</label>

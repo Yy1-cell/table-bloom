@@ -25,7 +25,7 @@ export function openCreate({ onClose } = {}) {
   state.createDraft = null;
   const d = {
     title: "",
-    audience: "friends_and_new",
+    audience: pre?.audience || "friends_and_new",
     cuisines: (pre?.cuisines?.length ? pre.cuisines : pre?.cuisine ? [pre.cuisine] : []).filter((k) => !isFormat(k)).slice(0, 3), // up to 3; the first is the main one
     formats: (pre?.formats || (pre?.cuisine ? [pre.cuisine] : [])).filter(isFormat).slice(0, MAX_FORMATS),
     vtype: "",

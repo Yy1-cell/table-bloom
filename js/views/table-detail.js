@@ -4,7 +4,7 @@ import { t } from "../i18n.js";
 import { effectiveLoc } from "../location.js";
 import { state, bus, cuisineOf } from "../state.js";
 import { api } from "../api.js";
-import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce } from "../ui.js";
+import { openSheet, closeSheet, toast, confirmDialog, placeSearchHTML, bindPlaceSearch, announce, tipHTML } from "../ui.js";
 import { invitationUrl } from "../invitation.js";
 import { publicLabel, startName, fuzz } from "../place-names.js";
 import { googlePlacesSearch } from "../google-maps.js";
@@ -164,11 +164,13 @@ export async function openTable(id, { onClose } = {}) {
       else if (ended) act.push(`<div class="notice">🌿 ${esc(t("td.over"))}</div>`);
       else {
         if (tb.pending_count > 0) act.push(`<div class="notice warn">${esc(t("td.pendingNotice", { n: tb.pending_count }))}</div>`);
+        act.push(tipHTML(tb.is_private ? "friendsHost" : "host", `💡 ${esc(t(tb.is_private ? "tip.friendsHost" : "tip.host"))}`));
       }
     } else if (me === "joined") {
       act.push(`<div class="notice">${ended ? `🌿 ${esc(t("td.over"))}` : `✅ ${esc(t("td.youreIn"))}`}</div>`);
     } else if (me === "requested") {
       act.push(`<div class="notice warn">⏳ ${esc(t("td.requestSent"))}</div>`);
+      act.push(tipHTML("requested", `💡 ${esc(t("tip.requested"))}`));
     } else if (me === "declined") {
       act.push(`<div class="notice bad">${esc(t("td.declined"))}</div>`);
     } else if (me === "removed") {
