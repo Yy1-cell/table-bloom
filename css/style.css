@@ -900,3 +900,8 @@ body:has(#nl-badge-frame) #toasts { bottom: calc(var(--nav-h) + 72px + env(safe-
 .map-trow-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-trow-t small { color: #7a6f61; font-size: 13px; }
 .map-trow .wl-arrow { width: 30px; height: 30px; border-radius: 50%; background: #fbf1e5; color: #b7652f; display: grid; place-items: center; font-size: 15px; }
+.td-who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.td-more { margin: 4px 0 12px; border: 1px solid #efe4d4; border-radius: 16px; padding: 10px 14px; background: #fff; }
+.td-more > summary { cursor: pointer; font-weight: 700; color: #6b5d4b; }
+.td-more .facts { margin-top: 10px; }
+.sheet-detail .facts li b { font-weight: 700; }

@@ -48,12 +48,12 @@ export async function render(root) {
       <fieldset class="pf-faces"><legend class="sr-only">${esc(t("pf.avatar"))}</legend><div class="face-grid">
         ${faces.map((a) => `<label><input type="radio" name="av" value="${a}" ${draft.avatar === a ? "checked" : ""}><span>${a}</span></label>`).join("")}
       </div></fieldset>
-      ${onboarding ? `<details class="profile-diet pf-diet"><summary>🥜 ${esc(t("pf.dietChip"))}</summary>` : ""}
+      <details class="profile-diet pf-diet"><summary>🥜 ${esc(onboarding ? t("pf.dietChip") : t("pf2.diet", { n: (me.dietary_tags || []).length }))}</summary>
       <fieldset style="margin:0"><legend>${esc(t("diet.title"))}</legend><p class="hint" style="margin-top:0">${esc(t("diet.profileHint"))}</p>
         ${fixedPickerHTML(me.dietary_tags || [])}
         <div class="field" style="margin:10px 0 0"><label for="pf-diet">${esc(t("diet.profileNote"))}</label>
           <input id="pf-diet" type="text" maxlength="200" value="${esc(me.dietary_notes || "")}" placeholder="${esc(t("diet.profileNotePh"))}"></div></fieldset>
-      ${onboarding ? "</details>" : ""}
+      </details>
       <button type="submit" class="btn primary block a2-btn">${esc(onboarding ? t("pf.start") : t("common.save"))}</button>
     </form>
 

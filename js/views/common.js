@@ -171,7 +171,7 @@ export function tableCardHTML(tb, { showMatch = hasRanks(), reason = "" } = {}) 
     tb.pending_count > 0 ? `<span class="badge warn">${esc(t("card.pending", { n: tb.pending_count }))}</span>` : "",
   ].join("");
   const extra = Math.max(0, Math.min(tb.seats_taken - 1, 3));
-  const right = tb.community ? communityTag(tb) : showMatch ? `<span class="tc-match" title="${esc(t("card.matchHint"))}">${match}% ${esc(t("card.match"))}</span>` : "";
+  const right = tb.community ? communityTag(tb) : showMatch && state.diningProfile?.n ? `<span class="tc-match" title="${esc(t("card.matchHint"))}">${match}% ${esc(t("card.match"))}</span>` : "";
   return `
   <button type="button" class="tcard tcard2" data-id="${esc(tb.id)}" aria-label="${esc(tableTitle(tb))}">
     <div class="tc-row">

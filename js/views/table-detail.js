@@ -139,18 +139,25 @@ export async function openTable(id, { onClose } = {}) {
         <div><strong>${esc(t("card.hostedBy", { name: personName(tb.host?.display_name) }))}</strong>
         ${tb.host?.languages_spoken?.length ? `<div class="muted" style="font-size:14px">${esc(tb.host.languages_spoken.map((l) => t("lang." + l)).join(" · "))}</div>` : ""}</div></div>
       <ul class="facts">
-        <li><span class="k" aria-hidden="true">🕖</span><span>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}${isHost && live && !started && !editingTime ? ` <button type="button" class="btn sm ghost" data-act="edit-time">✏️ ${esc(t("td.editTime"))}</button>` : ""}
+        <li><span class="k" aria-hidden="true">🗓️</span><span><b>${esc(fmtDateLong(tb.starts_at))} · ${esc(timeStr)}</b>${isHost && live && !started && !editingTime ? ` <button type="button" class="btn sm ghost" data-act="edit-time">✏️ ${esc(t("td.editTime"))}</button>` : ""}
           ${changedLine()}</span></li>
         ${editingTime ? `<li class="edit-time"><span class="k" aria-hidden="true">✏️</span><span class="stack" style="flex:1">${editTimeHTML()}</span></li>` : ""}
-        ${c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : tb.is_private && cravingVotesAny() ? `<li><span class="k" aria-hidden="true">🍽️</span><span>${esc(cravingSummary())}</span></li>` : ""}
-        ${tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : ""}
-        ${tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</span></li>` : ""}
-        <li><span class="k" aria-hidden="true">👥</span><span>${seatsHTML(tb.seats_taken, tb.capacity)}${esc(t("td.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></li>
+        ${(!tb.is_private || isMember) && (tb.venue || tb.area_label) ? `<li><span class="k" aria-hidden="true">📍</span><span><b>${esc(placeText(tb))}</b>${tb.venue?.address ? `<br><small class="muted">${esc(tb.venue.address)}</small>` : ""} <button type="button" class="btn sm ghost" data-act="to-place">${esc(t("td2.route"))}</button></span></li>` : ""}
+        <li><span class="k" aria-hidden="true">👥</span><span class="td-who">
+          <span class="tc-avs">${guestsJoined.slice(0, 5).map((m) => `<span class="tc-av" title="${esc(personName(m.display_name))}">${esc(m.avatar_emoji || "🍽️")}</span>`).join("")}${guestsJoined.length > 5 ? `<span class="tc-av more">+${guestsJoined.length - 5}</span>` : ""}</span>
+          <span>${esc(t("td2.seats", { n: tb.seats_taken, cap: tb.capacity }))} · ${esc(t("aud." + tb.audience))}</span></span></li>
         ${isHost && live && !ended ? `<li class="seat-edit"><span class="k" aria-hidden="true">➕</span><span class="seat-edit-row"><strong>${esc(t("td.seatsEdit"))}</strong>
           <span class="stepper" role="group" aria-label="${esc(t("td.seatsEdit"))}"><button type="button" data-act="cap" data-d="-1" aria-label="${esc(t("td.seatsLess"))}" ${tb.capacity <= Math.max(tb.is_private ? 2 : 3, tb.seats_taken) ? "disabled" : ""}>−</button><output aria-live="polite">${tb.capacity}</output><button type="button" data-act="cap" data-d="1" aria-label="${esc(t("td.seatsMore"))}" ${tb.capacity >= 12 ? "disabled" : ""}>＋</button></span></span></li>` : ""}
       </ul>
-      ${tb.note ? `<p>${esc(tb.note)}</p>` : ""}
-      ${tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : ""}
+      ${(() => {
+        const rows = [
+          c ? `<li><span class="k" aria-hidden="true">${esc(c.emoji)}</span><span>${esc(cn)}</span></li>` : tb.is_private && cravingVotesAny() ? `<li><span class="k" aria-hidden="true">🍽️</span><span>${esc(cravingSummary())}</span></li>` : "",
+          tb.formats?.length || tb.venue_type ? `<li><span class="k" aria-hidden="true">🍴</span><span class="tags" style="margin:0">${menuTagsHTML(tb)}</span></li>` : "",
+          tb.budget_cents != null ? `<li><span class="k" aria-hidden="true">💵</span><span>${esc(t("card.perPerson", { price: fmtMoney(tb.budget_cents, tb.currency) }))}</span></li>` : "",
+        ].join("");
+        const tags = tb.tags?.length || tb.occasion ? `<div class="tags">${occasionTag(tb)}${(tb.tags || []).map((g) => `<span class="tag">${esc(t("tag." + g))}</span>`).join("")}</div>` : "";
+        return rows || tb.note || tags ? `<details class="td-more"><summary>${esc(t("td2.more"))}</summary>${rows ? `<ul class="facts">${rows}</ul>` : ""}${tb.note ? `<p>${esc(tb.note)}</p>` : ""}${tags}</details>` : "";
+      })()}
       ${(() => {
         const cm = !tb.is_private && communityOf(tb.community);
         return cm ? `<div class="notice com-note com-${cm.slug}"><span aria-hidden="true">${cm.emoji}</span> <strong>${esc(t("com." + cm.slug))}</strong><br><span>${esc(t("comFor." + cm.slug))}</span></div>` : "";
@@ -853,6 +860,9 @@ export async function openTable(id, { onClose } = {}) {
         downloadText("table-and-bloom.ics", buildICS({ id: tb.id, title: tableTitle(tb), startsAt: tb.starts_at, durationMin: 90, location: loc, description: tb.note || "Table & Bloom" }));
         break;
       }
+      case "to-place":
+        qs(".place-block", sheet.body)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        break;
       case "share": {
         const url = invitationUrl(tb, tableTitle(tb), { demo: api.mode === "demo" });
         const panel = qs("#share-link", sheet.body);
