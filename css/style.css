@@ -879,3 +879,7 @@ body:has(#nl-badge-frame) #toasts { bottom: calc(var(--nav-h) + 72px + env(safe-
 .disc-loc .loc-link::after { content: " ·"; }
 .disc-loc { display: flex !important; flex-wrap: nowrap !important; align-items: center; } .disc-loc > * { width: auto !important; }
 .disc-loc #loc-btn { flex: 0 1 auto !important; }
+.disc-loc #loc-btn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
+.disc-loc select.loc-radius { white-space: nowrap; }
+.td-hero { margin: 0 0 16px; border-radius: 24px; }
+.disc-head-l { min-width: 0; flex: 1; } .disc-loc { overflow: hidden; } .disc-loc #loc-btn { max-width: none; min-width: 0; }

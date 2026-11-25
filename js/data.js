@@ -42,7 +42,7 @@ export const CUISINES = [
 
 // How we eat (many can apply to one table). Names live in strings.js as fm.<slug>.
 export const FORMATS = [
-  { slug: "hotpot", emoji: "🥘" },
+  { slug: "hotpot", emoji: "🍲" },
   { slug: "bbq", emoji: "🍖" },
   { slug: "dimsum", emoji: "🥟" },
   { slug: "noodles", emoji: "🍜" },
