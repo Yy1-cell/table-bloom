@@ -1,0 +1,13 @@
+{
+  "name": "table-bloom",
+  "private": true,
+  "type": "module",
+  "description": "Tests only. The site itself has no build step (Netlify publishes the folder as is).",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:e2e": "python3 tests/e2e/smoke.py"
+  },
+  "devDependencies": {
+    "fast-check": "^4.3.0"
+  }
+}

@@ -6,7 +6,9 @@ import { LANDMARKS } from "./geo.js";
 import { haversineKm } from "./util.js";
 
 const MY_LOCATION = ["my location", "我的位置", "current location", "当前位置", "your location", "你的位置"];
-const looksPrivate = (name) => !name || /^\s*\d/.test(name) || MY_LOCATION.includes(String(name).trim().toLowerCase());
+// A house number anywhere ("12 Elm St", "Unit 5, 22 Elm Street", "Home: 1 King Rd") means it could be someone's home.
+const HOUSE_NO = /(^|[\s,:#-])\d+[a-z]?\s+[A-Za-z]/i;
+const looksPrivate = (name) => !name || /^\s*\d/.test(name) || HOUSE_NO.test(String(name)) || MY_LOCATION.includes(String(name).trim().toLowerCase());
 const landmarkByName = (name) => LANDMARKS.find((l) => l.name === name || l.zh === name);
 function nearestLandmark(pt, maxKm = 1.2) {
   if (!pt || !Number.isFinite(+pt.lat) || !Number.isFinite(+pt.lng)) return null;
@@ -17,7 +19,7 @@ function nearestLandmark(pt, maxKm = 1.2) {
   }
   return best?.l || null;
 }
-const streetOf = (p) => String(p.address || p.name || "").split(",")[0].replace(/^\s*\d+[\w-]*\s+/, "").trim();
+const streetOf = (p) => String(p.address || p.name || "").split(",")[0].replace(/^.*?\d+[\w-]*\s+/, "").trim();
 
 /** The label to store for a starting point {name, address, lat, lng}. */
 export function publicLabel(p) {

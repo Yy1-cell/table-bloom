@@ -5,3 +5,20 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Security headers for every page.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Don't let the browser guess file types (stops some script-injection tricks).
+    X-Content-Type-Options = "nosniff"
+    # Other sites can't put this app inside a frame (stops click-jacking).
+    X-Frame-Options = "DENY"
+    # Only send our domain, not full URLs (which can contain table ids), to other sites.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # The app may ask for location (only when the user taps). No camera, mic, payment, USB…
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()"
+    # Content Security Policy, in REPORT-ONLY mode first: the browser logs anything that
+    # breaks these rules in the console but doesn't block it yet. Once a week of normal use
+    # shows no reports, rename this header to "Content-Security-Policy" to enforce it.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://esm.sh https://maps.googleapis.com https://maps.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh https://*.googleapis.com https://maps.gstatic.com https://photon.komoot.io https://overpass.private.coffee; frame-src https://www.google.com https://maps.google.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
